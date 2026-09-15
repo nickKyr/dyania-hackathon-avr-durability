@@ -1,1 +1,37 @@
+# --- Patient / hackathon data: NEVER commit ---
 *.xlsx
+*.xls
+*.xlsm
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.pkl
+*.pickle
+*.sav
+*.dta
+*.sas7bdat
+data/raw/
+data/processed/
+data/private/
+~$*
+
+# Model artifacts trained on real data
+*.joblib
+*.pt
+*.h5
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Python / Jupyter
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# OS
+.DS_Store
