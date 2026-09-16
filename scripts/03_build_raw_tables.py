@@ -3,6 +3,8 @@ import pathlib
 import re
 import pandas as pd
 
+from _inputs import require, require_extracts
+
 DATA = pathlib.Path("data")
 OUT_DIR = DATA / "raw_tables"
 OUT_XLSX = DATA / "raw_tables.xlsx"
@@ -117,6 +119,11 @@ def load_meds():
 
 
 def main():
+    require_extracts(DATA)
+    require(
+        DATA / "structured_extraction.xlsx",
+        hint="Run scripts/01_extract_rules.py and scripts/02_merge_llm_extraction.py first.",
+    )
     OUT_DIR.mkdir(exist_ok=True)
     notes, dates_rgx = load_notes_meta()
     llm = load_llm()

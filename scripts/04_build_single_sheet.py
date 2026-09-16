@@ -2,6 +2,8 @@ import pathlib
 import pandas as pd
 from openpyxl.styles import Alignment, Font, PatternFill
 
+from _inputs import require
+
 RAW = pathlib.Path("data/raw_tables")
 OUT = pathlib.Path("data/all_data_one_sheet.xlsx")
 COLS = ["patient", "year", "source", "note_id", "note_type", "category", "item", "value", "unit", "detail", "evidence", "method", "duplicate_row"]
@@ -83,6 +85,7 @@ def rows_from_meds(R):
 
 
 def main():
+    require(RAW, hint="Run scripts/03_build_raw_tables.py first.")
     R = load()
     rows = rows_from_notes(R) + rows_from_labs(R) + rows_from_meds(R)
     df = pd.DataFrame(rows)[COLS]

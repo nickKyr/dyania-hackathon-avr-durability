@@ -2,6 +2,8 @@ import re
 import json
 import pandas as pd
 
+from _inputs import require_extracts
+
 DATA = "data"
 OUT = "data/structured_extraction.xlsx"
 SNIP = 140
@@ -387,6 +389,7 @@ def svd_label(row):
 
 
 def main():
+    require_extracts()
     notes = pd.read_excel(f"{DATA}/notes_deidentified.xlsx")
     labs = pd.read_excel(f"{DATA}/labs_deidentified.xlsx")
     meds = pd.read_excel(f"{DATA}/medications_deidentified.xlsx")
