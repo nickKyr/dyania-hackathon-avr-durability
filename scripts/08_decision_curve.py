@@ -51,6 +51,7 @@ from _provenance import git_revision  # noqa: E402
 
 OUT_MD = ROOT / "model" / "decision_curve.md"
 OUT_CSV = ROOT / "data" / "processed" / "decision_curve.csv"
+OUT_CAPACITY_CSV = ROOT / "data" / "processed" / "decision_curve_capacity.csv"
 
 SEEDS = (20260917, 1, 2, 3, 4)
 N_PATIENTS = 3000
@@ -62,6 +63,63 @@ below so the decision this analysis exists to inform can be read off the table
 directly rather than interpolated."""
 
 THRESHOLDS = tuple(sorted(set(np.round(np.arange(0.02, 0.51, 0.02), 2)) | set(TIERS)))
+
+TIER_INTERVAL_YEARS = {"moderate": 2.0, "high": 1.0}
+"""Echo interval attached to each tier by `approach.md`. The low tier keeps the
+guideline calendar, whatever that calendar is, so it has no interval of its own."""
+
+
+def calendar_rate(landmark_years) -> np.ndarray:
+    """Examinations per patient-year under the ACC/AHA 2020 calendar.
+
+    The recommendation is a baseline study 1 to 3 months after implant, then
+    examinations at 5 and 10 years, then annually. The baseline study is outside
+    the landmark grid and is the same under every policy, so it is not counted
+    here: what this returns is the rate of *surveillance* examinations in the year
+    following each landmark.
+    """
+    s = np.asarray(landmark_years, dtype=float)
+    due = ((s < 5) & (s + 1 >= 5)) | ((s < 10) & (s + 1 >= 10))
+    return np.where(s >= 10, 1.0, np.where(due, 1.0, 0.0))
+
+
+def capacity(predicted: pd.Series, meta: pd.DataFrame, horizon: int, seed: int, model: str) -> pd.DataFrame:
+    """What each policy costs in examinations, and where the deteriorations sit.
+
+    The unit is the **patient-year at risk**, which is what a landmark row is: one
+    decision, taken once, about when to image this patient next. Rates are reported
+    per 1,000 patient-years so they can be read as a clinic's annual workload.
+
+    Three policies are costed. Two need no model — the ACC/AHA calendar and the
+    ESC/EACTS recommendation of an annual study for every bioprosthesis — and the
+    third is the tiered schedule in `approach.md`: the guideline calendar below the
+    low threshold, every two years in the middle tier, every year above the high
+    threshold. The deterioration share per tier is estimated by Aalen-Johansen
+    inside each tier, so a patient who dies first is not counted as a case the
+    policy would have caught.
+    """
+    low, high = TIERS
+    tier = pd.cut(predicted, [-np.inf, low, high, np.inf], labels=["low", "moderate", "high"])
+    guideline = calendar_rate(meta.landmark_years)
+    risk_guided = np.where(tier.eq("high"), 1 / TIER_INTERVAL_YEARS["high"],
+                           np.where(tier.eq("moderate"), 1 / TIER_INTERVAL_YEARS["moderate"], guideline))
+
+    rows = []
+    for policy, rate in [("ACC/AHA calendar", guideline),
+                         ("ESC/EACTS annual", np.ones(len(meta))),
+                         ("risk-guided tiers", risk_guided)]:
+        rows.append({"seed": seed, "model": model, "row": "policy", "name": policy,
+                     "echos_per_1000_patient_years": float(np.mean(rate)) * 1000,
+                     "share": np.nan, "incidence": np.nan})
+
+    for name in ["low", "moderate", "high"]:
+        mask = tier.eq(name).to_numpy()
+        share = float(mask.mean())
+        incidence = ml.aalen_johansen(meta.time_to_end[mask], meta.status[mask], horizon) if mask.any() else np.nan
+        rows.append({"seed": seed, "model": model, "row": "tier", "name": name,
+                     "echos_per_1000_patient_years": float(np.mean(risk_guided[mask])) * 1000 if mask.any() else np.nan,
+                     "share": share, "incidence": incidence})
+    return pd.DataFrame(rows)
 
 
 def net_benefit(predicted: pd.Series, time_to_end: pd.Series, status: pd.Series,
@@ -84,7 +142,7 @@ def net_benefit(predicted: pd.Series, time_to_end: pd.Series, status: pd.Series,
     return true_positives - false_positives * threshold / (1 - threshold)
 
 
-def evaluate(seed: int, n_patients: int) -> pd.DataFrame:
+def evaluate(seed: int, n_patients: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     tables = landmarks.from_preprocessing(
         landmarks.synthetic_to_preprocessing(generate("ideal", seed=seed, n_patients=n_patients))
     )
@@ -102,9 +160,10 @@ def evaluate(seed: int, n_patients: int) -> pd.DataFrame:
     time_to_end, status = meta.time_to_end[test], meta.status[test]
     overall = ml.aalen_johansen(time_to_end, status, HORIZON)
 
-    rows = []
+    rows, capacity_frames = [], []
     for name, model in models.items():
         predicted = model.fit(X[train], meta[train]).predict_cif(X[test])[f"svd_{HORIZON}y"]
+        capacity_frames.append(capacity(predicted, meta[test], HORIZON, seed, name))
         for threshold in THRESHOLDS:
             rows.append({
                 "seed": seed, "model": name, "threshold": threshold,
@@ -119,10 +178,71 @@ def evaluate(seed: int, n_patients: int) -> pd.DataFrame:
         })
         rows.append({"seed": seed, "model": "scan no one", "threshold": threshold,
                      "net_benefit": 0.0, "share_flagged": 0.0})
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), pd.concat(capacity_frames, ignore_index=True)
 
 
-def render(curve: pd.DataFrame, minutes: float, n_patients: int) -> str:
+def render_capacity(cap: pd.DataFrame, model: str) -> str:
+    """The workload each policy implies, and where the deteriorations sit."""
+    sub = cap[cap.model.eq(model)]
+    policies = sub[sub.row.eq("policy")].groupby("name").echos_per_1000_patient_years.mean()
+    tiers = sub[sub.row.eq("tier")].groupby("name")[["share", "incidence", "echos_per_1000_patient_years"]].mean()
+    tiers = tiers.reindex(["low", "moderate", "high"])
+    events = tiers.share * tiers.incidence
+    event_share = events / events.sum()
+
+    policy_lines = ["| policy | examinations per 1,000 patient-years | against the ACC/AHA calendar |", "|---|---|---|"]
+    base = policies["ACC/AHA calendar"]
+    for name in ["ACC/AHA calendar", "ESC/EACTS annual", "risk-guided tiers"]:
+        delta = policies[name] - base
+        against = "the comparator" if name == "ACC/AHA calendar" else f"{delta:+,.0f}"
+        policy_lines.append(f"| {name} | {policies[name]:,.0f} | {against} |")
+
+    tier_lines = ["| tier | 5-year predicted risk | share of patient-years | 5-year incidence in the tier | share of all deteriorations | examinations per 1,000 patient-years |",
+                  "|---|---|---|---|---|---|"]
+    bounds = {"low": f"below {TIERS[0]:.0%}", "moderate": f"{TIERS[0]:.0%} to {TIERS[1]:.0%}", "high": f"{TIERS[1]:.0%} or more"}
+    for name in ["low", "moderate", "high"]:
+        row = tiers.loc[name]
+        tier_lines.append(f"| {name} | {bounds[name]} | {row.share:.0%} | {row.incidence:.1%} | "
+                          f"{event_share[name]:.0%} | {row.echos_per_1000_patient_years:,.0f} |")
+
+    concentration = (
+        f"The top tier is {tiers.loc['high', 'share']:.0%} of patient-years and contains "
+        f"{event_share['high']:.0%} of the deteriorations that occur within five years; the low tier is "
+        f"{tiers.loc['low', 'share']:.0%} of patient-years and contains {event_share['low']:.0%} of them."
+    )
+    phrase = lambda d: f"{abs(d):,.0f} fewer" if d < 0 else f"{d:,.0f} more"
+    versus_esc = phrase(policies["risk-guided tiers"] - policies["ESC/EACTS annual"])
+    versus_acc = phrase(policies["risk-guided tiers"] - policies["ACC/AHA calendar"])
+
+    return f"""## What it costs: examinations per 1,000 patient-years
+
+A net benefit is a rate, and a clinic schedules examinations, not rates. This section converts the
+same policies into the unit a service line is planned in. One **patient-year at risk** is one
+landmark row: one decision, taken once, about when to image this patient next. The tier a
+patient-year falls into is assigned by the **{model}** model.
+
+{chr(10).join(policy_lines)}
+
+Against the ACC/AHA calendar the tiered schedule is **{versus_acc}** examinations per 1,000
+patient-years; against the ESC/EACTS recommendation of an annual study for every bioprosthesis it
+is **{versus_esc}**. Which of the two is the honest comparator depends on what a given clinic does
+today, so both are shown and neither is presented as *the* saving.
+
+{chr(10).join(tier_lines)}
+
+{concentration} That concentration is the entire argument for a risk-guided schedule: the same
+examinations, pointed at the patient-years where the deteriorations actually are.
+
+Two caveats specific to this table. It costs the *scheduled* examinations only — the ones a
+symptom or a murmur triggers happen under every policy and are not counted, so the difference
+between policies is understated in a real clinic. And the risk that assigns a patient-year to a
+tier is the model's absolute risk, which these models over-predict; a recalibrated model will move
+patient-years down the tiers, which lowers the workload of the tiered schedule and strengthens the
+comparison rather than weakening it.
+"""
+
+
+def render(curve: pd.DataFrame, cap: pd.DataFrame, minutes: float, n_patients: int) -> str:
     mean = curve.groupby(["model", "threshold"]).net_benefit.mean().unstack("model")
     flagged = curve.groupby(["model", "threshold"]).share_flagged.mean().unstack("model")
     models = [c for c in mean.columns if c not in ("scan everyone", "scan no one")]
@@ -136,6 +256,7 @@ def render(curve: pd.DataFrame, minutes: float, n_patients: int) -> str:
         lines.append(f"| {threshold:.0%} | {cells} | {winner} | {flagged.loc[threshold, winner]:.0%} |")
     table = "\n".join(lines)
 
+    capacity_section = render_capacity(cap, "gradient boosting")
     useful = mean.index[(mean[models].max(axis=1) > mean["scan everyone"]) &
                         (mean[models].max(axis=1) > 0)]
     if len(useful):
@@ -204,6 +325,7 @@ does settle is the shape of the answer: there is a bounded window of thresholds 
 risk-guided schedule beats both scanning everyone and changing nothing, and a tier boundary chosen
 outside that window is worse than the policy it replaces, however good the model's AUC.
 
+{capacity_section}
 ## Caveats
 
 Run on the `ideal` rung of the degradation ladder, so it describes a clinic with dated serial
@@ -225,16 +347,20 @@ def main(argv: list[str] | None = None) -> int:
     seeds = SEEDS[:2] if args.quick else SEEDS
     n_patients = 800 if args.quick else N_PATIENTS
     started = time.time()
-    frames = []
+    frames, capacity_frames = [], []
     for seed in seeds:
         t0 = time.time()
-        frames.append(evaluate(seed, n_patients))
+        curve_frame, capacity_frame = evaluate(seed, n_patients)
+        frames.append(curve_frame)
+        capacity_frames.append(capacity_frame)
         print(f"seed {seed}: {time.time() - t0:.0f}s", flush=True)
     curve = pd.concat(frames, ignore_index=True)
+    cap = pd.concat(capacity_frames, ignore_index=True)
 
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     curve.to_csv(OUT_CSV, index=False)
-    args.out.write_text(render(curve, (time.time() - started) / 60, n_patients))
+    cap.to_csv(OUT_CAPACITY_CSV, index=False)
+    args.out.write_text(render(curve, cap, (time.time() - started) / 60, n_patients))
     where = args.out.relative_to(ROOT) if args.out.is_relative_to(ROOT) else args.out
     print(f"written to {where}")
     return 0

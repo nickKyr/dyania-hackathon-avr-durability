@@ -171,8 +171,10 @@ the guideline schedule, an echo every two years and an echo every year.
 
 The decision curve in [`decision_curve.md`](decision_curve.md) supplies what was missing on the
 analysis side: the range of thresholds over which acting on the model beats both scanning everyone
-and changing nothing, and what each candidate boundary buys in deteriorations caught per hundred
-patients. Two things are still outstanding and neither is a computation — clinical agreement on
+and changing nothing, what each candidate boundary buys in deteriorations caught per hundred
+patients, and what the tiered schedule costs in examinations per 1,000 patient-years against each
+of the two guideline calendars — the number a service line is actually planned in, and the one
+figure a claim about reallocating surveillance cannot be made without. Two things are still outstanding and neither is a computation — clinical agreement on
 the action attached to each tier, and a recalibrated model, since the curve is read off absolute
 risk and these models over-predict it by about half.
 

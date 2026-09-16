@@ -184,7 +184,9 @@ top three contributing features, and a recommended next echo interval.
 
 1. calibration plus cumulative incidence against Aalen–Johansen;
 2. the decision curve, or the reallocation of surveillance intervals — how many echoes move
-   earlier and how many move later at a fixed capacity.
+   earlier and how many move later at a fixed capacity. **Done**, as a table rather than a figure:
+   [`decision_curve.md`](decision_curve.md) costs each policy in examinations per 1,000
+   patient-years and reports what share of the deteriorations sits in each tier.
 
 ### The degradation ladder — a joint deliverable, and the one original result in the submission
 

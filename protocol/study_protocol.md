@@ -251,9 +251,15 @@ to represent it:
    so this is both the diagnostic floor and the honest representation of practice.
 2. **A model using only the established published predictors**, fitted in the same framework.
 3. **The guideline calendar schedule**, as the operational comparator for any claim about
-   reallocating surveillance capacity.
+   reallocating surveillance capacity. Two calendars are costed rather than one, because they
+   differ by a factor of six: the ACC/AHA 2020 schedule (examinations at 5 and 10 years, annually
+   thereafter) and the ESC/EACTS recommendation of an annual study for every bioprosthesis. A
+   saving quoted against one of them is not a saving against the other, and the comparator has to
+   be the calendar the site actually follows.
 
-Which comparators are implemented is the model workstream's to report.
+Which comparators are implemented is the model workstream's to report; the workload each policy
+implies, in examinations per 1,000 patient-years, is in
+[`../model/decision_curve.md`](../model/decision_curve.md).
 
 ---
 
