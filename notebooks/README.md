@@ -21,6 +21,17 @@ notebooks/
 
 You can combine these into a single notebook if preferred — the split is just for readability.
 
+## `synthetic/` — the synthetic cohort generator
+
+`synthetic/` is an importable package, not a notebook. It produces the literature-calibrated
+cohort the modelling pipeline runs on, and the degradation ladder that measures what each data
+defect costs. See [`../data/synthetic/README.md`](../data/synthetic/README.md) for usage and
+[`../data/data_plan.md`](../data/data_plan.md) section 5 for the method and its limitations.
+
+```bash
+python -m synthetic --preset ideal
+```
+
 ## Environment
 
 Document your dependencies here so the panel can reproduce your results:

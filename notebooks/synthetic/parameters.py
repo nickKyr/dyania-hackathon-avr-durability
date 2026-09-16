@@ -1,0 +1,336 @@
+"""Parameters of the generative model, each carrying its published source.
+
+Every number a synthetic cohort depends on lives here rather than inside the
+generator, for two reasons. A reviewer can audit the entire evidence base of the
+cohort by reading one file. And the degradation ladder can vary a parameter set
+without touching generator code, which keeps its rungs genuinely comparable.
+
+Where a value is an assumption rather than a published estimate it is marked
+ASSUMPTION, with the reasoning. Distinguishing the two is the difference between
+a calibrated cohort and an invented one.
+
+A note on what calibration means here. Two parameters -- the Weibull scales of
+the deterioration hazard, one per approach -- are **solved numerically** so that
+the cohort reproduces the NOTION 10-year moderate-or-severe deterioration
+figures. Every other anchor in :data:`ANCHORS` is then an **out-of-sample check**:
+it was never targeted, and if the cohort reproduces it, that is evidence the
+generating process is shaped correctly rather than merely fitted at one point.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
+from typing import Final
+
+__all__ = [
+    "Anchor",
+    "ANCHORS",
+    "CohortParameters",
+    "HazardParameters",
+    "EchoParameters",
+    "VisitParameters",
+    "Parameters",
+    "DEFAULT",
+]
+
+
+@dataclass(frozen=True, slots=True)
+class Anchor:
+    """A published quantity the synthetic cohort is compared against."""
+
+    quantity: str
+    subgroup: str
+    horizon_years: float
+    value: float
+    """Cumulative incidence as a proportion."""
+    tolerance: float
+    """Half-width of the band inside which the cohort is called calibrated."""
+    source: str
+    targeted: bool = False
+    """True if a parameter was solved to match this anchor; False makes it an
+    out-of-sample check."""
+
+
+ANCHORS: Final[tuple[Anchor, ...]] = (
+    # --- Targeted: the two Weibull scales are solved against these two rows. ---
+    Anchor(
+        "moderate_or_severe_svd", "SAVR", 10.0, 0.208, 0.05,
+        "NOTION, 10-year echocardiographic follow-up of the randomised trial", targeted=True,
+    ),
+    Anchor(
+        "moderate_or_severe_svd", "TAVR", 10.0, 0.154, 0.05,
+        "NOTION, 10-year echocardiographic follow-up of the randomised trial", targeted=True,
+    ),
+    # --- Out-of-sample: never targeted; reproduced or not by the same process. ---
+    Anchor(
+        "severe_svd", "SAVR", 10.0, 0.100, 0.05,
+        "NOTION, severe structural valve deterioration at 10 years",
+    ),
+    Anchor(
+        "severe_svd", "TAVR", 10.0, 0.015, 0.04,
+        "NOTION, severe structural valve deterioration at 10 years",
+    ),
+    Anchor(
+        "bioprosthetic_valve_failure", "all", 5.0, 0.036, 0.03,
+        "PARTNER 3, bioprosthetic valve failure at 5 years (3.3-3.8% across arms)",
+    ),
+    Anchor(
+        "bioprosthetic_valve_failure", "all", 7.0, 0.072, 0.04,
+        "PARTNER 3, bioprosthetic valve failure at 7 years (6.9-7.5% across arms)",
+    ),
+    Anchor(
+        "severe_svd", "TAVR", 7.8, 0.059, 0.05,
+        "UK TAVI registry, severe structural valve deterioration at median 7.8 years",
+    ),
+)
+"""Published anchors the cohort is checked against.
+
+The two NOTION moderate-or-severe rows are targeted by the scale solver. The rest
+are checks. Tolerances are wider than a trial's confidence interval on purpose:
+the synthetic cohort's age mix is deliberately *not* NOTION's, because a
+real-world cohort spans a far wider age range than a randomised trial of
+intermediate-risk patients. A cohort matching NOTION exactly would be a cohort
+that had been forced to.
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class CohortParameters:
+    """Composition of the cohort at implant."""
+
+    n_patients: int = 1800
+    """Protocol sample size: ~1,800 implants for ~190 events (Riley et al. 2019)."""
+
+    savr_fraction: float = 0.55
+    """ASSUMPTION. Contemporary mixed practice; the prototype extract's own split
+    was 57/43, which this is consistent with."""
+
+    # Age. TAVR recipients are substantially older than SAVR recipients; the gap
+    # is the single largest structural difference between the two populations and
+    # drives most of the apparent durability difference in observational series.
+    age_mean_savr: float = 68.0
+    age_sd_savr: float = 9.5
+    age_mean_tavr: float = 79.5
+    age_sd_tavr: float = 7.0
+    """ASSUMPTION, shaped to contemporary registry practice; the TAVR mean matches
+    the NOTION cohort age of about 79."""
+    age_min: float = 50.0
+    age_max: float = 95.0
+
+    female_fraction: float = 0.45
+    """ASSUMPTION, consistent with reported AVR series."""
+
+    bsa_mean_male: float = 1.98
+    bsa_sd_male: float = 0.18
+    bsa_mean_female: float = 1.72
+    bsa_sd_female: float = 0.16
+    """ASSUMPTION. Body surface area matters only through the indexed effective
+    orifice area, which is what patient-prosthesis mismatch is defined on."""
+
+    diabetes_prevalence: float = 0.30
+    ckd_prevalence: float = 0.20
+    smoking_prevalence: float = 0.15
+    bicuspid_prevalence_savr: float = 0.22
+    bicuspid_prevalence_tavr: float = 0.06
+    """ASSUMPTION. Bicuspid anatomy is commoner in the younger surgical population;
+    the prototype extract showed 16 bicuspid or unicuspid patients in 100."""
+
+    implant_year_first: int = 2010
+    implant_year_last: int = 2024
+
+    savr_models: tuple[tuple[str, float], ...] = (
+        ("Trifecta", 0.34), ("Perimount", 0.30), ("Epic", 0.14),
+        ("Magna", 0.12), ("Inspiris", 0.10),
+    )
+    tavr_models: tuple[tuple[str, float], ...] = (
+        ("Sapien 3", 0.72), ("Evolut", 0.28),
+    )
+    """Model mix follows the prototype extract, where Trifecta and Perimount
+    dominated the surgical valves and Sapien the transcatheter ones."""
+
+
+@dataclass(frozen=True, slots=True)
+class HazardParameters:
+    """Latent deterioration and competing-death hazards.
+
+    Deterioration follows a Weibull hazard with shape above one, so that the risk
+    of deterioration *accelerates* with time in the valve. This is the defining
+    feature of structural valve deterioration and the reason a constant-hazard
+    model is the wrong choice: leaflet calcification is cumulative.
+    """
+
+    svd_shape: float = 1.3
+    """SELECTED by grid search over the published anchors. Above 1, so the hazard of
+    *onset* accelerates with time in the valve, but only mildly. The steep late
+    take-off that durability curves show arises mostly downstream of onset: a valve
+    is recorded as deteriorated only once its gradient has risen far enough to cross
+    the VARC-3 threshold, and that crossing is governed by the progression model in
+    :class:`EchoParameters`, not by this shape."""
+
+    svd_scale_savr_years: float = 35.109375
+    svd_scale_tavr_years: float = 16.546875
+    """SOLVED by bisection, not assumed: the values reproducing the two targeted
+    NOTION anchors on a 30,000-patient cohort at seed 20260917. Re-derive with
+    :func:`synthetic.calibration.solve_scales` if any upstream parameter changes.
+
+    The scales differ far more than the durability of the two valve types does. That
+    is expected and is not a claim about devices: a scale describes the hazard of a
+    patient at the centring age of 75, and the two arms' real age distributions sit
+    on either side of it, so the covariate model absorbs most of the arm difference
+    before the scale is reached."""
+
+    # Hazard ratios for the deterioration hazard, applied log-linearly. Covariates
+    # are centred (see the *_centre fields) so that the scales above describe a
+    # patient at the centring point rather than an impossible patient at zero.
+    hr_age_per_year: float = 0.95
+    """Younger age at implant is the strongest published predictor of
+    deterioration: a younger patient's valve is exposed longer and to a more
+    active calcium metabolism.
+
+    The figure cited in the team's clinical reference is 0.91 per year. Applied
+    linearly across this cohort's age span of 50 to 95 that implies a 70-fold
+    difference in hazard between the youngest and oldest patient, which is not a
+    credible extrapolation of an estimate made near the middle of that range. The
+    milder 0.95 is used instead. A sensitivity analysis across 0.91, 0.93, 0.95 and
+    0.97 moved no calibration anchor by more than 0.8 percentage points, so nothing
+    in the calibration rests on this choice."""
+    hr_bsa_per_m2: float = 1.77
+    hr_ppm_moderate: float = 1.95
+    hr_ppm_severe: float = 2.60
+    """Patient-prosthesis mismatch, VARC-3 grades. The moderate hazard ratio is
+    the published figure; the severe value is an ASSUMPTION extrapolating it."""
+    hr_smoking: float = 2.28
+    hr_diabetes: float = 1.25
+    hr_ckd: float = 1.45
+    """Diabetes and chronic kidney disease accelerate leaflet calcification;
+    both hazard ratios are ASSUMPTIONS in the direction the literature reports."""
+
+    age_centre: float = 75.0
+    bsa_centre: float = 1.85
+
+    death_shape: float = 1.45
+    death_scale_years_at_centre: float = 11.5
+    hr_death_per_year_age: float = 1.085
+    hr_death_ckd: float = 1.70
+    hr_death_diabetes: float = 1.30
+    """Competing mortality, calibrated so that a cohort of NOTION's age reaches
+    roughly 60-65% all-cause death at 10 years. Death is a COMPETING RISK, not
+    censoring: a patient who dies can never deteriorate, and treating death as
+    censoring would overstate deterioration."""
+
+
+@dataclass(frozen=True, slots=True)
+class EchoParameters:
+    """Haemodynamics and their trajectory.
+
+    The mean gradient of a patient without deterioration drifts gently upward;
+    after the latent onset of deterioration it accelerates. This two-phase
+    trajectory is precisely the structure the prototype extract cannot show --
+    only one patient in it has gradients in more than one year -- and it is what
+    makes a landmark model meaningful.
+    """
+
+    gradient_reference_at_eoa: float = 10.0
+    gradient_eoa_reference_cm2: float = 1.75
+    gradient_eoa_exponent: float = 1.7
+    """Gradient rises steeply as effective orifice area falls. The exponent sits
+    below the theoretical 2 because flow is not held constant across patients."""
+    gradient_lognormal_sd: float = 0.16
+
+    drift_mmhg_per_year: float = 0.25
+    drift_sd_mmhg_per_year: float = 0.15
+    """ASSUMPTION. Gentle pre-onset drift with a per-patient random slope."""
+
+    progression_mmhg_per_year_mean: float = 2.6
+    progression_lognormal_sd: float = 0.65
+    progression_quadratic_coefficient: float = 0.08
+    """ASSUMPTION. Curvature of the post-onset rise. Deterioration compounds --
+    a stiffer leaflet calcifies faster -- but the coefficient also governs how
+    quickly a moderately deteriorated valve becomes severe, and therefore the
+    ratio between the two stages that the literature reports."""
+    """ASSUMPTION. Post-onset acceleration, lognormal so that a minority of
+    patients deteriorate rapidly -- the clinically important tail."""
+
+    measurement_sd_mmhg: float = 1.6
+    """Inter-observer and beat-to-beat variability of the mean gradient. Present
+    because a surveillance model that ignores measurement error will declare
+    deterioration on noise, and the protocol has to confront that."""
+
+    peak_to_mean_low: float = 1.75
+    peak_to_mean_high: float = 2.25
+
+    dvi_reference: float = 0.45
+    dvi_sd: float = 0.05
+
+    lvef_mean: float = 58.0
+    lvef_sd: float = 7.0
+    lvef_decline_after_onset_per_year: float = 1.2
+
+    ar_progression_rate_per_year: float = 0.11
+    """ASSUMPTION. Yearly probability, after onset, of intraprosthetic
+    regurgitation worsening by one grade."""
+
+
+@dataclass(frozen=True, slots=True)
+class VisitParameters:
+    """The surveillance process, and how patients leave it.
+
+    Guideline echocardiographic surveillance of a bioprosthesis is sparse:
+    a reference study soon after implant, then a long gap, then annual imaging.
+    Sparsity is not a defect of the simulation -- it is the clinical reality the
+    protocol proposes to improve on.
+    """
+
+    reference_min_days: int = 30
+    reference_max_days: int = 90
+    """VARC-3 defines haemodynamic deterioration against a reference echo taken
+    30 days to 3 months after implant."""
+
+    routine_years: tuple[float, ...] = (1.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0)
+    """Guideline schedule: an early study, then imaging at five years and annually
+    thereafter."""
+    jitter_days: int = 60
+
+    symptom_echo_probability_per_year: float = 0.35
+    """Once deterioration has begun, symptoms bring patients in between scheduled
+    studies. This creates verification bias -- patients are imaged BECAUSE someone
+    was worried -- which the protocol must account for and which a simulation that
+    omitted it would hide."""
+
+    dropout_rate_per_year: float = 0.035
+    dropout_hr_per_year_age: float = 1.04
+    """Loss to follow-up, rising with age. Informative by construction: patients
+    who stop attending are not a random sample of those still at risk."""
+
+    horizon_years: float = 10.0
+    """Administrative censoring horizon."""
+
+    reintervention_probability: float = 0.55
+    reintervention_delay_days_mean: float = 150.0
+    """ASSUMPTION. Not every severely deteriorated valve is reoperated: some
+    patients are too frail, some decline. The delay is the interval between
+    detection and treatment."""
+
+
+@dataclass(frozen=True, slots=True)
+class Parameters:
+    """The complete parameter set of one cohort."""
+
+    cohort: CohortParameters = field(default_factory=CohortParameters)
+    hazard: HazardParameters = field(default_factory=HazardParameters)
+    echo: EchoParameters = field(default_factory=EchoParameters)
+    visit: VisitParameters = field(default_factory=VisitParameters)
+
+    def with_scales(self, savr_years: float, tavr_years: float) -> "Parameters":
+        """Return a copy with the deterioration scales replaced by solved values."""
+        return replace(
+            self,
+            hazard=replace(
+                self.hazard,
+                svd_scale_savr_years=savr_years,
+                svd_scale_tavr_years=tavr_years,
+            ),
+        )
+
+
+DEFAULT: Final[Parameters] = Parameters()
