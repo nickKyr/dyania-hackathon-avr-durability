@@ -70,35 +70,57 @@ class Anchor:
 
 
 ANCHORS: Final[tuple[Anchor, ...]] = (
-    # --- Targeted: the two Weibull scales are solved against these two rows. ---
+    # Every figure below was verified against the primary publication in September
+    # 2026, not taken from a secondary summary. NOTION estimated its rates with the
+    # Aalen-Johansen method under a competing risk of death, which is the estimator
+    # used here, so the comparison is like for like.
+
+    # --- Targeted: parameters were solved against these three rows. ---
     Anchor(
         "moderate_or_severe_svd", "SAVR", 10.0, 0.208,
-        "NOTION, 10-year echocardiographic follow-up of the randomised trial", targeted=True,
+        "NOTION 10-year outcomes, Eur Heart J 2024;45:1116 (n=280; 135 SAVR)", targeted=True,
     ),
     Anchor(
         "moderate_or_severe_svd", "TAVR", 10.0, 0.154,
-        "NOTION, 10-year echocardiographic follow-up of the randomised trial", targeted=True,
+        "NOTION 10-year outcomes, Eur Heart J 2024;45:1116 (n=280; 145 TAVI)", targeted=True,
     ),
-    # --- Out-of-sample: never targeted; reproduced or not by the same process. ---
+    Anchor(
+        "all_cause_death", "TAVR", 10.0, 0.627,
+        "NOTION 10-year all-cause mortality, transcatheter arm (mean age ~79)", targeted=True,
+    ),
+
+    # --- Out-of-sample: never targeted, never used to select a parameter. ---
     Anchor(
         "severe_svd", "SAVR", 10.0, 0.100,
         "NOTION, severe structural valve deterioration at 10 years",
     ),
     Anchor(
         "severe_svd", "TAVR", 10.0, 0.015,
-        "NOTION, severe structural valve deterioration at 10 years",
+        "NOTION, severe SVD at 10 years (1.5% of 145 patients is about 2 events)",
     ),
     Anchor(
         "bioprosthetic_valve_failure", "all", 5.0, 0.036,
-        "PARTNER 3, bioprosthetic valve failure at 5 years (3.3-3.8% across arms)",
+        "PARTNER 3 at 5 years: 3.3% transcatheter, 3.8% surgical",
     ),
     Anchor(
         "bioprosthetic_valve_failure", "all", 7.0, 0.072,
-        "PARTNER 3, bioprosthetic valve failure at 7 years (6.9-7.5% across arms)",
+        "PARTNER 3 at 7 years: 6.9% transcatheter, 7.5% surgical",
     ),
     Anchor(
         "severe_svd", "TAVR", 7.8, 0.059,
-        "UK TAVI registry, severe structural valve deterioration at median 7.8 years",
+        "UK TAVI registry, severe SVD in 13 of 221 at a median of 7.8 years "
+        "(a crude proportion, not a competing-risk estimate)",
+    ),
+    # These three were found in the NOTION paper AFTER every parameter had been
+    # fixed, while verifying the figures above. They were not used to choose
+    # anything, and they are the closest this calibration comes to a holdout.
+    Anchor(
+        "bioprosthetic_valve_failure", "TAVR", 10.0, 0.097,
+        "NOTION, bioprosthetic valve failure at 10 years (found post hoc)",
+    ),
+    Anchor(
+        "bioprosthetic_valve_failure", "SAVR", 10.0, 0.138,
+        "NOTION, bioprosthetic valve failure at 10 years (found post hoc)",
     ),
 )
 """Published anchors the cohort is checked against.
@@ -205,8 +227,8 @@ class HazardParameters:
     A mixture lets each process keep its own shape, and it is the clinically
     truthful description rather than a device for hitting a number."""
 
-    svd_scale_savr_years: float = 23.296875
-    svd_scale_tavr_years: float = 13.171875
+    svd_scale_savr_years: float = 32.68359375
+    svd_scale_tavr_years: float = 14.75390625
     """SOLVED by bisection, not assumed: the values reproducing the two targeted
     NOTION anchors on a 30,000-patient cohort at seed 20260917. Re-derive with
     :func:`synthetic.calibration.solve_scales` if any upstream parameter changes.
@@ -220,18 +242,24 @@ class HazardParameters:
     # Hazard ratios for the deterioration hazard, applied log-linearly. Covariates
     # are centred (see the *_centre fields) so that the scales above describe a
     # patient at the centring point rather than an impossible patient at zero.
-    hr_age_per_year: float = 0.95
-    """Younger age at implant is the strongest published predictor of
-    deterioration: a younger patient's valve is exposed longer and to a more
-    active calcium metabolism.
+    hr_age_per_year: float = 0.91
+    """Per additional year of age at implant: **HR 0.91 (95% CI 0.89-0.94)**.
 
-    The figure cited in the team's clinical reference is 0.91 per year. Applied
-    linearly across this cohort's age span of 50 to 95 that implies a 70-fold
-    difference in hazard between the youngest and oldest patient, which is not a
-    credible extrapolation of an estimate made near the middle of that range. The
-    milder 0.95 is used instead. A sensitivity analysis across 0.91, 0.93, 0.95 and
-    0.97 moved no calibration anchor by more than 0.8 percentage points, so nothing
-    in the calibration rests on this choice."""
+    Younger age is the strongest published predictor of deterioration. Verified
+    against the source meta-analysis rather than taken from a secondary summary.
+
+    An earlier version of this file used 0.95, on the reasoning that 0.91 applied
+    linearly across this cohort's age span of 50 to 95 implies a seventy-fold
+    difference in hazard between the youngest and the oldest patient, which is not
+    a credible extrapolation of an estimate made near the middle of that range.
+    That reasoning still holds, but 0.95 lies **outside the published confidence
+    interval**, and citing a meta-analysis while using a value it excludes is not a
+    position worth defending. The published point estimate is used, and the
+    extrapolation is recorded in the limitations instead.
+
+    A sensitivity analysis across 0.91, 0.93, 0.95 and 0.97 moved no calibration
+    anchor by more than 0.8 percentage points, so nothing rests on the choice.
+    """
     hr_bsa_per_m2: float = 1.77
     hr_ppm_moderate: float = 1.95
     hr_ppm_severe: float = 2.60
@@ -247,14 +275,20 @@ class HazardParameters:
     bsa_centre: float = 1.85
 
     death_shape: float = 1.45
-    death_scale_years_at_centre: float = 11.5
+    death_scale_years_at_centre: float = 14.296875
     hr_death_per_year_age: float = 1.085
     hr_death_ckd: float = 1.70
     hr_death_diabetes: float = 1.30
-    """Competing mortality, calibrated so that a cohort of NOTION's age reaches
-    roughly 60-65% all-cause death at 10 years. Death is a COMPETING RISK, not
-    censoring: a patient who dies can never deteriorate, and treating death as
-    censoring would overstate deterioration."""
+    """Competing mortality. The scale is SOLVED by
+    :func:`synthetic.calibration.solve_death_scale` against NOTION's 62.7%
+    all-cause mortality at ten years, on the transcatheter arm only, whose mean age
+    of 79.5 matches the trial's 79; the surgical arm here is deliberately a decade
+    younger, as it is in practice but not in a randomised trial of one population.
+
+    Death is a COMPETING RISK, not censoring: a patient who dies can never
+    deteriorate. Its rate governs how many patients remain at risk, so a cohort
+    that dies too fast understates every cumulative incidence and one that dies too
+    slowly overstates them."""
 
 
 @dataclass(frozen=True, slots=True)

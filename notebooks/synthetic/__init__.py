@@ -36,6 +36,7 @@ from .calibration import (
     cumulative_incidence,
     endpoint_times,
     solve_scales,
+    solve_death_scale,
 )
 from .degrade import PRESET_DESCRIPTIONS, PRESETS, apply_preset
 from .generator import VARC3_STAGE2, VARC3_STAGE3, build_cohort
@@ -62,6 +63,7 @@ __all__ = [
     "cumulative_incidence",
     "endpoint_times",
     "solve_scales",
+    "solve_death_scale",
     "coverage_test",
     "recovery_test",
     "fit_cox",

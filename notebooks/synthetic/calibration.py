@@ -148,6 +148,7 @@ _ENDPOINT_TYPES: dict[str, tuple[str, ...]] = {
     # alone. Comparing a reintervention-only rate against the PARTNER 3 figure
     # would be comparing two different endpoints.
     "bioprosthetic_valve_failure": ("svd_stage3", "bvf_reintervention"),
+    "all_cause_death": ("death",),
 }
 
 
@@ -220,6 +221,58 @@ def solve_scales(
             break
 
     return middle["SAVR"], middle["TAVR"]
+
+
+def solve_death_scale(
+    params: Parameters,
+    *,
+    target: float = 0.627,
+    seed: int = 20260917,
+    n_solve: int = 20_000,
+    tolerance: float = 0.002,
+    max_iterations: int = 40,
+) -> float:
+    """Solve the competing-mortality scale against a published survival figure.
+
+    Mortality is calibrated on the **transcatheter arm only**, because that is the
+    arm whose age distribution matches the trial's: this cohort's transcatheter
+    recipients average 79.5 years against NOTION's 79, while its surgical
+    recipients are deliberately a decade younger, as they are in real practice but
+    not in a randomised trial of one population. Calibrating on the pooled cohort
+    would force the model to reproduce a mortality it should not have.
+
+    Getting this right matters more than it might appear. Death is the competing
+    risk, so the mortality rate governs how many patients remain at risk to
+    deteriorate; a cohort that dies too fast understates every cumulative incidence
+    and one that dies too slowly overstates them.
+
+    Args:
+        params: Parameter set whose death scale is to be replaced.
+        target: Published all-cause mortality at ten years.
+        seed: Seed held fixed so the objective is deterministic.
+        n_solve: Size of the cohort used for solving.
+        tolerance: Convergence tolerance on cumulative incidence.
+        max_iterations: Maximum bisection steps.
+
+    Returns:
+        The solved scale in years.
+    """
+    from dataclasses import replace as _replace
+
+    large = _replace(params, cohort=_replace(params.cohort, n_patients=n_solve))
+    low, high, middle = 5.0, 40.0, 0.0
+    for _ in range(max_iterations):
+        middle = 0.5 * (low + high)
+        candidate = _replace(large, hazard=_replace(large.hazard, death_scale_years_at_centre=middle))
+        cohort = build_cohort(candidate, seed=seed)
+        value = cumulative_incidence(endpoint_times(_subset(cohort, "TAVR"), ("death",)), 10.0)
+        if value > target:
+            low = middle       # dying too fast: lengthen the scale
+        else:
+            high = middle
+        if abs(value - target) < tolerance:
+            break
+    return middle
 
 
 def calibration_across_seeds(

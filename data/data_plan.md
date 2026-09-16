@@ -188,54 +188,76 @@ still tell that nothing in it came from a patient.
 
 ### Calibration, and what is honestly claimed
 
-**What was fitted.** Nine parameters were chosen against published evidence: two Weibull scales,
-solved by bisection against the NOTION ten-year moderate-or-severe figures, and seven shape
-parameters governing onset, the rapidly progressive phenotype and gradient progression, selected
-from small grids.
+**Every published figure below was verified against its primary publication**, not taken from a
+secondary summary. That check changed two things. It confirmed that NOTION estimated its rates
+with the Aalen–Johansen method under a competing risk of death — the same estimator used here, so
+the comparison is like for like rather than an assumption. And it returned the age hazard ratio to
+the published 0.91 (95% CI 0.89–0.94): an earlier version used 0.95 on the reasoning that 0.91
+extrapolated across a 50-to-95 age span implies an incredible seventy-fold hazard range, but 0.95
+lies outside the published interval, and citing a meta-analysis while using a value it excludes is
+not a position worth defending. A sensitivity analysis across 0.91–0.97 moves no anchor by more
+than 0.8 percentage points, so nothing rests on it.
 
-**Nine parameters against seven anchors is a saturated fit, and agreement with those anchors is
-therefore not independent evidence that the cohort is correct.** It would be easy to present the
-table below as validation. It is not validation; it is a statement that the cohort is *plausible*
-— that it lands where published series land, so that a pipeline exercised on it is exercised at
-realistic event rates. The evidence that the code is correct is the recovery test in the next
-section, which no amount of curve-fitting can pass.
-
-Each anchor's band comes from one rule, fixed before any cohort was generated and applied
-uniformly: **two percentage points, or a quarter of the published value, whichever is larger**.
-A per-anchor tolerance chosen by hand is not a standard, it is a description of the result. When
-the earlier hand-picked bands were replaced by this rule, the cohort fell from six anchors inside
-to three, which is what exposed the deficiency the two-component onset model then fixed.
+**What was fitted.** Nine parameters: three scales solved by bisection — two for deterioration
+against the NOTION moderate-or-severe figures, one for competing mortality against NOTION's
+all-cause death — and six shape parameters selected from small grids.
 
 | quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | seeds inside band |
 |---|---|---|---|---|---|
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.3% ± 2.1 | 8 of 8 (targeted) |
-| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.2% ± 1.2 | 8 of 8 (targeted) |
-| severe SVD | SAVR | 10 y | 10.0% | 12.0% ± 1.7 | 5 of 8 |
-| severe SVD | TAVR | 10 y | 1.5% | 8.7% ± 1.0 | **0 of 8** |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 3.3% ± 0.3 | 8 of 8 |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 6.3% ± 0.7 | 7 of 8 |
-| severe SVD | TAVR | 7.8 y | 5.9% | 5.8% ± 0.6 | 8 of 8 |
+| **targeted** | | | | | |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.4% ± 2.6 | 7 of 8 |
+| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.3% ± 0.9 | 8 of 8 |
+| all-cause death | TAVR | 10 y | 62.7% | 63.2% ± 1.3 | 8 of 8 |
+| **out of sample** | | | | | |
+| severe SVD | SAVR | 10 y | 10.0% | 13.1% ± 1.8 | 4 of 8 |
+| severe SVD | TAVR | 10 y | 1.5% | 9.6% ± 0.9 | **0 of 8** |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 3.8% ± 0.3 | 8 of 8 |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 6.7% ± 0.7 | 8 of 8 |
+| severe SVD | TAVR | 7.8 y | 5.9% | 6.1% ± 0.7 | 8 of 8 |
+| **post-hoc holdout** | | | | | |
+| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.6% ± 0.9 | 8 of 8 |
+| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 13.1% ± 1.8 | 7 of 8 |
+
+Bands come from one rule, fixed before any cohort was generated and applied uniformly: **two
+percentage points, or a quarter of the published value, whichever is larger**. A per-anchor
+tolerance chosen by hand is not a standard, it is a description of the result. When the earlier
+hand-picked bands were replaced by this rule the cohort fell from six anchors inside to three,
+which is what exposed the deficiency the two-component onset model then fixed.
 
 Results are means and standard deviations across eight seeds rather than one cohort. At 1,800
-patients the Monte Carlo standard error of a 20% incidence is around one percentage point, which
-is the size of the differences being judged; a single-seed table cannot distinguish a correct
-generating process from a lucky draw.
+patients the Monte Carlo standard error of a 20% incidence is about one percentage point, which is
+the size of the differences being judged.
 
-Sources: NOTION ten-year echocardiographic follow-up; PARTNER 3 at five and seven years; UK TAVI
-registry at a median of 7.8 years. Incidence is an Aalen–Johansen cumulative incidence function,
-never one minus Kaplan–Meier, because death is a competing risk and Kaplan–Meier would answer a
-question about a population in which nobody dies.
+**The two post-hoc rows are the closest this calibration comes to a holdout.** NOTION's
+bioprosthetic-valve-failure figures were found while verifying the other anchors, after every
+parameter had been fixed. They were not used to choose anything, and the cohort reproduces both:
+9.6% against 9.7% in the transcatheter arm and 13.1% against 13.8% in the surgical arm.
 
-**Two published anchors contradict each other, so no cohort can satisfy both.** NOTION's own
-figures imply that 48% of deteriorated surgical valves become severe within ten years but only
-10% of transcatheter ones — a five-fold difference in progression conditional on deterioration,
-between two arms of one trial. The UK TAVI registry meanwhile reports severe deterioration in
-5.9% of transcatheter patients at a *shorter* horizon, roughly four times the NOTION figure. This
-cohort sides with the registry, reproducing it to within a tenth of a percentage point and
-missing NOTION, and the miss is reported in every calibration table. The alternative — a separate
-progression process fitted per arm — would reproduce both numbers by fitting the sampling noise
-of a trial with a few dozen transcatheter patients still under echocardiographic follow-up at ten
-years.
+Nine fitted parameters against ten anchors is still close to saturated, so agreement is **not**
+proof that the cohort is correct — it establishes that the cohort is plausible, landing where
+published series land so that a pipeline exercised on it runs at realistic event rates. The
+evidence of correctness is the recovery test below, which no amount of curve-fitting can pass.
+
+### The two anchors the cohort misses, and why they are not tuned away
+
+**Severe deterioration after transcatheter implant.** NOTION reports 1.5%; the cohort gives 9.6%.
+That figure is 1.5% of 145 randomised patients — **about two events** — and it contradicts the UK
+TAVI registry, which reports severe deterioration in 13 of 221 patients (5.9%) at a *shorter*
+median follow-up of 7.8 years. NOTION's own arms are mutually inconsistent too: its figures imply
+that 48% of deteriorated surgical valves become severe within ten years but only 10% of
+transcatheter ones, a five-fold difference in progression conditional on deterioration between two
+arms of one trial. This cohort sides with the registry, reproducing it to within 0.2 percentage
+points. Fitting a separate progression process per arm would reproduce both numbers by fitting the
+sampling noise of a few dozen patients.
+
+**Severe deterioration after surgical implant.** NOTION reports 10.0%; the cohort gives 13.1% —
+which is almost exactly NOTION's *bioprosthetic valve failure* figure of 13.8%, an anchor the
+cohort does hit. The pattern is informative rather than random: this cohort's stage-3 threshold
+behaves like NOTION's adjudicated valve failure rather than its adjudicated severe deterioration,
+so the two categories that a trial adjudication panel separates are not separated here. That is a
+limitation of applying published echocardiographic thresholds mechanically, without the clinical
+adjudication a trial applies, and it is exactly the gap the ground-truth hierarchy in the protocol
+exists to close.
 
 ### Two processes, not one
 
@@ -268,7 +290,7 @@ what happened when the mixture was first introduced and recovery collapsed from 
 in eight to one in eight. Stratifying restored it.
 
 - **Latent hazard.** Over five seeds and seven covariates, the 95% interval covered the injected
-  value in **19 of 21 fits (90%)**, against a nominal 95%, with a mean log bias of **+0.0008** —
+  value in **20 of 21 fits (95.2%)**, against a nominal 95%, with a mean log bias of **+0.0005** —
   no detectable systematic error. Coverage is the right criterion rather than a clean sweep: a
   95% interval is supposed to miss about one time in twenty, and treating any miss as failure
   would invite tuning until it passes.
