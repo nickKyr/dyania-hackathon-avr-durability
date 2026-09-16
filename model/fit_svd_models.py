@@ -94,7 +94,7 @@ HORIZONS = [2, 5]
 N_SPLITS = 5
 N_REPEATS = 10
 N_BOOT = 300
-FEATURE_SET = "full"          # "lean" | "full" | "time_only"  (see docstring)
+FEATURE_SET = "lean"          # "lean" | "full" | "time_only"  (see docstring)
 INTERVAL_COL = "interval_k"
 
 FEATURE_SETS = {
