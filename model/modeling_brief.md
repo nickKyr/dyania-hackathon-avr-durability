@@ -2,7 +2,7 @@
 
 **Owner of this work:** the team member taking the model layer.
 **Author:** study design / integration.
-**Status:** proposal. It follows the study spine the team agreed on; disagree before you start, not after.
+**Status:** the original work assignment, kept as a record. What was built, and where it departs from this brief (five notebooks, a fixed feature list, the models scored on the extract), is described in [`approach.md`](approach.md).
 **Hard deadline:** Thursday 17 September, 17:00. Nothing new gets built after Thursday noon.
 
 ---
@@ -12,7 +12,7 @@
 No model is trained on the real packet. The extract yields 32 usable labels out of 117 patients,
 5 of them failures (the label frame; see
 [`../data/endpoint_criteria.md`](../data/endpoint_criteria.md) for how that figure relates to the
-8 affected valve episodes and the 14 endpoint rows reported elsewhere), and only 4 of the 117 have echo values in more than one year — a survival
+10 affected valve episodes and 10 endpoint rows reported elsewhere), and only 4 of the 117 have echo values in more than one year — a survival
 model fitted on that is noise with a confidence interval around it. Your job is therefore to
 build the **censoring-aware pipeline the study protocol specifies, executed end to end on a
 literature-calibrated synthetic cohort**, and to write the modelling sections of
@@ -48,11 +48,11 @@ Every number below is measured on the extract and documented in
 | Constraint | Measurement | Consequence for modelling |
 |---|---|---|
 | Labels | 32 of 117 patients labelled: 5 accept, 15 reject, 12 borderline; 85 missing information | ~5 events. Below any sample size that supports estimation |
-| Serial echo | 143 mean-gradient mentions across 54–59 patients, **1 patient** with values in more than one note or year | no gradient change, no slope, no landmark updating |
+| Serial echo | 143 mean-gradient mentions across 54–59 patients, **1 patient** with values in more than one note or year in the rule-based pass (the reconciled preprocessing finds 4) | no gradient change, no slope, no landmark updating |
 | Exam dates | 119 of 143 mentions sit next to a redacted `[DATE]` | time resolution is one year at best; values within a note have no recoverable order |
 | Age at implant | redacted in 194 of 215 notes, no demographics table | the strongest published predictor is unavailable |
 | Cohort split | patients 001–100 have operative reports and no structured data; 101–117 have structured data and no operative report | no feature vector spans both groups |
-| Follow-up | 74 of 100 cohort-A patients have all notes in a single year | heavy administrative censoring |
+| Follow-up | 57 of 100 cohort-A patients have all notes in a single year | heavy administrative censoring |
 
 **Conclusion, and it is not negotiable:** the real packet is evidence of a data-access problem,
 not a training set. Present it as the reason the protocol is designed the way it is.
@@ -216,26 +216,14 @@ asked to take the simulation on trust.
 **Three things to expect on the real rung, so they do not surprise you mid-run.** It has 117
 patients, not 1,800. It carries **no deaths at all** — the extract contains no mortality data, so
 the competing risk is unobserved and a cumulative incidence computed there is not comparable with
-one computed where death is known; say so wherever you report it. And its only events are 14
+one computed where death is known; say so wherever you report it. And nine of its ten events are
 documented reinterventions, because haemodynamic staging needs a reference examination the extract
-does not contain. Expect the metric to be uninformative on that rung. **That is the finding, not a
+rarely contains. Expect the metric to be uninformative on that rung. **That is the finding, not a
 failure** — and it is the strongest argument in the submission for building the abstraction
 pipeline the protocol proposes.
 
 Budget for it: one loop over six cohorts, the same function you already wrote. Do not restructure
 the pipeline for it — if it is not a loop, the rungs are wrong and that is the data workstream's bug.
-
----|---|---|
-| `ideal` | nothing | what the design achieves when the data are what the protocol asks for |
-| `no_age` | age at implant | what the strongest published predictor is worth |
-| `year_resolution` | exact dates, collapsed to calendar year | what date-shifting to the year costs |
-| `single_echo` | all follow-up echoes but one | what serial surveillance is worth |
-| `as_supplied` | all of the above together | what our actual extract supports |
-
-This converts "the data were poor" into a **ranked, quantified list of which defect costs most**,
-which is the argument a hospital needs in order to justify supplying dated serial echoes. Budget
-for it: one loop over five directories, the same function you already wrote. Do not restructure the
-pipeline for it — if it is not a loop, the presets are wrong and that is the data workstream's bug.
 
 ---
 

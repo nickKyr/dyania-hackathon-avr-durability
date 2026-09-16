@@ -1,5 +1,7 @@
 # Modelling plan
 
+> **Superseded.** This is the plan written before the model was built, kept as a record. It names files that were never created (`notebooks/03_modelling.ipynb`, `data/landmark.parquet`, `scripts/05_synthetic_landmark.py`) and choices that changed: the horizons are now 2, 5 and 8 years, the primary endpoint is VARC-3 stage 2 or worse, and the models use the feature list in `ml.FIXED_FEATURES`. What was built is described in [`../model/approach.md`](../model/approach.md).
+
 Written 16 Sep 2026. Two sessions are working on this in parallel: one finishes the preprocessing steps in `notebooks/02_preprocessing.ipynb`, the other builds `notebooks/03_modelling.ipynb`. The interface between them is one file, `data/landmark.parquet`, whose columns are fixed below. Anything else in either notebook can change without telling the other side.
 
 ## The task
