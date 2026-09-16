@@ -41,6 +41,7 @@ uv run python scripts/08_decision_curve.py       # ~3 min: regenerates model/dec
 | `06_model_stability.py` | Is the difference between our models larger than the difference between two random cohorts? | `model/stability.md` |
 | `07_sample_size.py` | How many patients does the real study need, and what does more of them buy? | `protocol/sample_size.md` |
 | `08_decision_curve.py` | Is acting on the model better than the two policies that need no model, and over which thresholds? | `model/decision_curve.md` |
+| `09_real_extract_rung.py` | **Needs the private data.** Measures the supplied extract with the same code the synthetic rungs use, so the foot of the ladder is comparable with them | `data/synthetic/real_extract_rung.json`, read back by 05 |
 
 Per-seed rows go to `data/processed/*.csv`, which is gitignored; only the Markdown is committed.
 

@@ -118,8 +118,11 @@ automatically.
   independently drawn cohorts and reports the spread, because a ranking read off one draw is a
   description of the seed. Its output is [`stability.md`](stability.md), and it is the file to
   quote AUCs from.
+- **Decision curve.** `scripts/08_decision_curve.py` reports net benefit at every candidate
+  threshold against scanning everyone and against changing nothing, with death competing; its
+  output is [`decision_curve.md`](decision_curve.md). Calibration curves and Uno's C are still
+  planned and not yet run.
 - **External check:** the real extract, prepared by notebook 02, is scored by every trained model.
-  Calibration curves, a decision curve and Uno's C are planned and not yet run.
 
 **Results on the synthetic cohort (not patients).** Trained and tested on the cohort matched to the
 extract, valve age carries most of the signal: AUC 0.81, 0.78 and 0.88 at 2, 5 and 8 years for the
@@ -130,10 +133,9 @@ schedule. **Every one of those numbers is a single cohort**, and
 standard deviation of about 0.023, so differences of that size between two of the models above are
 not evidence of anything. On the ideal rung, where the comparison can be repeated eight times and
 paired within cohorts, every risk model does beat scheduling by valve age at every horizon — but
-that is a claim about the ideal rung, and the matched-cohort ranking here has not been repeated. In an earlier run on the `ideal` cohort (before the 16 September generator fix), where
-age and serial echoes are present, the boosted model led (0.86, 0.78, 0.77) and was the best
-calibrated, while the Cox comparator overstated 8-year risk (34% against 20.5% observed) because it
-ignores death.
+that is a claim about the ideal rung, and the matched-cohort ranking here has not been repeated.
+The ideal-rung numbers themselves are in [`stability.md`](stability.md) and supersede the earlier
+single-run figures that used to be quoted here.
 
 **Results on the real extract (51 valves, 8 events, no deaths recorded).** Trained on the ideal
 cohort, the boosted model ranked the real valves worse than chance (5-year AUC 0.29), because it had

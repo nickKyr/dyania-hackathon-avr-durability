@@ -37,6 +37,10 @@ We work on `team/dyanooumenoi`. Push to the fork, then open one pull request to
 | `uv run python scripts/07_sample_size.py` | `protocol/sample_size.md` |
 | `uv run python scripts/08_decision_curve.py` | `model/decision_curve.md` |
 
+`scripts/09_real_extract_rung.py` is the one exception: it needs the private extract, and it
+measures the foot of the degradation ladder with the same code the synthetic rungs use, so that the
+comparison between them is a comparison. Run it after notebook 02, then rerun 05.
+
 Rerun the relevant one after changing the generator, the features or the models, and commit the
 regenerated document with the change. A published number that no longer matches the code is worse
 than no number at all.
