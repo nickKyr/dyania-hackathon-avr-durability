@@ -37,7 +37,7 @@ import pandas as pd
 
 from .parameters import DEFAULT, EchoParameters, Parameters
 
-__all__ = ["build_cohort", "VARC3_STAGE2", "VARC3_STAGE3"]
+__all__ = ["build_cohort", "FAILURE_MODES", "VARC3_STAGE2", "VARC3_STAGE3"]
 
 DAYS_PER_YEAR: Final[float] = 365.25
 
@@ -53,6 +53,11 @@ VARC3_STAGE3: Final[str] = (
 )
 
 _AR_GRADES: Final[tuple[str, ...]] = ("none", "trace", "mild", "moderate", "severe")
+
+FAILURE_MODES: Final[tuple[str, ...]] = ("calcific", "tear", "pannus")
+"""The three competing modes of structural failure, each with its own hazard, its
+own covariates and its own echo signature. See
+:class:`synthetic.parameters.HazardParameters`."""
 
 # Effective orifice area in cm2 by model and label size. Supra-annular
 # transcatheter designs achieve a larger area for the same annulus, which is why
@@ -141,6 +146,7 @@ def _draw_patients(rng: np.random.Generator, params: Parameters) -> pd.DataFrame
             "eoa_cm2": eoa,
             "eoa_index_cm2_m2": eoa_index,
             "ppm_grade": _ppm_grade(eoa_index),
+            "anticoagulation": rng.random(n) < cohort.anticoagulation_prevalence,
             "diabetes": rng.random(n) < cohort.diabetes_prevalence,
             "ckd": rng.random(n) < cohort.ckd_prevalence,
             "smoking": rng.random(n) < cohort.smoking_prevalence,
@@ -151,24 +157,64 @@ def _draw_patients(rng: np.random.Generator, params: Parameters) -> pd.DataFrame
     )
 
 
-def _log_hazard_ratio(patients: pd.DataFrame, params: Parameters) -> np.ndarray:
-    """Linear predictor of the deterioration hazard.
+def _log_hazard_ratios(patients: pd.DataFrame, params: Parameters) -> dict[str, np.ndarray]:
+    """Linear predictor of each failure mode's hazard, one array per mode.
 
-    Covariates are centred so that the Weibull scale describes a patient at the
+    Covariates are centred so that each Weibull scale describes a patient at the
     centring point -- a 75-year-old of average body surface area -- rather than
-    the biologically impossible patient with every covariate at zero.
+    the biologically impossible patient with every covariate at zero. Size is
+    centred on the middle of the label range for the same reason.
+
+    The three modes take **different covariates on purpose**. Calcification is
+    metabolic and answers to age, mismatch, body size, smoking, diabetes and renal
+    disease. Tearing is mechanical and answers to leaflet size, transcatheter
+    design and a bicuspid annulus. Pannus and thrombosis answer to anticoagulation
+    and to a small sewing ring. Sharing one covariate set across every mode, as
+    the previous single-onset model did, is what made the patient block and the
+    valve block interchangeable.
+
+    Valve family enters on the mode the device fails by rather than as a single
+    risk bump: mostly on the tear hazard, since the reported Trifecta mechanism is
+    commissural leaflet tear, and only partly on calcification. Before this the
+    valve model reached the cohort through the orifice-area table alone, which made
+    the Trifecta one of the *safer* valves here, because its haemodynamics are the
+    best -- the exact inverse of its published durability.
     """
     h = params.hazard
     ppm = patients["ppm_grade"].to_numpy()
-    return (
-        np.log(h.hr_age_per_year) * (patients["age_at_implant"].to_numpy() - h.age_centre)
-        + np.log(h.hr_bsa_per_m2) * (patients["bsa_m2"].to_numpy() - h.bsa_centre)
+    age = patients["age_at_implant"].to_numpy() - h.age_centre
+    bsa = patients["bsa_m2"].to_numpy() - h.bsa_centre
+    size = patients["valve_size_mm"].to_numpy().astype(float) - h.valve_size_centre_mm
+    is_tavr = (patients["approach"].to_numpy() == "TAVR").astype(float)
+    family = patients["valve_model"].to_numpy()
+
+    def by_family(table: tuple[tuple[str, float], ...]) -> np.ndarray:
+        """Log hazard ratio of each patient's valve family; unlisted families are 1.0."""
+        lookup = dict(table)
+        return np.log([lookup.get(name, 1.0) for name in family])
+
+    calcific = (
+        np.log(h.hr_age_per_year) * age
+        + np.log(h.hr_bsa_per_m2) * bsa
         + np.log(h.hr_ppm_moderate) * (ppm == "moderate")
         + np.log(h.hr_ppm_severe) * (ppm == "severe")
         + np.log(h.hr_smoking) * patients["smoking"].to_numpy()
         + np.log(h.hr_diabetes) * patients["diabetes"].to_numpy()
         + np.log(h.hr_ckd) * patients["ckd"].to_numpy()
+        + by_family(h.hr_calcific_by_family)
     )
+    tear = (
+        np.log(h.hr_tear_per_mm) * size
+        + np.log(h.hr_tear_tavr) * is_tavr
+        + np.log(h.hr_tear_bicuspid) * patients["bicuspid"].to_numpy()
+        + by_family(h.hr_tear_by_family)
+    )
+    pannus = (
+        np.log(h.hr_pannus_per_mm) * size
+        + np.log(h.hr_pannus_no_anticoagulation) * (~patients["anticoagulation"].to_numpy())
+        + np.log(h.hr_pannus_savr) * (1.0 - is_tavr)
+    )
+    return {"calcific": calcific, "tear": tear, "pannus": pannus}
 
 
 def _weibull_time(
@@ -186,23 +232,36 @@ def _weibull_time(
 
 def _latent_times(
     rng: np.random.Generator, patients: pd.DataFrame, params: Parameters
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return latent years to deterioration onset, years to death, and the early-failure flag.
+) -> tuple[dict[str, np.ndarray], np.ndarray]:
+    """Return latent years to the onset of each failure mode, and years to death.
 
-    Onset is a mixture of two processes: a small early rapid-failure population and
-    the late calcific process that dominates. Covariate effects apply to both, so a
-    patient at high risk is at high risk under either.
+    The three modes are drawn **independently**, as three competing Weibull
+    processes. A valve may reach more than one of them, and each contributes its
+    own signature to the haemodynamics from its own onset onwards; the mode a
+    clinician names is whichever came first.
+
+    Independence is a modelling choice and a conservative one. Correlating the
+    modes through a shared frailty would be defensible -- a patient with a poor
+    valve may be poor in several ways at once -- but it would reintroduce exactly
+    the redundancy this split exists to remove, and there is no published estimate
+    of the correlation to justify a particular value. It is recorded in the
+    protocol as a limitation.
     """
     h = params.hazard
+    n = len(patients)
     is_savr = (patients["approach"] == "SAVR").to_numpy()
-    is_early = rng.random(len(patients)) < h.early_failure_fraction
-    svd_scale = np.where(
-        is_early,
-        h.early_onset_scale_years,
-        np.where(is_savr, h.svd_scale_savr_years, h.svd_scale_tavr_years),
-    )
-    svd_shape = np.where(is_early, h.early_onset_shape, h.svd_shape)
-    onset = _weibull_time(rng, svd_scale, svd_shape, _log_hazard_ratio(patients, params))
+    log_hr = _log_hazard_ratios(patients, params)
+
+    onsets = {
+        "calcific": _weibull_time(
+            rng,
+            np.where(is_savr, h.svd_scale_savr_years, h.svd_scale_tavr_years),
+            h.svd_shape,
+            log_hr["calcific"],
+        ),
+        "tear": _weibull_time(rng, np.full(n, h.tear_scale_years), h.tear_shape, log_hr["tear"]),
+        "pannus": _weibull_time(rng, np.full(n, h.pannus_scale_years), h.pannus_shape, log_hr["pannus"]),
+    }
 
     log_hr_death = (
         np.log(h.hr_death_per_year_age) * (patients["age_at_implant"].to_numpy() - h.age_centre)
@@ -211,7 +270,7 @@ def _latent_times(
     )
     death_scale = np.full(len(patients), h.death_scale_years_at_centre)
     death = _weibull_time(rng, death_scale, h.death_shape, log_hr_death)
-    return onset, death, is_early
+    return onsets, death
 
 
 def _visit_days(
@@ -262,29 +321,61 @@ def _gradient_at(
     echo: EchoParameters,
     baseline: float,
     drift: float,
-    progression: float,
     years: float,
-    onset_years: float,
-) -> float:
+    onsets: dict[str, float],
+    progression: dict[str, float],
+) -> tuple[float, float]:
     """Mean gradient at ``years`` after implant, before measurement error.
 
-    Two phases: a gentle linear drift that every bioprosthesis shows, and, after
-    the latent onset, an additional accelerating term. The post-onset term is
-    quadratic in time since onset because deterioration compounds -- a stiffer
-    leaflet calcifies faster.
+    Returns the **total** gradient, which is what an echocardiographer measures,
+    and the **obstructive** component, which is the part that narrowing accounts
+    for. Every mode that has begun contributes, so a valve that has both calcified
+    and torn carries both effects.
+
+    On top of the gentle linear drift every bioprosthesis shows:
+
+    - calcification and pannus each add an accelerating term, quadratic in time
+      since their own onset, because obstruction compounds -- a stiffer leaflet
+      calcifies faster, and pannus narrows the channel it grows into;
+    - a tear *subtracts*, because a leaflet that no longer holds obstructs less.
+
+    Separating the two return values is what decouples the echo channels. Orifice
+    area and the dimensionless index are derived from the obstructive component
+    alone, so a torn valve keeps its measured area while its gradient falls and
+    its regurgitation climbs. Under the previous single-onset model the area and
+    the index were a deterministic function of the one gradient, which left three
+    of the five haemodynamic features carrying one variable between them.
     """
-    value = baseline + drift * years
-    if years > onset_years:
-        elapsed = years - onset_years
-        value += progression * elapsed + echo.progression_quadratic_coefficient * progression * elapsed**2
-    return float(value)
+    obstructive = baseline + drift * years
+    for mode in ("calcific", "pannus"):
+        elapsed = years - onsets[mode]
+        if elapsed > 0.0:
+            rate = progression[mode]
+            obstructive += rate * elapsed + echo.progression_quadratic_coefficient * rate * elapsed**2
+    total = obstructive
+    torn_for = years - onsets["tear"]
+    if torn_for > 0.0:
+        total += echo.tear_gradient_change_mmhg_per_year * torn_for
+    return float(total), float(obstructive)
 
 
-def _worsens_by_one_grade(rng: np.random.Generator, grade_index: int, rate: float, years: float) -> int:
-    """Advance a regurgitation grade stochastically over ``years``."""
-    if rng.random() < 1.0 - np.exp(-rate * years):
-        return min(grade_index + 1, len(_AR_GRADES) - 1)
-    return grade_index
+def _advance_grades(rng: np.random.Generator, grade_index: int, rate: float, years: float) -> int:
+    """Advance a regurgitation grade stochastically over ``years``.
+
+    The number of grades gained is Poisson in the elapsed time, so regurgitation
+    progresses at its own pace whatever the surveillance interval.
+
+    The earlier version of this advanced **at most one grade per examination**.
+    That made the grade a function of how often the patient was scanned rather
+    than of the disease: a valve seen once at five years could not be worse than
+    mild, and an acutely torn leaflet needed six years of examinations to be
+    recorded as severe. It also quietly coupled the regurgitation channel to the
+    visit schedule, which is one of the redundancies the failure modes exist to
+    break.
+    """
+    if rate <= 0.0 or years <= 0.0:
+        return grade_index
+    return int(min(grade_index + rng.poisson(rate * years), len(_AR_GRADES) - 1))
 
 
 def _meets_stage(
@@ -337,7 +428,11 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
     visit = params.visit
 
     patients = _draw_patients(rng, params)
-    onset_years, death_years, is_early_failure = _latent_times(rng, patients, params)
+    onsets, death_years = _latent_times(rng, patients, params)
+    # The mode a clinician would name is whichever the valve reached first; the
+    # haemodynamics carry every mode that has begun, not only this one.
+    onset_matrix = np.column_stack([onsets[mode] for mode in FAILURE_MODES])
+    first_onset_years = onset_matrix.min(axis=1)
 
     baseline_gradient = (
         echo_params.gradient_reference_at_eoa
@@ -348,9 +443,13 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
         * rng.lognormal(0.0, echo_params.gradient_lognormal_sd, len(patients))
     ).clip(3.0, 40.0)
     drift = rng.normal(echo_params.drift_mmhg_per_year, echo_params.drift_sd_mmhg_per_year, len(patients))
-    progression = rng.lognormal(
+    progression_calcific = rng.lognormal(
         np.log(echo_params.progression_mmhg_per_year_mean), echo_params.progression_lognormal_sd, len(patients)
-    ) * np.where(is_early_failure, params.hazard.early_progression_multiplier, 1.0)
+    )
+    # Pannus and thrombosis narrow faster than calcification once they begin. This
+    # multiplier is the previous model's early_progression_multiplier, now attached
+    # to the one mode it describes rather than to an unnamed fast phenotype.
+    progression_pannus = progression_calcific * params.hazard.pannus_progression_multiplier
     lvef_baseline = rng.normal(echo_params.lvef_mean, echo_params.lvef_sd, len(patients)).clip(25.0, 75.0)
     dvi_baseline = rng.normal(echo_params.dvi_reference, echo_params.dvi_sd, len(patients)).clip(0.25, 0.75)
 
@@ -362,11 +461,11 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
     )
     post_rate = base_rate * visit.dropout_hr_after_onset
     budget = rng.exponential(1.0, len(patients))
-    spent_before_onset = base_rate * onset_years
+    spent_before_onset = base_rate * first_onset_years
     dropout_years = np.where(
         budget <= spent_before_onset,
         budget / base_rate,
-        onset_years + (budget - spent_before_onset) / post_rate,
+        first_onset_years + (budget - spent_before_onset) / post_rate,
     )
 
     echo_rows: list[dict] = []
@@ -375,7 +474,10 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
 
     for i, patient_id in enumerate(patients["patient_id"]):
         death = float(death_years[i])
-        onset = float(onset_years[i])
+        patient_onsets = {mode: float(onsets[mode][i]) for mode in FAILURE_MODES}
+        onset = float(first_onset_years[i])
+        dominant_mode = FAILURE_MODES[int(np.argmin(onset_matrix[i]))]
+        progression = {"calcific": float(progression_calcific[i]), "pannus": float(progression_pannus[i])}
         dropout = float(dropout_years[i])
         observation_end = min(death, dropout, visit.horizon_years)
 
@@ -390,11 +492,23 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
 
         for k, day in enumerate(days):
             years = day / DAYS_PER_YEAR
-            truth = _gradient_at(echo_params, baseline_gradient[i], drift[i], progression[i], years, onset)
+            truth, obstructive = _gradient_at(
+                echo_params, baseline_gradient[i], drift[i], years, patient_onsets, progression
+            )
             measured = float(np.clip(truth * rng.lognormal(0.0, echo_params.measurement_cv_gradient), 1.0, 119.0))
 
-            if years > onset:
-                ar_index = _worsens_by_one_grade(rng, ar_index, echo_params.ar_progression_rate_per_year, years - previous_years)
+            # Regurgitation advances at the rate of whichever modes have begun. A
+            # torn leaflet climbs fast; a calcifying one leaks a little as it
+            # retracts. Keeping the two rates an order of magnitude apart is what
+            # makes the regurgitation grade an independent reading rather than a
+            # second copy of the gradient.
+            ar_rate = 0.0
+            if years > patient_onsets["tear"]:
+                ar_rate += echo_params.ar_progression_after_tear_per_year
+            if years > patient_onsets["calcific"]:
+                ar_rate += echo_params.ar_progression_after_calcific_per_year
+            if ar_rate > 0.0:
+                ar_index = _advance_grades(rng, ar_index, ar_rate, years - previous_years)
             previous_years = years
 
             # Area and dimensionless index fall as the gradient rises: for a fixed
@@ -403,7 +517,7 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
             # own independent measurement error, so that the reference examination
             # reproduces the patient's recorded orifice area rather than a value
             # inflated by the gradient's noise.
-            ratio = float(np.sqrt(max(baseline_gradient[i], 1e-6) / max(truth, 1e-6)))
+            ratio = float(np.sqrt(max(baseline_gradient[i], 1e-6) / max(obstructive, 1e-6)))
             eoa_here = float(
                 np.clip(patients["eoa_cm2"].iat[i] * ratio * rng.lognormal(0.0, echo_params.measurement_cv_eoa), 0.15, 3.4)
             )
@@ -451,9 +565,9 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
 
         n_echos = len(days)
         if stage2_day is not None:
-            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage2", "days_from_implant": int(round(stage2_day)), "interval_start_days": int(round(stage2_previous)), "ascertainment": "echo"})
+            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage2", "days_from_implant": int(round(stage2_day)), "interval_start_days": int(round(stage2_previous)), "ascertainment": "echo", "failure_mode": dominant_mode})
         if stage3_day is not None:
-            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage3", "days_from_implant": int(round(stage3_day)), "interval_start_days": int(round(stage3_previous)), "ascertainment": "echo"})
+            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage3", "days_from_implant": int(round(stage3_day)), "interval_start_days": int(round(stage3_previous)), "ascertainment": "echo", "failure_mode": dominant_mode})
             if rng.random() < visit.reintervention_probability:
                 delay = rng.exponential(visit.reintervention_delay_days_mean)
                 treated = stage3_day + delay
@@ -461,14 +575,14 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
                 # patient lost to follow-up is not reoperated by us, and recording
                 # it would give the cohort ascertainment nobody had.
                 if treated <= observation_end * DAYS_PER_YEAR:
-                    event_rows.append({"patient_id": patient_id, "event_type": "bvf_reintervention", "days_from_implant": int(round(treated)), "interval_start_days": int(round(treated)), "ascertainment": "reintervention"})
+                    event_rows.append({"patient_id": patient_id, "event_type": "bvf_reintervention", "days_from_implant": int(round(treated)), "interval_start_days": int(round(treated)), "ascertainment": "reintervention", "failure_mode": dominant_mode})
 
         # Death is ascertained by registry linkage, so unlike every other event it
         # is still observed after a patient stops attending. That asymmetry is real
         # and it matters: the competing risk is captured more completely than the
         # outcome, which is the usual situation and one the analysis must respect.
         if death <= visit.horizon_years:
-            event_rows.append({"patient_id": patient_id, "event_type": "death", "days_from_implant": int(round(death * DAYS_PER_YEAR)), "interval_start_days": int(round(death * DAYS_PER_YEAR)), "ascertainment": "registry"})
+            event_rows.append({"patient_id": patient_id, "event_type": "death", "days_from_implant": int(round(death * DAYS_PER_YEAR)), "interval_start_days": int(round(death * DAYS_PER_YEAR)), "ascertainment": "registry", "failure_mode": None})
 
         if death <= min(dropout, visit.horizon_years):
             reason, last = "death", death

@@ -183,104 +183,183 @@ def fit_cox(
     return CoxFit(tuple(x.columns), result.x, standard_errors, int(event.sum()))
 
 
-def _design(patients: pd.DataFrame, params: Parameters) -> pd.DataFrame:
-    """Build the covariate matrix, centred exactly as the generator centres it."""
+MODE_COVARIATES: dict[str, tuple[str, ...]] = {
+    "calcific": ("age_at_implant", "bsa_m2", "ppm_moderate", "ppm_severe", "smoking", "diabetes", "ckd", "trifecta"),
+    "tear": ("valve_size_mm", "tavr", "bicuspid", "trifecta"),
+    "pannus": ("valve_size_mm", "no_anticoagulation", "savr"),
+}
+"""The covariates each failure mode is generated with.
+
+The sets are deliberately different and only partly overlapping. A recovery test
+run against a single shared set could not tell a correct three-mode generator
+from one that had collapsed back to a single process.
+"""
+
+
+def _design(patients: pd.DataFrame, params: Parameters, mode: str) -> pd.DataFrame:
+    """Build one mode's covariate matrix, centred exactly as the generator centres it."""
     h = params.hazard
     ppm = patients["ppm_grade"].to_numpy()
-    return pd.DataFrame(
-        {
-            "age_at_implant": patients["age_at_implant"].to_numpy() - h.age_centre,
-            "bsa_m2": patients["bsa_m2"].to_numpy() - h.bsa_centre,
-            "ppm_moderate": (ppm == "moderate").astype(float),
-            "ppm_severe": (ppm == "severe").astype(float),
-            "smoking": patients["smoking"].to_numpy().astype(float),
-            "diabetes": patients["diabetes"].to_numpy().astype(float),
-            "ckd": patients["ckd"].to_numpy().astype(float),
-        }
-    )
-
-
-def _injected(params: Parameters) -> dict[str, float]:
-    h = params.hazard
-    return {
-        "age_at_implant": h.hr_age_per_year,
-        "bsa_m2": h.hr_bsa_per_m2,
-        "ppm_moderate": h.hr_ppm_moderate,
-        "ppm_severe": h.hr_ppm_severe,
-        "smoking": h.hr_smoking,
-        "diabetes": h.hr_diabetes,
-        "ckd": h.hr_ckd,
+    approach = patients["approach"].to_numpy()
+    available = {
+        "age_at_implant": patients["age_at_implant"].to_numpy() - h.age_centre,
+        "bsa_m2": patients["bsa_m2"].to_numpy() - h.bsa_centre,
+        "valve_size_mm": patients["valve_size_mm"].to_numpy().astype(float) - h.valve_size_centre_mm,
+        "ppm_moderate": (ppm == "moderate").astype(float),
+        "ppm_severe": (ppm == "severe").astype(float),
+        "smoking": patients["smoking"].to_numpy().astype(float),
+        "diabetes": patients["diabetes"].to_numpy().astype(float),
+        "ckd": patients["ckd"].to_numpy().astype(float),
+        "bicuspid": patients["bicuspid"].to_numpy().astype(float),
+        "tavr": (approach == "TAVR").astype(float),
+        "savr": (approach == "SAVR").astype(float),
+        "no_anticoagulation": (~patients["anticoagulation"].to_numpy()).astype(float),
+        "trifecta": (patients["valve_model"].to_numpy() == "Trifecta").astype(float),
     }
+    return pd.DataFrame({name: available[name] for name in MODE_COVARIATES[mode]})
+
+
+def _injected(params: Parameters, mode: str) -> dict[str, float]:
+    h = params.hazard
+    table = {
+        "calcific": {
+            "age_at_implant": h.hr_age_per_year,
+            "bsa_m2": h.hr_bsa_per_m2,
+            "ppm_moderate": h.hr_ppm_moderate,
+            "ppm_severe": h.hr_ppm_severe,
+            "smoking": h.hr_smoking,
+            "diabetes": h.hr_diabetes,
+            "ckd": h.hr_ckd,
+            "trifecta": dict(h.hr_calcific_by_family).get("Trifecta", 1.0),
+        },
+        "tear": {
+            "valve_size_mm": h.hr_tear_per_mm,
+            "tavr": h.hr_tear_tavr,
+            "bicuspid": h.hr_tear_bicuspid,
+            "trifecta": dict(h.hr_tear_by_family).get("Trifecta", 1.0),
+        },
+        "pannus": {
+            "valve_size_mm": h.hr_pannus_per_mm,
+            "no_anticoagulation": h.hr_pannus_no_anticoagulation,
+            "savr": h.hr_pannus_savr,
+        },
+    }
+    return table[mode]
 
 
 def recovery_test(
     params: Parameters = DEFAULT, *, seed: int = 20260917, n_patients: int = 20_000
 ) -> pd.DataFrame:
-    """Recover the injected hazard ratios from a generated cohort.
+    """Recover each failure mode's injected hazard ratios from a generated cohort.
+
+    One Cox model per mode. At the latent level the mode's own onset times are
+    fitted, which are uncensored, so the injected values must come back. At the
+    observed level the mode's detected events are fitted with the other modes'
+    events treated as censoring -- a cause-specific model, since the modes compete.
 
     Args:
         params: Parameter set whose hazard ratios are the ground truth.
         seed: Seed of the cohort. Must match the seed used by
             :func:`synthetic.generator.build_cohort` for the latent times to
             correspond to the same patients.
-        n_patients: Cohort size. Large by default: recovering seven hazard ratios
-            to within a few percent needs more events than the study cohort has.
+        n_patients: Cohort size. Large by default: the tear and pannus modes are a
+            minority of deterioration, so their events are scarce.
 
     Returns:
-        One row per covariate, with the injected hazard ratio, the estimate from
-        the latent onset times with its confidence interval, whether that interval
-        covers the injected value, and the estimate from the observed events with
-        its attenuation relative to the injected value.
+        One row per mode and covariate, with the injected hazard ratio, the
+        estimate from the latent onset times with its confidence interval, whether
+        that interval covers the injected value, and the estimate from the observed
+        events with its attenuation relative to the injected value. ``covariate``
+        is prefixed by the mode so that it stays unique across the frame.
     """
     from dataclasses import replace
 
     large = replace(params, cohort=replace(params.cohort, n_patients=n_patients))
     rng = np.random.default_rng(seed)
     patients = _draw_patients(rng, large)
-    onset_years, death_years, is_early = _latent_times(rng, patients, large)
-
-    # Four baseline hazards, one per (phenotype, approach) cell. The two phenotypes
-    # are generated with different Weibull shapes, so they are not proportional to
-    # each other and no coefficient could express the difference; and approach
-    # changes the scale only in the late phenotype. Stratifying lets each cell keep
-    # its own baseline while the covariate effects, which are shared by
-    # construction, are estimated from all of the data at once.
-    strata = is_early.astype(int) * 2 + (patients["approach"].to_numpy() == "TAVR").astype(int)
-
-    design = _design(patients, large)
-    latent = fit_cox(onset_years, np.ones(len(patients), dtype=bool), design, strata=strata).frame()
+    onsets, _death_years = _latent_times(rng, patients, large)
 
     from . import generate
 
     cohort = generate("ideal", seed=seed, n_patients=n_patients, params=params)
     events = cohort["events"]
-    first = (
-        events[events["event_type"].isin(("svd_stage2", "svd_stage3"))]
-        .groupby("patient_id")["days_from_implant"]
-        .min()
-    )
+    structural = events[events["event_type"].isin(("svd_stage2", "svd_stage3"))]
+    first = structural.groupby("patient_id")[["days_from_implant"]].min()
+    first["failure_mode"] = structural.sort_values("days_from_implant").groupby("patient_id")["failure_mode"].first()
     followup = cohort["followup"].set_index("patient_id")["last_contact_days"]
     ids = cohort["patients"]["patient_id"]
-    event_day = first.reindex(ids).to_numpy(dtype=float)
+    event_day = first["days_from_implant"].reindex(ids).to_numpy(dtype=float)
+    event_mode = first["failure_mode"].reindex(ids).to_numpy()
     censor_day = followup.reindex(ids).to_numpy(dtype=float)
-    observed_event = ~np.isnan(event_day)
-    observed_time = np.where(observed_event, np.nan_to_num(event_day), censor_day) / DAYS_PER_YEAR
-    observed = fit_cox(
-        observed_time,
-        observed_event,
-        _design(cohort["patients"], params),
-        strata=(cohort["patients"]["approach"].to_numpy() == "TAVR").astype(int),
-    ).frame()
+    any_event = ~np.isnan(event_day)
+    observed_time = np.where(any_event, np.nan_to_num(event_day), censor_day) / DAYS_PER_YEAR
 
-    injected = _injected(params)
-    out = pd.DataFrame({"covariate": latent["covariate"], "injected_hr": [injected[c] for c in latent["covariate"]]})
-    out["latent_hr"] = latent["hazard_ratio"].to_numpy()
-    out["latent_ci_low"] = latent["ci_low"].to_numpy()
-    out["latent_ci_high"] = latent["ci_high"].to_numpy()
-    out["recovered"] = (out["latent_ci_low"] <= out["injected_hr"]) & (out["injected_hr"] <= out["latent_ci_high"])
-    out["observed_hr"] = observed["hazard_ratio"].to_numpy()
-    out["attenuation"] = np.log(out["observed_hr"]) / np.log(out["injected_hr"])
-    return out.round(4)
+    frames = []
+    for mode in MODE_COVARIATES:
+        injected = _injected(params, mode)
+        # The calcific scale differs by approach, so each arm keeps its own
+        # baseline hazard; the other two modes have one scale for the whole cohort.
+        strata = (patients["approach"].to_numpy() == "TAVR").astype(int) if mode == "calcific" else None
+        latent = fit_cox(
+            onsets[mode], np.ones(len(patients), dtype=bool), _design(patients, large, mode), strata=strata
+        ).frame()
+
+        cohort_strata = (cohort["patients"]["approach"].to_numpy() == "TAVR").astype(int) if mode == "calcific" else None
+        observed = fit_cox(
+            observed_time,
+            any_event & (event_mode == mode),
+            _design(cohort["patients"], params, mode),
+            strata=cohort_strata,
+        ).frame()
+
+        out = pd.DataFrame({"mode": mode, "covariate": latent["covariate"]})
+        out["injected_hr"] = [injected[c] for c in latent["covariate"]]
+        out["latent_hr"] = latent["hazard_ratio"].to_numpy()
+        out["latent_ci_low"] = latent["ci_low"].to_numpy()
+        out["latent_ci_high"] = latent["ci_high"].to_numpy()
+        out["recovered"] = (out["latent_ci_low"] <= out["injected_hr"]) & (out["injected_hr"] <= out["latent_ci_high"])
+        out["observed_hr"] = observed["hazard_ratio"].to_numpy()
+        out["attenuation"] = np.log(out["observed_hr"]) / np.log(out["injected_hr"])
+        out["covariate"] = mode + ":" + out["covariate"]
+        frames.append(out)
+    return pd.concat(frames, ignore_index=True).round(4)
+
+
+def failure_mode_shares(cohort: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Share of structural events attributable to each failure mode.
+
+    The mode recorded on an event is the earliest one the valve reached, so these
+    are shares of *first* failure and they sum to one. They are the realised
+    counterpart of the scale assumptions in
+    :class:`synthetic.parameters.HazardParameters`: those scales were chosen to
+    produce a roughly 70 / 20 / 10 split of calcific, tear and pannus, and this is
+    what the cohort actually delivers once the competing risk of death, the
+    covariate mix and interval ascertainment have had their say.
+
+    The shares are an assumption, not an anchor. Where they disagree with the
+    intended split, the published incidence anchors win and the shares move.
+
+    Args:
+        cohort: Tables as returned by :func:`synthetic.generate`.
+
+    Returns:
+        One row per event type and mode, with counts, the share within that event
+        type, and the median years from implant.
+    """
+    events = cohort["events"]
+    structural = events[events["failure_mode"].notna()].copy()
+    structural["years"] = structural["days_from_implant"] / DAYS_PER_YEAR
+    rows = []
+    for event_type, group in structural.groupby("event_type"):
+        for mode, sub in group.groupby("failure_mode"):
+            rows.append({
+                "event_type": event_type,
+                "failure_mode": mode,
+                "n": len(sub),
+                "share": len(sub) / len(group),
+                "median_years": float(sub["years"].median()),
+            })
+    return pd.DataFrame(rows).sort_values(["event_type", "share"], ascending=[True, False]).reset_index(drop=True).round(4)
 
 
 def coverage_test(

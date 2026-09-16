@@ -61,6 +61,7 @@ __all__ = [
     "cumulative_incidence",
     "endpoint_times",
     "observed",
+    "incidence_by_family",
     "solve_scales",
     "solve_death_scale",
     "calibration_report",
@@ -218,6 +219,46 @@ def observed(cohort: dict[str, pd.DataFrame], anchor: Anchor) -> float:
     subset = _subset(cohort, anchor.subgroup)
     endpoint = endpoint_times(subset, _ENDPOINT_TYPES[anchor.quantity])
     return cumulative_incidence(endpoint, anchor.horizon_years)
+
+
+def incidence_by_family(
+    cohort: dict[str, pd.DataFrame],
+    *,
+    quantity: str = "moderate_or_severe_svd",
+    horizons: tuple[float, ...] = (5.0, 8.0, 10.0),
+) -> pd.DataFrame:
+    """Cumulative incidence of ``quantity`` by valve family.
+
+    The realised effect of :attr:`HazardParameters.hr_tear_by_family` and
+    :attr:`HazardParameters.hr_calcific_by_family` is this table, not the
+    multipliers themselves: a family's incidence is the combination of its hazard
+    multipliers, its orifice-area row and the size and approach mix it is implanted
+    in. Quote the table; a multiplier on its own says nothing about what the cohort
+    actually does.
+
+    Args:
+        cohort: Tables as returned by :func:`synthetic.generate`.
+        quantity: Any key of the endpoint table, such as
+            ``"bioprosthetic_valve_failure"``.
+        horizons: Years at which to report incidence.
+
+    Returns:
+        One row per valve family, with the number implanted, the mean indexed
+        orifice area at implant, and cumulative incidence at each horizon. Sorted
+        by the last horizon, so the least durable family is last.
+    """
+    patients = cohort["patients"]
+    rows = {}
+    for family, group in patients.groupby("valve_model"):
+        keep = set(group["patient_id"])
+        subset = {n: f[f["patient_id"].isin(keep)] if "patient_id" in f else f for n, f in cohort.items()}
+        endpoint = endpoint_times(subset, _ENDPOINT_TYPES[quantity])
+        rows[family] = {
+            "n": len(group),
+            "mean_eoa_index": group["eoa_index_cm2_m2"].mean(),
+            **{f"{h:g}y": cumulative_incidence(endpoint, h) for h in horizons},
+        }
+    return pd.DataFrame(rows).T.sort_values(f"{horizons[-1]:g}y")
 
 
 def solve_scales(

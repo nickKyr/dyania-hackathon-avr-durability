@@ -174,6 +174,13 @@ class CohortParameters:
     """ASSUMPTION. Body surface area matters only through the indexed effective
     orifice area, which is what patient-prosthesis mismatch is defined on."""
 
+    anticoagulation_prevalence: float = 0.28
+    """ASSUMPTION. The share of recipients on an oral anticoagulant, usually for
+    atrial fibrillation rather than for the valve itself. It protects against the
+    pannus and thrombosis mode and against nothing else, which is what makes it a
+    covariate that separates one failure mode from the others rather than another
+    reading of overall frailty."""
+
     diabetes_prevalence: float = 0.30
     ckd_prevalence: float = 0.20
     smoking_prevalence: float = 0.15
@@ -204,11 +211,35 @@ class CohortParameters:
 class HazardParameters:
     """Latent deterioration and competing-death hazards.
 
-    Deterioration follows a Weibull hazard with shape above one, so that the risk
-    of deterioration *accelerates* with time in the valve. This is the defining
-    feature of structural valve deterioration and the reason a constant-hazard
-    model is the wrong choice: leaflet calcification is cumulative.
+    Deterioration is modelled as **three competing failure modes**, each with its
+    own Weibull hazard, its own covariates and its own echo signature. A valve may
+    reach any of them, and the earliest one it reaches is what a clinician sees.
+
+    ==============  ====================================  ===========================
+    mode            echo signature                        driven by
+    ==============  ====================================  ===========================
+    calcific        gradient up, EOA down, DVI down       age, PPM, BSA, smoking,
+                                                          diabetes, renal disease
+    tear            regurgitation up, gradient flat       valve size, TAVR, bicuspid
+    pannus          gradient up, EOA down, early          no anticoagulation, small
+                                                          valve, SAVR
+    ==============  ====================================  ===========================
+
+    Why three rather than one: with a single latent onset driving every
+    observable, the gradient, the area, the regurgitation grade, the ejection
+    fraction and even the visit schedule were all noisy readings of the same
+    hidden variable. Anything could be dropped without loss, so no analysis run on
+    the cohort could attribute performance to a data channel -- which is the one
+    question the degradation ladder exists to answer.
+
+    Only the calcific mode keeps an accelerating shape. Calcification is
+    cumulative, so its hazard rises with time in the valve; a tear is a mechanical
+    event and pannus an ingrowth, and neither needs years of deposition first.
     """
+
+    # ------------------------------------------------------------------
+    # Process 1: calcific stenosis. The dominant late process.
+    # ------------------------------------------------------------------
 
     svd_shape: float = 2.0
     """Shape of the late calcific process, comfortably above 1 so that its hazard
@@ -216,33 +247,156 @@ class HazardParameters:
     valve deterioration: leaflet calcification is cumulative, and a constant-hazard
     model is the wrong shape for it."""
 
-    early_failure_fraction: float = 0.09
-    early_onset_scale_years: float = 4.0
-    early_onset_shape: float = 1.1
-    early_progression_multiplier: float = 4.5
-    """A second, smaller population with a **rapidly progressive phenotype**.
+    # ------------------------------------------------------------------
+    # Process 2: leaflet tear or prolapse. The regurgitant failure mode.
+    # ------------------------------------------------------------------
 
-    Bioprosthetic failure is not one process. Alongside the slow calcific
-    degeneration that dominates late, a minority of valves deteriorate early and
-    quickly: early structural problems such as a leaflet tear or a frame or suture
-    issue, a severe mismatch that was never going to be tolerated, and accelerated
-    calcification in patients with high mineral turnover. Grouping these into a
-    single phenotype is a simplification; what they share, and what matters for the
-    endpoint, is early onset followed by fast progression.
+    tear_shape: float = 1.15
+    """Close to a constant hazard. A tear is a mechanical failure of a leaflet
+    under cyclic load; unlike calcification it does not need years of mineral
+    deposition to become possible, so its hazard is nearly flat rather than
+    accelerating."""
 
-    Modelling onset as a single Weibull forced an impossible compromise. To produce
-    any events by five years the shape had to be dragged down towards 1, flattening
-    the very acceleration that characterises the late process, and even then the
-    five- and seven-year bioprosthetic-failure anchors were missed by a wide margin.
-    A mixture lets each process keep its own shape, and it is the clinically
-    truthful description rather than a device for hitting a number."""
+    tear_scale_years: float = 120.0
+    """ASSUMPTION. This is where the cohort's *early* failure comes from, and it is
+    set deliberately rather than left at a round number. Shortened from 150 once it
+    was measured that early failure has to come from somewhere: see
+    :attr:`pannus_scale_years` for the alternative that was tried and rejected.
 
-    svd_scale_savr_years: float = 33.2109375
-    svd_scale_tavr_years: float = 15.0703125
+    Why this process rather than the other flat-hazard one. Both can supply
+    failures inside five years, but a tear announces itself -- regurgitation climbs
+    while the gradient *falls* -- and it answers to covariates the data actually
+    carry, including valve family. Pannus obstructs exactly as calcification does
+    and answers to almost nothing. Measured on the model: moving early mass from
+    pannus to tear was worth 0.023 of five-year AUC and 0.049 of precision at a 10%
+    alert budget. A synthetic cohort whose early failures are unattributable
+    teaches a model nothing and measures nothing.
+
+    The realised shares, reported by
+    :func:`synthetic.validation.failure_mode_shares`, are 62 / 32 / 6 of
+    moderate-or-worse deterioration and 47 / 46 / 7 of severe deterioration,
+    calcific / tear / pannus -- not the 70 / 20 / 10 originally intended.
+
+    That drift is a real tension and worth stating plainly rather than hiding.
+    PARTNER 3 reports 3.6% bioprosthetic valve failure at five years while NOTION
+    reports 20.8% moderate-or-severe deterioration at ten, and an accelerating
+    calcific process with a shape of 2 cannot produce both: whatever fails inside
+    five years must come from a process whose hazard is already meaningful at year
+    two. The shares are an assumption, the anchors are published data, so the
+    anchors win. The honest way to recover the balance is not to retune these two
+    numbers but to give the calcific process its own early, identifiable component
+    -- accelerated calcification in renal failure and hyperparathyroidism is well
+    described -- which is recorded as the next extension rather than done here.
+
+    What the cohort does preserve is the clinically meaningful gradient: calcific
+    degeneration dominates *moderate* deterioration and arrives late (median 7.1
+    years), while tear is a third of deterioration but nearly half of outright
+    failure and arrives early (median 5.0 years)."""
+
+    hr_tear_by_family: tuple[tuple[str, float], ...] = (("Trifecta", 3.20),)
+    hr_calcific_by_family: tuple[tuple[str, float], ...] = (("Trifecta", 1.60),)
+    """Device-specific durability, entered on the mode the device actually fails by.
+
+    Families not listed here carry 1.0. Only the Trifecta is listed, because it is
+    the only family in this cohort with a regulatory signal behind it: the FDA
+    issued a safety communication in 2023 on early structural deterioration
+    peaking at three to four years, Abbott withdrew the valve from US sale in July
+    2023, and a surgical series reports reoperation of 16.9% at eight years against
+    3.8% for the Perimount.
+
+    Most of the weight goes on the tear mode rather than on calcification, because
+    the reported mechanism is commissural leaflet tear in an externally mounted
+    pericardial design, not accelerated mineralisation. Entering it this way is the
+    point of having named modes at all: a device effect that acts through one
+    mechanism produces a different echo signature from one that acts through
+    another, and a model that reads only the gradient will miss it.
+
+    ASSUMPTION on the magnitude, and a deliberately conservative one. Taken at face
+    value the reoperation series implies an overall hazard ratio near 4.8; the
+    values here are set below that because the evidence is contested -- a
+    propensity-matched series from the Cleveland Clinic (2,298 Trifecta against
+    Perimount) reported 100% freedom from structural deterioration at five years.
+    The realised overall effect is reported by
+    :func:`synthetic.calibration.incidence_by_family`, and it is the quantity to
+    quote, not these two multipliers.
+
+    The haemodynamic table in the generator is deliberately NOT changed to match.
+    The Trifecta has the largest effective orifice area of any surgical valve here,
+    which is correct and is the clinically interesting part: best gradients at
+    implant, worst durability afterwards. A cohort that encodes only the first half
+    teaches a model the opposite of the truth."""
+
+    hr_tear_per_mm: float = 1.10
+    hr_tear_tavr: float = 1.30
+    hr_tear_bicuspid: float = 1.35
+    """ASSUMPTIONS in the direction the literature reports, and **deliberately a
+    different covariate set from the calcific process**.
+
+    Tearing is mechanical, not metabolic: it is not driven by diabetes, renal
+    disease or smoking, and it does not carry the strong inverse age effect that
+    calcification does. Larger leaflets carry more load per unit thickness,
+    transcatheter leaflets are thinner and crimped before deployment, and a
+    bicuspid annulus deploys the frame elliptically.
+
+    That the two processes answer to different covariates is the point of
+    separating them. While one latent process drove every observable, the patient
+    covariates, the valve covariates and every echo channel were noisy copies of
+    one hidden variable: a model could drop any of them and lose nothing."""
+
+    # ------------------------------------------------------------------
+    # Process 3: pannus or valve thrombosis. The early obstructive mode.
+    # ------------------------------------------------------------------
+
+    pannus_shape: float = 1.10
+    pannus_scale_years: float = 420.0
+    """ASSUMPTION. Fibrous pannus ingrowth and leaflet thrombosis both obstruct
+    without calcifying, and both appear earlier than calcific degeneration. They
+    are modelled as one process because their echo signature and their management
+    are the same; what separates them from calcification clinically is that they
+    respond to anticoagulation.
+
+    **This value was shortened to 200 and then put back, and the reason is worth
+    keeping.** At 200 the mode reached 23% of severe deterioration and the cohort
+    hit the early bioprosthetic-failure anchors comfortably -- but five-year AUC
+    fell by 0.023 and precision at a 10% alert budget by 0.049, the largest single
+    loss of any change made to this generator. Pannus is the least identifiable
+    mode by construction: its hazard is nearly flat, so its timing is close to
+    random; it answers to three weak covariates; and its echo signature -- gradient
+    up, area down -- is the same as calcification's, so a model cannot even tell
+    the two apart after the fact. Filling the early window with it buys the anchor
+    and pays for it in unattributable noise. The early mass belongs on
+    :attr:`tear_scale_years`, which is identifiable, and that is where it now sits.
+
+    That this mode is hard to predict is not a flaw in the simulation. Pannus and
+    subclinical thrombosis are genuinely poorly predicted in clinic, which is
+    precisely why anticoagulation is the covariate worth having: it is the one
+    handle there is."""
+
+    hr_pannus_no_anticoagulation: float = 1.43
+    """The reciprocal of the protective HR 0.70 that registries report for
+    anticoagulation. Entered on the exposed side, since the generator draws
+    anticoagulation as a covariate rather than treating its absence as baseline."""
+
+    hr_pannus_per_mm: float = 0.88
+    hr_pannus_savr: float = 1.50
+    """ASSUMPTIONS. A smaller orifice is obstructed by less tissue, and pannus is
+    predominantly reported around a sewing ring, so it is more a surgical than a
+    transcatheter phenomenon."""
+
+    pannus_progression_multiplier: float = 4.5
+    """Once obstruction begins it progresses faster than calcification. This is the
+    ``early_progression_multiplier`` of the previous single-mixture model, which
+    grouped tear, pannus and accelerated calcification into one unexplained
+    "rapidly progressive phenotype". That grouping was recorded there as a
+    simplification; naming the three processes and giving each its own covariates
+    and its own echo signature is the de-simplification."""
+
+    svd_scale_savr_years: float = 38.009765625
+    svd_scale_tavr_years: float = 16.177734375
     """SOLVED by bisection, not assumed: the values reproducing the two targeted
     NOTION moderate-or-severe anchors. Re-derive with::
 
-        solve_scales(DEFAULT, n_solve=12_000)   # -> (33.2109, 15.0703)
+        solve_scales(DEFAULT, n_solve=12_000)   # -> (38.0098, 16.1777)
 
     at seed 20260917, which is the call these two numbers came from, and with the
     mortality scale below already solved -- the competing risk governs how many
@@ -300,9 +454,13 @@ class HazardParameters:
 
     age_centre: float = 75.0
     bsa_centre: float = 1.85
+    valve_size_centre_mm: float = 23.0
+    """Centring point for label size, the commonest size in the cohort. The tear
+    and pannus modes both take size as a covariate, in opposite directions, so the
+    scale of each has to describe a real valve rather than a 0 mm one."""
 
     death_shape: float = 1.45
-    death_scale_years_at_centre: float = 14.70703125
+    death_scale_years_at_centre: float = 14.638671875
     hr_death_per_year_age: float = 1.085
     hr_death_ckd: float = 1.70
     hr_death_diabetes: float = 1.30
@@ -381,9 +539,40 @@ class EchoParameters:
     lvef_sd: float = 7.0
     lvef_decline_after_onset_per_year: float = 1.2
 
-    ar_progression_rate_per_year: float = 0.11
-    """ASSUMPTION. Yearly probability, after onset, of intraprosthetic
-    regurgitation worsening by one grade."""
+    ar_progression_after_tear_per_year: float = 2.50
+    """Rate at which regurgitation gains grades once a leaflet has torn, per year.
+
+    Fast, because this is the tear mode's defining signature: a torn leaflet does
+    not hold. At this rate a valve starting from trace regurgitation reaches severe
+    in about eighteen months, which is still conservative -- a leaflet that tears
+    outright can produce severe regurgitation in weeks.
+
+    The first value tried here was 0.75, which needed more than four years to move
+    a valve from trace to severe and made the tear mode almost incapable of
+    producing a *failure* inside the five-year window that PARTNER 3 reports. The
+    cohort missed the five- and seven-year bioprosthetic-failure anchors by more
+    than half as a result. Raising it is the clinically truthful correction, not a
+    device for hitting the anchor: the anchor was missed *because* the rate was
+    wrong."""
+
+    ar_progression_after_calcific_per_year: float = 0.06
+    """The same probability under calcific degeneration, which is far lower.
+
+    A calcifying leaflet retracts a little and can leak a little, but it fails by
+    obstructing. Keeping this small is what makes regurgitation an **independent
+    channel** rather than a second reading of the gradient: under the previous
+    single-onset model every deteriorating valve became regurgitant at the same
+    rate whatever its mode, so the regurgitation grade carried no information the
+    gradient did not already carry."""
+
+    tear_gradient_change_mmhg_per_year: float = -0.4
+    """Mean gradient after a tear, in mmHg per year.
+
+    Negative, and this is the point of the mode. A torn leaflet obstructs less,
+    not more, so the VARC-3 gradient arm never fires and the event is established
+    through the regurgitation arm alone. A model reading only the gradient is
+    blind to this failure mode, which is exactly the clinical situation the
+    protocol argues surveillance must cover."""
 
 
 @dataclass(frozen=True, slots=True)

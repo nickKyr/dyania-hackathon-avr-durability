@@ -225,6 +225,16 @@ PATIENTS: Final[Table] = _table(
         Column("ckd", "bool", "Chronic kidney disease at implant.", nullable=True),
         Column("smoking", "bool", "Current or recent smoking at implant.", nullable=True),
         Column("bicuspid", "bool", "Bicuspid native aortic valve.", nullable=True),
+        Column(
+            "anticoagulation",
+            "bool",
+            "Oral anticoagulant at implant, usually for atrial fibrillation rather "
+            "than for the valve. It protects against the pannus and thrombosis "
+            "failure mode and against no other, so it is one of the covariates that "
+            "tells the modes apart. The supplied extract can populate this column "
+            "from its medication table, which is why it is worth asking for.",
+            nullable=True,
+        ),
     ),
 )
 
@@ -277,6 +287,19 @@ EVENTS: Final[Table] = _table(
             "bvf_reintervention is bioprosthetic valve failure treated by valve-in-valve "
             "or redo surgery; death is the competing risk.",
             allowed=("svd_stage2", "svd_stage3", "bvf_reintervention", "death"),
+        ),
+        Column(
+            "failure_mode",
+            "str",
+            "Which failure mode the valve reached first before this event: calcific "
+            "stenosis, leaflet tear, or pannus and thrombosis. Null on deaths. "
+            "This is the EARLIEST-ONSET mode, not a causal attribution of which "
+            "criterion fired: a valve that has both calcified and torn contributes "
+            "both signatures to the echo, and the VARC-3 rule is applied to the "
+            "combination. It is ground truth available only in simulation, and the "
+            "protocol names mode-specific prediction as an extension.",
+            nullable=True,
+            allowed=("calcific", "tear", "pannus"),
         ),
         Column(
             "days_from_implant",

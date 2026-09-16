@@ -35,13 +35,14 @@ from .calibration import (
     calibration_report,
     cumulative_incidence,
     endpoint_times,
+    incidence_by_family,
     solve_scales,
     solve_death_scale,
 )
 from .degrade import PRESET_DESCRIPTIONS, PRESETS, apply_preset
 from .generator import VARC3_STAGE2, VARC3_STAGE3, build_cohort
 from .parameters import ANCHORS, DEFAULT, Parameters
-from .validation import CoxFit, coverage_test, fit_cox, recovery_test
+from .validation import CoxFit, coverage_test, failure_mode_shares, fit_cox, recovery_test
 from .schema import TABLE_NAMES, TABLES, SchemaError, describe, validate, validate_all
 
 __all__ = [
@@ -62,10 +63,12 @@ __all__ = [
     "calibration_report",
     "cumulative_incidence",
     "endpoint_times",
+    "incidence_by_family",
     "solve_scales",
     "solve_death_scale",
     "CoxFit",
     "coverage_test",
+    "failure_mode_shares",
     "recovery_test",
     "fit_cox",
     "validate",
