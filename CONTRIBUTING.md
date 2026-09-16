@@ -32,6 +32,7 @@ We work on `team/dyanooumenoi`. Push to the fork, then open one pull request to
 | Command | Regenerates |
 |---|---|
 | `uv run python -m pytest notebooks/synthetic/tests -q` | the synthetic cohort's 54 tests |
+| `uv run python -m pytest notebooks/pipeline/tests -q` | 15 tests on labels, landmark features, the round trip and matching |
 | `uv run python scripts/05_report_synthetic.py` | `data/synthetic/results.md` |
 | `uv run python scripts/06_model_stability.py` | `model/stability.md` |
 | `uv run python scripts/07_sample_size.py` | `protocol/sample_size.md` |

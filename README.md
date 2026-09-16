@@ -79,6 +79,7 @@ into a ranked, quantified statement of which defect costs how much.
 ```bash
 uv sync
 uv run python -m pytest notebooks/synthetic/tests -q     # 54 tests on the synthetic cohort
+uv run python -m pytest notebooks/pipeline/tests -q      # 15 tests on labels, features and matching
 uv run python scripts/05_report_synthetic.py             # regenerates data/synthetic/results.md
 uv run python scripts/06_model_stability.py              # regenerates model/stability.md
 uv run python scripts/07_sample_size.py                  # regenerates protocol/sample_size.md

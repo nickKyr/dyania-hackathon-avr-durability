@@ -14,7 +14,7 @@ Shared code lives in `pipeline/`: `viz.py` (plot style), `prep.py` (preprocessin
 
 ## Packages
 
-`synthetic/` is the team's literature-calibrated synthetic cohort and degradation ladder (tests in `synthetic/tests`, run with `uv run python -m pytest synthetic/tests -q`). Notebook 03 converts it into the format `02_preprocessing.ipynb` writes, so real and synthetic data follow the same route from there on. `pipeline/` holds our shared code.
+`synthetic/` is the team's literature-calibrated synthetic cohort and degradation ladder (tests in `synthetic/tests`, run with `uv run python -m pytest synthetic/tests -q`). Notebook 03 converts it into the format `02_preprocessing.ipynb` writes, so real and synthetic data follow the same route from there on. `pipeline/` holds our shared code: label construction, landmark features, the conversion between the two data shapes and the matching rules, with its own tests in `pipeline/tests` (`uv run python -m pytest pipeline/tests -q`).
 
 ## Running
 

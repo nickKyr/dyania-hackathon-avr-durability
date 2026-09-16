@@ -192,7 +192,12 @@ Two requirements are fixed by the design and are not negotiable downstream:
   appear in more than one of training, validation and test. Splitting by row would let the model
   see the same patient on both sides of the split.
 - **No feature dated after its landmark.** This has to be asserted mechanically rather than
-  reasoned about, because the feature vector is assembled by iterating over examinations.
+  reasoned about, because the feature vector is assembled by iterating over examinations. The
+  assertion is behavioural: every examination dated after the landmark has its measurements
+  replaced by impossible values and the feature table is rebuilt, which must leave it byte for
+  byte unchanged — with the mirror-image check that poisoning the examinations *before* the
+  landmark does move the features, so the test cannot pass vacuously
+  (`notebooks/pipeline/tests/test_pipeline.py`).
 
 A temporal split — training on earlier implant cohorts and testing on later ones — is the
 appropriate secondary check, since valve models, implant technique and surveillance practice all
