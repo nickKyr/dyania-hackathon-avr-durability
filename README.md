@@ -138,7 +138,7 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 │   ├── pipeline/                    # Shared code: prep, landmarks, matching, ml, viz (+ tests)
 │   └── synthetic/                   # Cohort generator, calibration, degradation ladder
 ├── presentation/
-│   └── slides.md                    # Outline only — slides.pdf not yet written
+│   └── slides.md                    # Deck content and the spoken script; slides.pdf still to be built
 └── evaluation/
     └── scoring_rubric.md            # Organisers' rubric
 ```
