@@ -69,8 +69,8 @@ not a training set. Present it as the reason the protocol is designed the way it
    KM overestimates deterioration when patients die first.
 5. **Patient-level splits only.** Never split rows of the same patient across train and test.
 6. **No real-data rows, snippets or per-patient outputs in the repo** — aggregate counts only.
-   The private files live outside the repository; load them through
-   [`../notebooks/data_paths.py`](../notebooks/data_paths.py).
+   The private files sit in `data/` and are blocked by `.gitignore`; they reach the model only
+   through [`../notebooks/02_preprocessing.ipynb`](../notebooks/02_preprocessing.ipynb).
 7. **Every synthetic number is labelled synthetic** in the notebook, the figure caption, the
    document and the slide. A reviewer who thinks for one second that a metric came from patients
    is a lost submission.
@@ -142,12 +142,12 @@ table. If it does not, the generator is wrong — not the literature.
 
 ## 5. Deliverable 1 — the pipeline
 
-Written as scripts rather than the notebook this brief originally asked for:
-[`../data/build_landmark_table.py`](../data/build_landmark_table.py) builds the landmark and
-person-period tables and [`../model/fit_svd_models.py`](../model/fit_svd_models.py) fits and
-evaluates the models. Both are written against the real extract's abstraction workbook
-(`structured_extraction.xlsx`); running them end to end on the synthetic cohort, as this brief
-specifies, is still open.
+Built as two notebooks: [`../notebooks/03_data_preparation.ipynb`](../notebooks/03_data_preparation.ipynb)
+builds labels, landmark rows and features, and
+[`../notebooks/04_model_training.ipynb`](../notebooks/04_model_training.ipynb) trains and checks the
+models, with shared code in [`../notebooks/pipeline/`](../notebooks/pipeline/). Both run end to end
+on the synthetic cohort, which enters through the same tables `02_preprocessing.ipynb` writes for
+the real extract, and notebook 04 scores the real extract with the trained models.
 
 **Formulation.** Time from implant to SVD-attributable VARC-3 stage ≥2 hemodynamic valve
 deterioration or bioprosthetic valve failure stage 2–3, with death as a competing risk, events
@@ -195,15 +195,12 @@ on each and report the primary metric per rung:
 | `year_resolution` | exact dates, collapsed to calendar year | what date-shifting to the year costs |
 | `single_echo` | all follow-up examinations but one | what serial surveillance is worth |
 | `as_supplied` | our simulation of the extract: one encounter with its quoted priors, examinations for only the 52% abstraction reaches, no device identity, **no mortality** | what our extract supports, as modelled |
-| `as_received` | **nothing — this *is* the supplied extract**, mapped into the same schema | what our extract supports, in fact |
+| `as_received` | **nothing — this *is* the supplied extract**, prepared by `02_preprocessing.ipynb` | what our extract supports, in fact |
 
-Get them all, real rung included, in one call:
-
-```python
-from cohort.ladder import full_ladder, availability
-rungs = full_ladder()            # dict of six, in ladder order
-print(availability())            # what an analyst can see in each, before any model
-```
+The synthetic rungs come from `synthetic.generate(preset=...)`. Every rung, real one included,
+enters the model through the same code: `pipeline.landmarks.synthetic_to_preprocessing` turns a
+synthetic cohort into the tables `02_preprocessing.ipynb` writes for the extract, and
+`pipeline.landmarks.from_preprocessing` takes either into `03_data_preparation.ipynb`.
 
 This converts "the data were poor" into a **ranked, quantified list of which defect costs most**,
 which is the argument a hospital needs in order to justify supplying dated serial echoes. And

@@ -36,16 +36,15 @@ questions and are evaluated differently.
 | Layer | What it does | Status in this repository |
 |---|---|---|
 | 1. Data processing | de-duplication, analyte and unit normalisation, whitelisted numeric parsing, alignment to the note's service year | [`scripts/`](scripts/), [`notebooks/01`](notebooks/01_raw_data_overview.ipynb), [`notebooks/02`](notebooks/02_preprocessing.ipynb) — measurements in [`data/data_plan.md`](data/data_plan.md) |
-| 2. Chart abstraction | note text → structured fields with an evidence span; predicts *what the chart says* | rule-based and language-model passes, compared against each other in [`notebooks/cohort/load.py`](notebooks/cohort/load.py) |
-| 3. Risk model | time from implant to deterioration, with death as a competing risk; predicts *what happens to the patient* | cohort and degradation ladder complete and reproducible; the fitting scripts are in [`model/`](model/) with no results committed yet |
+| 2. Chart abstraction | note text → structured fields with an evidence span; predicts *what the chart says* | rule-based and language-model passes in [`scripts/`](scripts/), reconciled in [`notebooks/02`](notebooks/02_preprocessing.ipynb) |
+| 3. Risk model | time from implant to deterioration, with death as a competing risk; predicts *what happens to the patient* | labels and features in [`notebooks/03`](notebooks/03_data_preparation.ipynb), models in [`notebooks/04`](notebooks/04_model_training.ipynb), code in [`notebooks/pipeline/`](notebooks/pipeline/) |
 
 **No model is fitted on the supplied extract, and that is a finding rather than a shortfall.**
 Mapped into the study schema, the extract reaches an examination for 52.1% of patients, averages
 1.69 examinations each, carries **no mortality data at all**, and yields 12.0 events per 100
 patients — all of them documented reinterventions, because haemodynamic staging needs a reference
 examination the extract does not contain. Those figures are printed, alongside the synthetic
-rungs they are compared against, by `python -m cohort` into
-[`data/synthetic/results.md`](data/synthetic/results.md).
+rungs they are compared against, in [`data/synthetic/results.md`](data/synthetic/results.md).
 
 The pipeline is therefore exercised on a **literature-calibrated synthetic cohort**, and the same
 unchanged pipeline is run across a **degradation ladder** — the same patients with their data
@@ -62,32 +61,30 @@ into a ranked, quantified statement of which defect costs how much.
 | **One tolerance rule, fixed before any cohort was generated** | Bands are 2 percentage points or a quarter of the published value, whichever is larger, applied uniformly. A per-anchor tolerance chosen by hand is not a standard, it is a description of the result. Enforced by `test_every_anchor_uses_the_stated_tolerance_rule`. |
 | **Calibration is not correctness, so correctness is tested separately** | Nine parameters were fitted against the anchors, which is close to saturated. Correctness is established by injecting known hazard ratios and recovering them with an independently implemented Cox fit: the 95% interval covered the injected value in **20 of 21 fits**, mean log bias **+0.0005** ([`synthetic/validation.py`](notebooks/synthetic/validation.py)). The injected effects are themselves cross-checked against published predictor estimates in [`docs/research/svd_literature.md`](docs/research/svd_literature.md) §3.6 — agreements and disagreements alike. |
 | **No gradient change, slope or "first versus latest" from the supplied extract** | Most patients with more than one prosthetic mean gradient have every value inside a single note with the examination dates redacted, so the values have no recoverable order. A derived trajectory there would be fabricated. |
-| **The last rung of the ladder is the extract itself, not a simulation of it** | The panel is not asked to take the simulation on trust: where the simulated bottom rung and the real one agree, the intermediate rungs can be believed. Enforced by `test_the_simulated_bottom_rung_reproduces_the_real_one`. |
+| **The last rung of the ladder is the extract itself, not a simulation of it** | The panel is not asked to take the simulation on trust: where the simulated bottom rung and the real one agree, the intermediate rungs can be believed. |
+| **One route for real and synthetic data** | The synthetic cohort is converted into the tables `02_preprocessing.ipynb` writes for the extract, so both go through identical label, feature and model code. On every ladder rung the conversion reproduces the generator's own tables row for row. |
+| **Train on data that look like the target** | Trained on the ideal cohort, the boosted model ranked the real valves worse than chance. The synthetic cohort is therefore reshaped to the extract's measured gaps before training (`TRAIN_LIKE_REAL`). |
 
 ## What Runs Today
 
 ```bash
 uv sync
-uv run pytest                     # 58 tests
-cd notebooks && uv run python -m cohort > ../data/synthetic/results.md
+uv run python -m pytest notebooks/synthetic/tests -q     # synthetic cohort tests
+uv run python scripts/01_extract_rules.py                # then 02 and 03, see scripts/README.md
+uv run jupyter lab                                        # notebooks 01 to 04, in order
 ```
 
-`python -m cohort` regenerates [`data/synthetic/results.md`](data/synthetic/results.md) — the
-calibration table against the published anchors, and the degradation ladder. Every figure in it
-is reproduced exactly from a fixed seed; only the generation date on the first line changes.
-Its synthetic rungs need nothing but this repository; the final `as_received` rung reads the
-consolidated extract and therefore requires `AVR_DATA_DIR` to point at the private data
-(see [`.env.example`](.env.example)).
+- `02_preprocessing.ipynb` turns the extract into valves, echo timelines, events and follow-up.
+- `03_data_preparation.ipynb` builds labels, landmarks and features for the synthetic cohort
+  (reshaped to look like the extract by default) and explores them.
+- `04_model_training.ipynb` trains the comparators, the regression baseline and the boosted model,
+  checks them on later synthetic valves, and scores the real extract.
 
-The risk-model layer lives in [`data/build_landmark_table.py`](data/build_landmark_table.py) and
-[`model/fit_svd_models.py`](model/fit_svd_models.py). It consumes the abstraction workbook built
-by `scripts/01`–`02`, and no results from it are committed yet; see
-[`model/approach.md`](model/approach.md).
+Every synthetic number is labelled synthetic. The real extract is scored and never trained on.
 
 No patient-level value, note text or identifier appears in this repository, in any figure, or in
-any committed notebook output. The source extracts are resolved outside the working tree through
-[`notebooks/data_paths.py`](notebooks/data_paths.py), which refuses any path inside it; the
-intermediate tables written by the scripts above are gitignored.
+any committed notebook output. The source extracts sit in `data/`, and `.gitignore` blocks every
+spreadsheet, CSV, parquet, pickle and derived table there.
 
 ---
 
@@ -153,22 +150,22 @@ Title your PR: `Team submission: <your-team-name>`
 │   └── study_protocol.md            # Full study design (main deliverable)
 ├── model/
 │   ├── approach.md                  # Modelling methodology and validation strategy
-│   ├── modeling_brief.md            # Internal work assignment for the model layer
-│   └── fit_svd_models.py            # Risk models fitted on the landmark table
+│   └── modeling_brief.md            # Internal work assignment for the model layer
 ├── data/
 │   ├── data_plan.md                 # Data sources, preprocessing, availability
 │   ├── data_dictionary.md           # Field provenance
 │   ├── endpoint_criteria.md         # Candidate failure definitions
 │   ├── open_questions.md            # Decisions still open, with their owners
-│   ├── build_landmark_table.py      # Landmark and person-period tables
 │   └── synthetic/                   # Generated results and a schema sample
 ├── docs/                            # Per-source data review (labs, meds, notes, quality)
 ├── scripts/                         # 01–04: extracts → structured tables
 ├── notebooks/
 │   ├── 01_raw_data_overview.ipynb   # What the three extracts contain
 │   ├── 02_preprocessing.ipynb       # Cleaning and abstraction
-│   ├── synthetic/                   # Cohort generator, calibration, degradation ladder
-│   └── cohort/                      # The real extract mapped into the study schema
+│   ├── 03_data_preparation.ipynb    # Labels, landmarks, features, selection
+│   ├── 04_model_training.ipynb      # Comparators, baseline, boosted model, real-extract check
+│   ├── pipeline/                    # Shared code: prep, landmarks, matching, ml, viz
+│   └── synthetic/                   # Cohort generator, calibration, degradation ladder
 ├── presentation/
 │   └── slides.md                    # Outline only — slides.pdf not yet written
 └── evaluation/
@@ -217,9 +214,4 @@ uv add pandas
 5. For removing an unnecessary package from venv, i.e. removing pandas:
 ```bash
 uv remove pandas
-```
-
-6. Run python script:
-```
-uv run -m data.build_landmark_table
 ```

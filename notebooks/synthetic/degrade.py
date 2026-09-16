@@ -233,10 +233,11 @@ PRESETS: Final[dict[str, tuple[str, ...]]] = {
 """The rungs, in order. Cumulative: each contains every defect above it.
 
 These five are *simulations* of data poverty. The ladder has a sixth rung that is
-not simulated at all -- the supplied extract itself, mapped into this schema by
-``cohort.to_schema``. Comparing the fifth rung with the sixth answers a question
-the simulation cannot answer about itself: whether our model of how poor the data
-are was accurate. See ``cohort.ladder``.
+not simulated at all -- the supplied extract itself, prepared by
+``notebooks/02_preprocessing.ipynb`` and brought into the same pipeline by
+``pipeline.landmarks.from_preprocessing``. Comparing the fifth rung with the sixth
+answers a question the simulation cannot answer about itself: whether our model of
+how poor the data are was accurate.
 """
 
 PRESET_DESCRIPTIONS: Final[dict[str, str]] = {

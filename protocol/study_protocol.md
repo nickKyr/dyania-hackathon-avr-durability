@@ -245,14 +245,12 @@ the host institution's to determine and has not been confirmed here.
 
 The controls below are implemented, not merely intended.
 
-- **Source data never enter the working tree.** Paths are resolved through
-  [`../notebooks/data_paths.py`](../notebooks/data_paths.py), which reads `AVR_DATA_DIR` and
-  **refuses any path inside the repository**. `.gitignore` additionally blocks spreadsheet, CSV,
-  parquet and pickle files.
+- **Source data are never committed.** The extracts sit in `data/`, and `.gitignore` blocks
+  spreadsheet, CSV, parquet, pickle and JSON files there, together with the derived folders
+  (`data/raw_tables/`, `data/llm_json/`, `data/processed/`).
 - **Derived tables are treated as source data.** Abstraction output retains verbatim note snippets
-  as evidence for each extracted value, so it is held outside the repository with the source. The
-  loader drops the evidence column by default — some 787,000 characters of note text — because it
-  is needed to verify an extraction by eye and for nothing else.
+  as evidence for each extracted value, so it stays in those ignored folders. Notebooks never
+  print it; they show counts and distributions only.
 - **Only aggregates are committed.** No patient-level value, note text or identifier appears in
   any document, figure or notebook output in this repository.
 - **Synthetic data are labelled as synthetic at row level.** Every row carries `source` and

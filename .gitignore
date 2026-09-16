@@ -27,7 +27,7 @@ data/**/*.json
 .env
 .env.*
 !.env.example
-meeting_notes.txt
+meeting_notes*.txt
 
 # Python / Jupyter / uv
 __pycache__/

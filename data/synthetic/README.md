@@ -10,13 +10,9 @@ Full rationale, calibration results and limitations are in
 
 ## Results
 
-[`results.md`](results.md) holds the calibration table and the degradation ladder, regenerated
-from the code rather than maintained by hand, so the evidence is legible without running
-anything:
-
-```bash
-python -m cohort > ../data/synthetic/results.md
-```
+[`results.md`](results.md) holds the calibration table and the degradation ladder as generated on
+16 September. It is kept as a record and is no longer regenerated; the real extract now reaches
+the models only through `notebooks/02_preprocessing.ipynb`.
 
 ## Generating it
 

@@ -1,12 +1,11 @@
 # Model Approach
 
-> **Ownership and status.** Sections 2 to 5 are the model workstream's to write
-> ([`modeling_brief.md`](modeling_brief.md) §6) and are left for its owner: the fitting code in
-> this folder has not been run outside that workstream, so nothing is asserted here about how it
-> behaves. Sections 1, 6 and 7 are written from the parts of the pipeline that have been executed
-> and verified in this checkout — the study schema, the cohort generator, the calibration and the
-> degradation ladder. No performance number appears anywhere in this document, because none has
-> been produced and committed.
+> **Status.** Every section describes code that runs in this checkout: the real extract through
+> [`../notebooks/02_preprocessing.ipynb`](../notebooks/02_preprocessing.ipynb), labels, landmarks and
+> features in [`../notebooks/03_data_preparation.ipynb`](../notebooks/03_data_preparation.ipynb), and
+> models in [`../notebooks/04_model_training.ipynb`](../notebooks/04_model_training.ipynb), with the
+> shared code in [`../notebooks/pipeline/`](../notebooks/pipeline/). Performance numbers come from
+> the synthetic cohort and are labelled as such; the real extract is scored, never trained on.
 
 ---
 
@@ -42,76 +41,108 @@ incidence, is the form this resolution permits.
 
 **Risk has to be re-estimated at each new examination, not once at implant**, because the clinical
 decision the model serves — when to image this patient next — recurs every time the patient is
-imaged. That is a landmark design. Its implementation lives in
-[`../data/build_landmark_table.py`](../data/build_landmark_table.py) and belongs to the model
-workstream.
+imaged. That is a landmark design, implemented in
+[`../notebooks/pipeline/landmarks.py`](../notebooks/pipeline/landmarks.py): a row per valve at 0.5,
+1, 2 … 10 years after implant while the valve is event-free and observed, features taken only
+from records dated at or before the landmark, and the outcome measured from it.
 
 ---
 
 ## 2. Chosen Model(s)
 
-> **Owner: the model workstream** ([`modeling_brief.md`](modeling_brief.md) §6). The fitting code
-> is [`fit_svd_models.py`](fit_svd_models.py) and the tables it consumes are built by
-> [`../data/build_landmark_table.py`](../data/build_landmark_table.py). Neither has been run
-> outside that workstream and no results are committed, so this section is left to its owner
-> rather than described second-hand.
+All models answer one question: from a landmark, what is the cumulative incidence of SVD at 2, 5
+and 8 years, with death as a competing event. Code in
+[`../notebooks/pipeline/ml.py`](../notebooks/pipeline/ml.py), trained in notebook 04.
 
-One boundary is worth recording here because it constrains what may be claimed anywhere in this
-repository: `lifelines`, `scikit-survival` and `shap` are **not** dependencies of this project.
-Fine–Gray models, penalised Cox, gradient-boosted survival analysis, random survival forests,
-DeepHit and SHAP attribution are named as candidates in
-[`modeling_brief.md`](modeling_brief.md) and are not implemented.
+| Model | Role | Why |
+|---|---|---|
+| Guideline calendar schedule | comparator | Current practice: valves under and over five years, each given the training incidence of its group |
+| Valve age only | comparator | Boosted model on time since implant alone; any useful model must beat it |
+| Cause-specific Cox on published risk factors (`lifelines`) | comparator, hazard ratios | The model clinicians read; robust errors clustered by patient because a patient contributes several landmark rows. It ignores death, so its absolute risk is an overestimate |
+| Discrete-time competing-risks regression | clinical baseline | Two logistic hazards (SVD, death) per follow-up year on the clinical priors, chained into a cumulative incidence (Aalen–Johansen form). At yearly resolution this is Cox's model for tied times |
+| Discrete-time competing-risks gradient boosting | primary | The same two-hazard structure with `HistGradientBoostingClassifier`: native missing values, non-linear effects, and monotone constraints so risk cannot fall as a stenosis marker rises |
+
+Death is never treated as censoring: the SVD and death hazards are fitted separately and combined,
+so a patient who dies first counts as not having SVD. Fine–Gray, random survival forests and
+DeepHit are not implemented; the joint longitudinal model of the gradient is the planned extension.
+
+**Why gradient boosting and not deep learning.** A protocol-sized cohort has 100 to 200 events;
+trees with native missing-value handling and monotone constraints are the strongest option at that
+scale and stay explainable with SHAP.
 
 ---
 
 ## 3. Feature Engineering
 
-> **Owner: the model workstream.** The feature blocks are defined in
-> [`fit_svd_models.py`](fit_svd_models.py) and derived in
-> [`../data/build_landmark_table.py`](../data/build_landmark_table.py).
+The catalogue (`FEATURES` in `ml.py`) lists 41 features in seven blocks, each with the direction
+the literature expects and whether it is a clinical prior:
 
-Two constraints come from the data workstream and hold regardless of which features are chosen.
+- **time:** years since implant at the landmark
+- **patient:** age at implant, sex, BSA, diabetes, CKD, smoking, bicuspid anatomy
+- **valve:** SAVR or TAVR, valve family, label size, indexed EOA at implant, mismatch grade
+- **reference echo:** mean and peak gradient, DVI, EOA, regurgitation, LVEF, and a flag when it is missing
+- **latest echo:** the same measurements at the most recent study before the landmark
+- **trajectory:** change from reference in gradient, DVI, EOA and regurgitation, highest gradient so far, gradient slope over the last two studies
+- **surveillance:** number of echoes, echoes in the last two years, years since the last one
 
-**No gradient change, slope or "first versus latest" may be derived from the supplied extract.**
-Most patients with more than one prosthetic mean gradient have every value inside a single note
-with the examination dates redacted, so those values have no recoverable order. A change computed
-against a genuine reference examination is a different quantity and is legitimate; a change
-computed from the minimum and maximum inside one note is a fabricated trajectory.
+Ten are clinical priors (valve age, age, diabetes, CKD, smoking, SAVR vs TAVR, size, mismatch,
+reference gradient, gradient change); the regression baseline and the Cox comparator use only
+these. A change is computed only against a genuine reference examination, never from values that
+share one note.
 
-**No imputation across the two sub-cohorts.** A patient in this extract either has an operative
-report or has structured laboratory and medication data, never both. Imputing across the two
-invents the linkage the extract lacks, and any feature that exists for only one of them encodes
-cohort membership rather than biology.
+**Feature selection is switchable and off by default.** Four filters run on training rows only:
+missing on more than 60% of rows, near-constant, Spearman correlation above 0.95 (the prior wins),
+and stability selection (an L1-penalised hazard model on 40 random halves of the training
+patients, kept if chosen in 60% of fits). With selection off every feature is used and the report
+shows what each filter would drop. Features that are entirely empty in a training set are dropped
+automatically.
 
 ---
 
 ## 4. Validation Strategy
 
-> **Owner: the model workstream.**
+- **Temporal split:** valves implanted up to 2018 train, later valves test. A patient's rows never
+  cross the split.
+- **Tuning:** a small grid (learning rate, leaves, leaf size) scored by 3-fold cross-validation
+  grouped by patient, with early stopping inside each fit.
+- **Metrics:** competing-risk time-dependent AUC and Brier score at 2, 5 and 8 years with inverse
+  probability of censoring weights (cases: SVD by the horizon; controls: event-free at the horizon
+  or dead first), mean predicted risk against the Aalen–Johansen incidence, a learning curve, and a
+  patient-level bootstrap interval for the real extract.
+- **Training data like the target data.** The model must work on the extract, so by default the
+  synthetic cohort is reshaped to look like it (`TRAIN_LIKE_REAL`,
+  [`../notebooks/pipeline/matching.py`](../notebooks/pipeline/matching.py)): year-only dates, no
+  age, no recorded deaths, echo counts and missing fields at the rates measured in the extract,
+  reintervention-only events and extract-like follow-up.
+- **External check:** the real extract, prepared by notebook 02, is scored by every trained model.
+  Calibration curves, a decision curve and Uno's C are planned and not yet run.
 
-Two requirements come from the study design and are not the model owner's to trade away:
+**Results on the synthetic cohort (not patients).** Trained and tested on the cohort matched to the
+extract, valve age carries most of the signal: AUC 0.81, 0.78 and 0.88 at 2, 5 and 8 years for the
+valve-age-only model, 0.80, 0.78 and 0.84 for the regression baseline and the Cox comparator,
+0.78, 0.72 and 0.79 for the constrained boosted model, and 0.68, 0.62 and 0.44 for the calendar
+schedule. In an earlier run on the `ideal` cohort (before the 16 September generator fix), where
+age and serial echoes are present, the boosted model led (0.86, 0.78, 0.77) and was the best
+calibrated, while the Cox comparator overstated 8-year risk (34% against 20.5% observed) because it
+ignores death.
 
-- **Patient-level splits only.** No patient may contribute rows to more than one of training,
-  validation and test, because one patient contributes many landmark rows.
-- **No feature may be dated after its landmark.** This has to be asserted mechanically rather
-  than reasoned about, since the landmark table is built by iterating over examinations.
-
-Everything else — the cross-validation scheme, the temporal split, the metrics actually computed,
-and the uncertainty intervals — belongs to this section's owner.
-
-**External validation:** none. No second site or registry is available.
+**Results on the real extract (51 valves, 8 events, no deaths recorded).** Trained on the ideal
+cohort, the boosted model ranked the real valves worse than chance (5-year AUC 0.29), because it had
+never seen the inputs the extract lacks. Trained on the matched cohort, the regression baseline
+reaches 0.78 (95% interval 0.60 to 0.95), the Cox comparator 0.75, valve age alone 0.74, the
+unconstrained boosted model 0.71 and the constrained one 0.57 (0.30 to 0.82). With 8 events the
+intervals overlap and no ranking is established, and every model predicts far more SVD than the
+observed 12.6% at 5 years, so recalibration on real outcomes comes before any clinical use.
 
 ---
 
 ## 5. Expected Model Outputs
 
-> **Owner: the model workstream.**
-
-What the clinical product is intended to return is described in
-[`modeling_brief.md`](modeling_brief.md): a cumulative incidence at fixed horizons, a risk tier,
-the leading contributing features, and a recommended next surveillance interval. Risk tiering and
-feature attribution are **not implemented**, and the thresholds that would define a tier have not
-been chosen — see section 6.
+For a valve at a follow-up visit the model returns the cumulative incidence of SVD at 2, 5 and 8
+years, a risk tier from the 5-year risk (low under 5%, moderate 5 to 15%, high 15% or more), the
+echo interval attached to the tier (guideline schedule, every two years, every year), and the three
+features that moved the risk most, from SHAP values of the boosted SVD hazard. Notebook 04 prints
+one worked example. The tier thresholds are provisional until the decision curve is run.
 
 ---
 
@@ -119,10 +150,11 @@ been chosen — see section 6.
 
 **Not yet decided — owner: the team, with the clinical lead.** The intended shape is a risk
 estimate refreshed at each echocardiogram, used to bring the next study forward or push it back.
-Three things are missing before that can be written down honestly: the decision threshold, the
-action attached to each tier, and evidence that reallocating surveillance capacity this way helps.
-None of them exists in code today, and writing them as though they did would be the one thing this
-repository has consistently refused to do.
+Notebook 04 implements provisional tiers (5-year risk under 5%, 5 to 15%, 15% or more) mapped to
+the guideline schedule, an echo every two years and an echo every year. What is still missing
+before they can be used is a threshold chosen from a decision curve, clinical agreement on the
+action attached to each tier, and evidence that reallocating surveillance capacity this way
+helps.
 
 ---
 
@@ -132,8 +164,9 @@ repository has consistently refused to do.
 Mapped into the study schema, it reaches an examination for 52.1% of patients, averages 1.69
 examinations each, contains **no mortality data at all**, and yields 12.0 events per 100 patients,
 all of them documented reinterventions — because haemodynamic staging needs a reference
-examination the extract does not contain. Every figure is regenerated by `python -m cohort` into
-[`../data/synthetic/results.md`](../data/synthetic/results.md).
+examination the extract does not contain. The recorded figures are in
+[`../data/synthetic/results.md`](../data/synthetic/results.md); notebook 02 reproduces the event
+count from the notes.
 
 **The competing risk is unobserved on the real rung.** With no vital status in the extract, a
 cumulative incidence computed there is not comparable with one computed where death is known, and
