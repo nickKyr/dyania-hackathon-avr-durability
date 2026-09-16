@@ -27,9 +27,18 @@ from synthetic import (
     validate,
     validate_all,
 )
-from synthetic.generator import DAYS_PER_YEAR, _meets_stage
+from synthetic.generator import DAYS_PER_YEAR, _meets_stage, _visit_days
 from synthetic.parameters import ANCHORS, DEFAULT
-from synthetic.validation import coverage_test, recovery_test
+from synthetic.calibration import (
+    _ARMS,
+    _SOLVED_QUANTITY,
+    _subset,
+    cumulative_incidence,
+    endpoint_times,
+    solve_death_scale,
+    solve_scales,
+)
+from synthetic.validation import coverage_test
 
 SMALL = 400
 
@@ -166,6 +175,32 @@ def test_no_reference_gradient_is_physiologically_impossible(cohort):
     assert reference["mean_gradient_mmhg"].min() >= 2.0
 
 
+def test_no_examination_precedes_the_reference_even_when_onset_is_immediate():
+    """Checked on the schedule itself, because the cohort cannot check it.
+
+    A symptom-triggered study can only precede the reference window when
+    deterioration begins in the first weeks, which happens to roughly one patient in
+    ten thousand -- far too rare for a fixture of a few hundred to catch, and the
+    kind of defect that therefore survives a green suite indefinitely. Driving
+    ``_visit_days`` directly with an onset at essentially time zero makes the rare
+    case the ordinary one.
+    """
+    rng = np.random.default_rng(7)
+    visit = DEFAULT.visit
+    for _ in range(2000):
+        days = _visit_days(rng, DEFAULT, onset_years=float(rng.random() * 0.2), end_years=10.0)
+        assert days[0] >= visit.reference_min_days, "a study precedes the reference window"
+        assert days[0] <= visit.reference_max_days, "the reference study is outside its window"
+        assert len(days) == len(set(days)), "two examinations on the same day"
+        assert days == sorted(days)
+
+
+def test_a_patient_never_has_two_examinations_on_one_day(cohort):
+    """Routine and symptom-triggered studies are drawn from different processes."""
+    counts = cohort["echos"].groupby(["patient_id", "days_from_implant"]).size()
+    assert (counts == 1).all()
+
+
 def test_severe_deterioration_never_precedes_moderate(cohort):
     events = cohort["events"]
     stage2 = events[events["event_type"] == "svd_stage2"].set_index("patient_id")["days_from_implant"]
@@ -255,6 +290,53 @@ def test_the_as_supplied_rung_keeps_reinterventions_when_it_drops_echoes():
     assert kept(supplied, "echo") < kept(ideal, "echo")
 
 
+def test_the_ladder_keeps_the_labels_except_where_a_rung_removes_ascertainment():
+    """The ladder degrades the analyst's view, not the truth.
+
+    Rungs above ``extraction_yield`` must keep every event of the ideal cohort, so
+    that the cost of losing a patient's trajectory is measured separately from the
+    cost of no longer being able to establish their endpoint. If a rung quietly
+    dropped events as well, a fall in performance across the ladder could not be
+    attributed to either.
+
+    What these rungs *may* change is when an event is recorded, because
+    ``round_to_year`` coarsens every time in the cohort and the rungs are
+    cumulative. That is the declared defect of that rung rather than a change of
+    label, so the shift is required to stay inside the half-year it implies.
+    """
+    ideal = generate("ideal", n_patients=SMALL)["events"]
+    key = ["patient_id", "event_type"]
+    for preset in ("no_age", "year_resolution", "single_echo"):
+        rung = generate(preset, n_patients=SMALL)["events"]
+        assert set(map(tuple, rung[key].to_numpy())) == set(map(tuple, ideal[key].to_numpy())), preset
+
+        merged = ideal.merge(rung, on=key, suffixes=("_ideal", "_rung"))
+        shift = (merged["days_from_implant_rung"] - merged["days_from_implant_ideal"]).abs()
+        assert (shift <= DAYS_PER_YEAR / 2).all(), (
+            f"{preset} moved an event further than rounding to the year explains"
+        )
+
+
+@pytest.mark.parametrize("preset", sorted(PRESETS))
+def test_no_rung_inverts_a_censoring_interval(preset):
+    """An event's window must never start after the event was detected.
+
+    Coarsening time is the point of the ``year_resolution`` rung, but it has to
+    coarsen both ends of the interval. Rounding only the detection leaves the start
+    at day resolution, which inverts the window for events detected just after a
+    year boundary and splits the degenerate interval that records a death or a
+    reintervention. Neither is visible in any summary table, and both would reach a
+    model as a silently impossible outcome.
+    """
+    events = generate(preset, n_patients=SMALL)["events"]
+    assert (events["interval_start_days"] <= events["days_from_implant"]).all()
+
+    point = events[events["ascertainment"] != "echo"]
+    assert (point["interval_start_days"] == point["days_from_implant"]).all(), (
+        "an event ascertained at a point in time must keep a degenerate interval"
+    )
+
+
 def test_the_ladder_never_alters_the_patients_themselves():
     """Every rung must describe the same people, or the comparison between rungs
     measures two things at once and means nothing."""
@@ -266,6 +348,70 @@ def test_the_ladder_never_alters_the_patients_themselves():
 
 
 # --- The claims made in the documentation ---------------------------------------
+
+
+def test_mortality_is_estimated_over_complete_vital_status():
+    """The registry clock, not the clinic clock.
+
+    Every death within the horizon is recorded whether or not the patient was still
+    attending, so an endpoint made only of deaths has complete ascertainment and its
+    cumulative incidence must equal the plain proportion who died. Censoring it at
+    last clinical contact instead is not wrong on average -- dropout is independent
+    of the death process, so the estimator stays consistent -- but it throws away
+    about a fifth of the deaths and buys avoidable Monte Carlo noise in the one
+    anchor a scale is solved against.
+    """
+    cohort = generate("ideal", n_patients=4000)
+    arm = _subset(cohort, "TAVR")
+    died = arm["events"].query("event_type == 'death'")["patient_id"].nunique()
+    truth = died / len(arm["patients"])
+    estimate = cumulative_incidence(endpoint_times(arm, ("death",)), DEFAULT.visit.horizon_years)
+    assert estimate == pytest.approx(truth, abs=1e-9)
+
+
+def test_deterioration_is_still_censored_at_last_clinical_contact():
+    """The asymmetry does not run the other way.
+
+    A patient last imaged at three years who dies at seven is a death for the
+    mortality estimate and a censoring at three years for deterioration. Carrying
+    the registry clock across to the imaging endpoint would assert four years of
+    deterioration-free follow-up that nobody observed.
+    """
+    cohort = generate("ideal", n_patients=4000)
+    endpoint = endpoint_times(cohort, ("svd_stage2", "svd_stage3"))
+    last_contact = cohort["followup"].set_index("patient_id")["last_contact_days"]
+    ceiling = last_contact.reindex(cohort["patients"]["patient_id"]).to_numpy() / DAYS_PER_YEAR
+    assert (endpoint.time_years <= ceiling + 1e-9).all()
+
+
+def test_the_scale_solver_targets_deterioration_and_not_mortality():
+    """Three anchors are targeted and two of them are transcatheter.
+
+    Selecting them by subgroup alone lets the all-cause mortality anchor overwrite
+    the transcatheter deterioration target, and the search then chases a 62.7%
+    deterioration incidence that no scale can produce. It does not crash: it walks
+    the bracket down to its bound and returns it, so a re-derived scale would be
+    silently wrong by a factor of two. The selection must therefore name the
+    quantity, and there must be exactly one such anchor per arm.
+    """
+    selected = [a for a in ANCHORS if a.targeted and a.quantity == _SOLVED_QUANTITY]
+    assert {a.subgroup for a in selected} == set(_ARMS)
+    assert len(selected) == len(_ARMS), "one targeted deterioration anchor per arm"
+    assert {a.subgroup: a.value for a in selected} == {"SAVR": 0.208, "TAVR": 0.154}
+
+
+@pytest.mark.parametrize("solver", [solve_scales, solve_death_scale])
+def test_a_solver_that_has_not_converged_refuses_to_return_a_number(solver):
+    """A bisection stopped early sits at a bracket bound, not at a solution.
+
+    The parameter file marks two deterioration scales and one mortality scale
+    SOLVED and invites the reader to re-derive them. If the search could return its
+    last midpoint without saying it had failed, a re-derivation on a noisier or
+    narrower setup would write an arbitrary bracket bound into that file under the
+    word SOLVED, and nothing downstream would look wrong.
+    """
+    with pytest.raises(ValueError, match="did not converge"):
+        solver(DEFAULT, n_solve=200, max_iterations=1, tolerance=1e-9)
 
 
 def test_every_anchor_uses_the_stated_tolerance_rule():

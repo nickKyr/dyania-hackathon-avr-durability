@@ -21,9 +21,7 @@ from __future__ import annotations
 
 from datetime import date
 
-import pandas as pd
-
-from synthetic import DEFAULT, calibration_across_seeds, generate
+from synthetic import calibration_across_seeds, coverage_test, generate
 from synthetic.parameters import ABSOLUTE_TOLERANCE, ANCHORS, RELATIVE_TOLERANCE
 
 from .ladder import RUNG_DESCRIPTIONS, RUNGS, availability
@@ -48,7 +46,7 @@ def _calibration_section() -> str:
         "not one minus Kaplan–Meier, which would answer a question about a population in which",
         "nobody dies. NOTION used the same estimator, so the comparison is like for like.",
         "",
-        f"Each band is the same rule applied to every anchor, fixed before any cohort was generated:",
+        "Each band is the same rule applied to every anchor, fixed before any cohort was generated:",
         f"**{_percent(ABSOLUTE_TOLERANCE)} absolute, or {_percent(RELATIVE_TOLERANCE)} of the published value, whichever is larger.**",
         "Figures are the mean and standard deviation over eight seeds, because at 1,800 patients the",
         "Monte Carlo error of a 20% incidence is about one percentage point — the size of the",
@@ -123,12 +121,50 @@ def _ladder_section(n_patients: int) -> str:
         ),
         "",
         "That gap is not a calibration failure and was deliberately left uncorrected. It is the",
-        "measured cost of",
-        "incomplete ascertainment: roughly half the deteriorations a properly followed cohort would",
-        "show are invisible here, in patients who were never imaged again. It is the clearest single",
-        "argument in this repository for building the abstraction pipeline the protocol proposes.",
+        "measured cost of incomplete ascertainment: "
+        # Derived rather than described, because the size of the gap moves whenever the
+        # cohort is recalibrated and a word like "half" quietly stops being true.
+        f"**{_missing_share(simulated, received):.0%} of the deteriorations** a properly followed",
+        "cohort would show are invisible here, in patients who were never imaged again. It is the",
+        "clearest single argument in this repository for building the abstraction pipeline the",
+        "protocol proposes.",
     ]
     return "\n".join(lines)
+
+
+RECOVERY_SEEDS: tuple[int, ...] = (20260917, 1, 2)
+"""Seeds of the recovery test quoted in the report.
+
+Three seeds over seven covariates give 21 fits, which is the smallest number that
+says anything about coverage while keeping the report runnable in about a minute.
+"""
+
+
+def _recovery_sentence() -> str:
+    """Report the recovery test by running it, not by quoting a remembered figure.
+
+    The number this produces is the document's central claim of *correctness*, as
+    opposed to plausibility, so it is the last number that should be maintained by
+    hand in a file whose header says it is generated. Computing it costs about a
+    minute and means the claim cannot outlive the code it describes.
+    """
+    result = coverage_test(seeds=RECOVERY_SEEDS)
+    overall = result[result["covariate"] == "ALL"].iloc[0]
+    return (
+        f"the 95% interval covered the injected value in "
+        f"**{int(overall['seeds_covering'])} of {int(overall['seeds'])} fits**, against a nominal "
+        f"95%, with a mean log bias of **{overall['mean_log_bias']:+.4f}**."
+    )
+
+
+def _missing_share(simulated: dict[str, object], received: dict[str, object]) -> float:
+    """Fraction of the simulation's events that the extract never records.
+
+    Both rungs describe the same population at the same size, so the shortfall
+    between them is what abstraction and surveillance together fail to reach.
+    """
+    expected = float(simulated["events_per_100"])
+    return 0.0 if expected <= 0 else (expected - float(received["events_per_100"])) / expected
 
 
 def markdown_report(*, n_patients: int = 117, seed: int = 20260917) -> str:
@@ -172,8 +208,7 @@ def markdown_report(*, n_patients: int = 117, seed: int = 20260917) -> str:
                 "that the cohort is *plausible* — that a pipeline exercised on it runs at realistic "
                 "event rates. Correctness is established separately, by injecting known hazard ratios "
                 "into the generator and recovering them with an independently implemented Cox model: "
-                "the 95% interval covered the injected value in **20 of 21 fits**, against a nominal "
-                "95%, with a mean log bias of **+0.0005**.\n\n"
+                f"{_recovery_sentence()}\n\n"
                 "Two anchors are missed and neither is tuned away. Severe deterioration after "
                 "transcatheter implant is reported by NOTION as 1.5% — about two events among 145 "
                 "randomised patients — against 5.9% in the UK TAVI registry at a *shorter* horizon; "

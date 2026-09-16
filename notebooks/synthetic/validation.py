@@ -65,7 +65,7 @@ class CoxFit:
 
 
 def _partial_likelihood(
-    beta: np.ndarray, x: np.ndarray, event: np.ndarray, unique_index: list[tuple[int, np.ndarray]]
+    beta: np.ndarray, x: np.ndarray, event: np.ndarray, tied_blocks: list[np.ndarray]
 ) -> tuple[float, np.ndarray, np.ndarray]:
     """Negative Breslow log partial likelihood with its gradient and Hessian.
 
@@ -81,7 +81,7 @@ def _partial_likelihood(
     grad = np.zeros(p)
     hess = np.zeros((p, p))
 
-    for start, members in unique_index:
+    for members in tied_blocks:
         block = x[members]
         block_weight = weight[members]
         s0 += block_weight.sum()
@@ -100,17 +100,27 @@ def _partial_likelihood(
     return -loglik, -grad, -hess
 
 
-def _risk_set_index(time: np.ndarray) -> list[tuple[int, np.ndarray]]:
-    """Group tied times, walking from the longest downward to build risk sets."""
-    index: list[tuple[int, np.ndarray]] = []
+def _risk_set_index(time: np.ndarray) -> list[np.ndarray]:
+    """Group tied times, walking from the longest downward to build risk sets.
+
+    Args:
+        time: Follow-up times, sorted ascending.
+
+    Returns:
+        One array of positions per distinct time, longest time first. Consuming
+        them in that order lets the risk set be accumulated rather than rebuilt:
+        after k blocks it holds exactly the subjects still at risk at the k-th
+        distinct time from the end.
+    """
+    blocks: list[np.ndarray] = []
     i = len(time)
     while i > 0:
         j = i - 1
         while j > 0 and time[j - 1] == time[i - 1]:
             j -= 1
-        index.append((j, np.arange(j, i)))
+        blocks.append(np.arange(j, i))
         i = j
-    return index
+    return blocks
 
 
 def fit_cox(
@@ -147,7 +157,7 @@ def fit_cox(
     time = np.asarray(time, dtype=float)
     labels = np.zeros(len(time), dtype=int) if strata is None else np.asarray(strata)
 
-    blocks: list[tuple[np.ndarray, np.ndarray, list[tuple[int, np.ndarray]]]] = []
+    blocks: list[tuple[np.ndarray, np.ndarray, list[np.ndarray]]] = []
     for label in np.unique(labels):
         member = np.flatnonzero(labels == label)
         order = member[np.argsort(time[member], kind="mergesort")]

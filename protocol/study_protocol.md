@@ -93,7 +93,7 @@ be higher flow — and the code enforces exactly this (`test_a_gradient_rise_alo
 
 The endpoint is **interval-censored**: it is recorded at the examination that detects it, and the
 interval back to the last clean examination is carried with it. On the reference cohort that
-interval has a median of 1.0 years and a maximum of 4.27, so a deterioration recorded at one
+interval has a median of 1.0 years and a maximum of 4.25, so a deterioration recorded at one
 examination may have begun four years earlier. Supplying only the right endpoint, as most
 extracts do, silently converts an interval-censored outcome into an exactly observed one.
 

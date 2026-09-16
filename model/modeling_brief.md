@@ -10,7 +10,7 @@
 ## 0. Summary in one paragraph
 
 No model is trained on the real packet. The extract yields 32 usable labels out of 117 patients,
-5 of them failures, and exactly one patient has echo values in more than one year — a survival
+5 of them failures, and only 4 of the 117 have echo values in more than one year — a survival
 model fitted on that is noise with a confidence interval around it. Your job is therefore to
 build the **censoring-aware pipeline the study protocol specifies, executed end to end on a
 literature-calibrated synthetic cohort**, and to write the modelling sections of

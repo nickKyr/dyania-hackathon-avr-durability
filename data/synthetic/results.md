@@ -4,7 +4,7 @@
 >
 > Every figure is an aggregate. No patient-level value, note text or identifier appears here.
 
-At its full protocol size the synthetic cohort is 1,800 patients, 9,003 echos, 1,368 events, 1,800 followup, from seed 20260917. The tables below are the two claims this workstream makes: that the cohort lands where published series land, and that the cost of each data defect can be measured rather than asserted.
+At its full protocol size the synthetic cohort is 1,800 patients, 9,124 echos, 1,363 events, 1,800 followup, from seed 20260917. The tables below are the two claims this workstream makes: that the cohort lands where published series land, and that the cost of each data defect can be measured rather than asserted.
 
 ## Calibration against published evidence
 
@@ -21,17 +21,17 @@ differences being judged.
 | quantity | group | horizon | published | cohort | inside band |
 |---|---|---|---|---|---|
 | **targeted** | | | | | |
-| moderate or severe svd | SAVR | 10 y | 20.8% | 20.3% ± 2.6 | 7 of 8 |
-| moderate or severe svd | TAVR | 10 y | 15.4% | 15.3% ± 0.9 | 8 of 8 |
-| all cause death | TAVR | 10 y | 62.7% | 63.2% ± 1.3 | 8 of 8 |
+| moderate or severe svd | SAVR | 10 y | 20.8% | 20.1% ± 2.0 | 8 of 8 |
+| moderate or severe svd | TAVR | 10 y | 15.4% | 15.2% ± 1.3 | 8 of 8 |
+| all cause death | TAVR | 10 y | 62.7% | 62.6% ± 1.2 | 8 of 8 |
 | **not targeted** | | | | | |
-| severe svd | SAVR | 10 y | 10.0% | 13.1% ± 1.8 | 4 of 8 |
-| severe svd | TAVR | 10 y | 1.5% | 9.6% ± 0.9 | 0 of 8 |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 3.8% ± 0.3 | 8 of 8 |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 6.7% ± 0.7 | 8 of 8 |
-| severe svd | TAVR | 7.8 y | 5.9% | 6.0% ± 0.7 | 8 of 8 |
-| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.6% ± 0.9 | 8 of 8 |
-| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 13.1% ± 1.8 | 7 of 8 |
+| severe svd | SAVR | 10 y | 10.0% | 12.6% ± 2.0 | 4 of 8 |
+| severe svd | TAVR | 10 y | 1.5% | 9.2% ± 0.7 | 0 of 8 |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 3.6% ± 0.2 | 8 of 8 |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 6.6% ± 0.6 | 8 of 8 |
+| severe svd | TAVR | 7.8 y | 5.9% | 5.9% ± 0.6 | 8 of 8 |
+| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.2% ± 0.7 | 8 of 8 |
+| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 12.6% ± 2.0 | 7 of 8 |
 
 Sources:
 
@@ -58,11 +58,11 @@ data; all rungs are shown here at n = 117 so that they are comparable with it.
 
 | rung | simulated | any examination | exams per patient | more than one gradient | events per 100 | death observed |
 |---|---|---|---|---|---|---|
-| `ideal` | yes | 100.0% | 5.10 | 96.6% | 32.5 | yes |
-| `no_age` | yes | 100.0% | 5.10 | 96.6% | 32.5 | yes |
-| `year_resolution` | yes | 100.0% | 5.10 | 96.6% | 32.5 | yes |
-| `single_echo` | yes | 100.0% | 1.00 | 0.0% | 32.5 | yes |
-| `as_supplied` | yes | 52.1% | 1.57 | 23.9% | 24.8 | **no** |
+| `ideal` | yes | 100.0% | 5.10 | 95.7% | 28.2 | yes |
+| `no_age` | yes | 100.0% | 5.10 | 95.7% | 28.2 | yes |
+| `year_resolution` | yes | 100.0% | 5.10 | 95.7% | 28.2 | yes |
+| `single_echo` | yes | 100.0% | 1.00 | 0.0% | 28.2 | yes |
+| `as_supplied` | yes | 52.1% | 1.59 | 22.2% | 20.5 | **no** |
 | `as_received` | **no** | 52.1% | 1.69 | 17.9% | 12.0 | **no** |
 
 What each rung removes:
@@ -80,15 +80,15 @@ What each rung removes:
 they agree, the simulation is trustworthy and the intermediate rungs can be believed. Where
 they differ, the difference names something the model of the data did not capture.
 
-They agree on the reach of abstraction (52.1% against 52.1%), on examinations per patient (1.57 against 1.69), and on the total absence of mortality data.
+They agree on the reach of abstraction (52.1% against 52.1%), on examinations per patient (1.59 against 1.69), and on the total absence of mortality data.
 
-They disagree on events: **24.8 per 100 patients in the simulation against 12.0 in the extract**.
+They disagree on events: **20.5 per 100 patients in the simulation against 12.0 in the extract**.
 
 That gap is not a calibration failure and was deliberately left uncorrected. It is the
-measured cost of
-incomplete ascertainment: roughly half the deteriorations a properly followed cohort would
-show are invisible here, in patients who were never imaged again. It is the clearest single
-argument in this repository for building the abstraction pipeline the protocol proposes.
+measured cost of incomplete ascertainment: **41% of the deteriorations** a properly followed
+cohort would show are invisible here, in patients who were never imaged again. It is the
+clearest single argument in this repository for building the abstraction pipeline the
+protocol proposes.
 
 ## What calibration does and does not prove
 

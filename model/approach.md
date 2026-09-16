@@ -30,7 +30,7 @@ cumulative incidence function under the competing risk
 An event is recorded at the examination that *detects* it, and both ends of the censoring interval
 travel with it (`interval_start_days`, `days_from_implant`). On the reference cohort the interval
 between a patient's last clean examination and the one that detected stage-2 deterioration has a
-median of 1.0 years and a maximum of 4.27 — so a deterioration recorded at one examination may
+median of 1.0 years and a maximum of 4.25 — so a deterioration recorded at one examination may
 have begun four years earlier. `test_the_censoring_interval_brackets_the_event` holds the
 property; a generator emitting latent onset times would instead produce a dataset on which any
 model looks better than it could be in clinic.
@@ -162,10 +162,10 @@ depends on: thresholds applied mechanically do not separate two categories that 
 adjudication panel separates.
 
 **The simulation of the extract and the extract itself disagree on one figure, and it was left
-uncorrected.** The simulated bottom rung produces 24.8 events per 100 patients against 12.0 in the
-extract. That gap is the measured cost of incomplete ascertainment: roughly half the
-deteriorations a properly followed cohort would show are invisible here, in patients who were
-never imaged again.
+uncorrected.** The simulated bottom rung produces 20.5 events per 100 patients against 12.0 in the
+extract. That gap is the measured cost of incomplete ascertainment: 41% of the deteriorations a
+properly followed cohort would show are invisible here, in patients who were never imaged
+again.
 
 **Where the model would break in deployment.** A valve model with no history in the training data
 inherits the behaviour of its family, or nothing at all. Inter-observer and beat-to-beat

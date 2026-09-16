@@ -117,8 +117,8 @@ def _draw_patients(rng: np.random.Generator, params: Parameters) -> pd.DataFrame
     model[is_savr] = _choose(rng, cohort.savr_models, int(is_savr.sum()))
     model[~is_savr] = _choose(rng, cohort.tavr_models, int((~is_savr).sum()))
 
-    size = np.array([_label_size(rng, m, b) for m, b in zip(model, bsa)], dtype=int)
-    eoa_nominal = np.array([_EOA_TABLE[m][s] for m, s in zip(model, size)], dtype=float)
+    size = np.array([_label_size(rng, m, b) for m, b in zip(model, bsa, strict=True)], dtype=int)
+    eoa_nominal = np.array([_EOA_TABLE[m][s] for m, s in zip(model, size, strict=True)], dtype=float)
     eoa = (eoa_nominal * rng.lognormal(0.0, 0.11, n)).clip(0.45, 3.4).round(3)
     # Round before classifying, not after. Mismatch is graded on the indexed area,
     # and if the published column were rounded after grading then a borderline
@@ -222,6 +222,21 @@ def _visit_days(
     The reference examination always occurs. Routine examinations follow the
     guideline schedule with jitter. Symptom-triggered examinations occur only
     after onset, which is what produces verification bias.
+
+    Two rules keep the list physical, and both matter more than their rarity
+    suggests.
+
+    **Nothing precedes the reference examination.** A patient whose deterioration
+    begins in the first weeks can draw a symptom-triggered study before the 30-to-90
+    day reference window. Sorting would then put it first and make it the reference,
+    so every later VARC-3 rise would be measured against a baseline already raised by
+    deterioration -- and that patient, one of the rapidly progressive phenotype the
+    study most cares about, could never meet the criteria at all.
+
+    **One examination per day.** Routine and symptom-triggered studies are drawn from
+    different processes and can land on the same date. Two examinations of one
+    prosthesis on one day with different measured values is not something a record
+    contains, and it silently breaks any join keyed on the patient and the day.
     """
     visit = params.visit
     days = [float(rng.integers(visit.reference_min_days, visit.reference_max_days + 1))]
@@ -233,16 +248,17 @@ def _visit_days(
             days.append(float(day))
 
     if np.isfinite(onset_years):
-        year = onset_years + rng.exponential(1.0 / max(visit.symptom_echo_probability_per_year, 1e-9))
+        rate = max(visit.symptom_echo_probability_per_year, 1e-9)
+        year = onset_years + rng.exponential(1.0 / rate)
         while year * DAYS_PER_YEAR <= end_days:
-            days.append(year * DAYS_PER_YEAR)
-            year += rng.exponential(1.0 / max(visit.symptom_echo_probability_per_year, 1e-9))
+            if year * DAYS_PER_YEAR > days[0]:
+                days.append(year * DAYS_PER_YEAR)
+            year += rng.exponential(1.0 / rate)
 
-    return sorted(set(days))
+    return sorted({float(round(day)) for day in days})
 
 
 def _gradient_at(
-    rng: np.random.Generator,
     echo: EchoParameters,
     baseline: float,
     drift: float,
@@ -374,7 +390,7 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
 
         for k, day in enumerate(days):
             years = day / DAYS_PER_YEAR
-            truth = _gradient_at(rng, echo_params, baseline_gradient[i], drift[i], progression[i], years, onset)
+            truth = _gradient_at(echo_params, baseline_gradient[i], drift[i], progression[i], years, onset)
             measured = float(np.clip(truth * rng.lognormal(0.0, echo_params.measurement_cv_gradient), 1.0, 119.0))
 
             if years > onset:

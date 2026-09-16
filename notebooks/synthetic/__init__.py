@@ -6,9 +6,9 @@ death. **Nothing it produces is a patient.** Every row carries ``source =
 "simulated"``, and every figure, table or slide derived from it must say so.
 
 Why a synthetic cohort exists in this study at all: the supplied extract yields 32
-assessable labels from 117 patients, 5 of them failures, and exactly one patient
-has echocardiographic values in more than one year. A survival model fitted on
-that is noise with a confidence interval around it. The cohort here lets the
+assessable labels from 117 patients, 5 of them failures, and only 4 of those 117 have
+gradients in more than one year. A survival model fitted on that is noise with a
+confidence interval around it. The cohort here lets the
 protocol's pipeline be executed and evaluated end to end and honestly, and it lets
 the cost of each data defect be measured rather than asserted.
 

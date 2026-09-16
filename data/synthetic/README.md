@@ -60,9 +60,9 @@ ladder = {name: generate(preset=name) for name in PRESETS}
 python -m pytest synthetic/tests -q
 ```
 
-41 tests covering the schema contract, reproducibility, governance, the VARC-3 criteria, the
-structure of the cohort, what each rung of the ladder removes, and the claims made in the data
-plan. Two of them are marked `slow` because they need a large cohort; deselect with `-m "not slow"`.
+54 tests covering the schema contract, reproducibility, governance, the VARC-3 criteria, the
+structure of the cohort, the two follow-up clocks, what each rung of the ladder removes, the
+convergence of the parameter solvers, and the claims made in the data plan. Two of them are marked `slow` because they need a large cohort; deselect with `-m "not slow"`.
 
 ## The tables
 

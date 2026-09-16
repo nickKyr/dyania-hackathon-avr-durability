@@ -14,6 +14,9 @@ its bottom rung is honest about what was missing.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -140,3 +143,30 @@ def test_data_availability_falls_monotonically_down_the_ladder():
     for column in ("age_known_pct", "device_known_pct", "any_echo_pct", "day_resolution_pct"):
         values = table[column].tolist()
         assert values == sorted(values, reverse=True), f"{column} is not monotone: {values}"
+
+
+# --- The committed report is the one artefact a stranger reads ------------------
+
+
+def test_the_committed_report_carries_no_identifier_or_note_text():
+    """``results.md`` is committed to a repository that may be public.
+
+    Its own header promises that no patient-level value, note text or identifier
+    appears in it, and that promise is the reason it can be committed at all. Every
+    figure in it is produced by aggregation, so the promise should hold by
+    construction -- but "by construction" is exactly the kind of guarantee that
+    stops holding the first time someone adds a table of examples to the report
+    generator. This asserts it against the file itself.
+    """
+    report = Path(__file__).resolve().parents[3] / "data" / "synthetic" / "results.md"
+    assert report.exists(), report
+    text = report.read_text()
+
+    real_ids = set(_TABLES["patients"]["patient_id"].astype(str))
+    leaked = sorted(i for i in real_ids if i in text)
+    assert not leaked, f"identifiers from the extract appear in the committed report: {leaked[:5]}"
+
+    for token in ("[DATE]", "[NAME]", "[AGE]", "[ID]", "[LOCATION]", "[FACILITY]"):
+        assert token not in text, f"redaction token {token} implies note text was pasted in"
+
+    assert not re.search(r"\bPatient_\d+\b", text), "a patient identifier pattern appears in the report"

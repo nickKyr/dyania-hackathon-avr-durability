@@ -49,6 +49,8 @@ class Anchor:
     """Cumulative incidence as a proportion."""
     source: str
     targeted: bool = False
+    """True if a parameter was solved to match this anchor; False makes it an
+    out-of-sample check."""
 
     @property
     def tolerance(self) -> float:
@@ -65,8 +67,6 @@ class Anchor:
         reported as failures.
         """
         return max(ABSOLUTE_TOLERANCE, RELATIVE_TOLERANCE * self.value)
-    """True if a parameter was solved to match this anchor; False makes it an
-    out-of-sample check."""
 
 
 ANCHORS: Final[tuple[Anchor, ...]] = (
@@ -111,7 +111,7 @@ ANCHORS: Final[tuple[Anchor, ...]] = (
         "UK TAVI registry, severe SVD in 13 of 221 at a median of 7.8 years "
         "(a crude proportion, not a competing-risk estimate)",
     ),
-    # These three were found in the NOTION paper AFTER every parameter had been
+    # These two were found in the NOTION paper AFTER every parameter had been
     # fixed, while verifying the figures above. They were not used to choose
     # anything, and they are the closest this calibration comes to a holdout.
     Anchor(
@@ -143,8 +143,14 @@ class CohortParameters:
     """Protocol sample size: ~1,800 implants for ~190 events (Riley et al. 2019)."""
 
     savr_fraction: float = 0.55
-    """ASSUMPTION. Contemporary mixed practice; the prototype extract's own split
-    was 57/43, which this is consistent with."""
+    """ASSUMPTION. Contemporary mixed practice.
+
+    The prototype extract is more surgical than this: 73 of its 117 patients had a
+    surgical implant against 43 transcatheter, about 63/37. That is a property of
+    how the notes were sampled -- operative reports from a cardiac surgery service
+    -- rather than of the practice being modelled, so the cohort is not matched to
+    it. The fraction matters mainly because the two arms differ in age by a decade,
+    and the calibration is checked separately within each arm."""
 
     # Age. TAVR recipients are substantially older than SAVR recipients; the gap
     # is the single largest structural difference between the two populations and
@@ -173,8 +179,12 @@ class CohortParameters:
     smoking_prevalence: float = 0.15
     bicuspid_prevalence_savr: float = 0.22
     bicuspid_prevalence_tavr: float = 0.06
-    """ASSUMPTION. Bicuspid anatomy is commoner in the younger surgical population;
-    the prototype extract showed 16 bicuspid or unicuspid patients in 100."""
+    """ASSUMPTION, taken from the literature rather than from the extract, whose
+    native morphology is mostly unrecorded: the abstraction adjudicates bicuspid
+    anatomy in 10 of its 117 patients and tricuspid in 8, leaving 99 unknown, and 18
+    patients have the word bicuspid or unicuspid somewhere in a note. Bicuspid
+    anatomy is commoner in the younger surgical population, which is the direction
+    these two values express."""
 
     implant_year_first: int = 2010
     implant_year_last: int = 2024
@@ -227,11 +237,19 @@ class HazardParameters:
     A mixture lets each process keep its own shape, and it is the clinically
     truthful description rather than a device for hitting a number."""
 
-    svd_scale_savr_years: float = 32.68359375
-    svd_scale_tavr_years: float = 14.75390625
+    svd_scale_savr_years: float = 33.2109375
+    svd_scale_tavr_years: float = 15.0703125
     """SOLVED by bisection, not assumed: the values reproducing the two targeted
-    NOTION anchors on a 30,000-patient cohort at seed 20260917. Re-derive with
-    :func:`synthetic.calibration.solve_scales` if any upstream parameter changes.
+    NOTION moderate-or-severe anchors. Re-derive with::
+
+        solve_scales(DEFAULT, n_solve=12_000)   # -> (33.2109, 15.0703)
+
+    at seed 20260917, which is the call these two numbers came from, and with the
+    mortality scale below already solved -- the competing risk governs how many
+    patients remain at risk, so the order is not arbitrary. The cohort size is part
+    of the reproduction rather than an incidental detail: the objective is evaluated
+    on a freshly drawn cohort at every candidate scale, so a different ``n_solve``
+    lands a little differently, within the Monte Carlo noise of the search.
 
     The scales differ far more than the durability of the two valve types does. That
     is expected and is not a claim about devices: a scale describes the hazard of a
@@ -257,8 +275,17 @@ class HazardParameters:
     position worth defending. The published point estimate is used, and the
     extrapolation is recorded in the limitations instead.
 
-    A sensitivity analysis across 0.91, 0.93, 0.95 and 0.97 moved no calibration
-    anchor by more than 0.8 percentage points, so nothing rests on the choice.
+    A sensitivity analysis across 0.91, 0.93, 0.95 and 0.97, **re-solving the
+    deterioration scales at each value**, moved no calibration anchor by more than
+    0.43 percentage points, so nothing rests on the choice.
+
+    The re-solving is the analysis, not a detail of it. Changing this hazard ratio
+    while holding the scales fixed does not test the cohort's sensitivity to it; it
+    de-calibrates the cohort, because the scales were solved *against* this value.
+    Done that way the surgical anchor moves 7.1 percentage points, which measures
+    the arithmetic rather than anything about the model. What the scales absorb is
+    visible in their own movement: the surgical scale runs 32.7, 28.4, 24.8, 21.6
+    years across those four values while its anchor stays at 20.8%.
     """
     hr_bsa_per_m2: float = 1.77
     hr_ppm_moderate: float = 1.95
@@ -275,7 +302,7 @@ class HazardParameters:
     bsa_centre: float = 1.85
 
     death_shape: float = 1.45
-    death_scale_years_at_centre: float = 14.296875
+    death_scale_years_at_centre: float = 14.70703125
     hr_death_per_year_age: float = 1.085
     hr_death_ckd: float = 1.70
     hr_death_diabetes: float = 1.30
@@ -297,9 +324,9 @@ class EchoParameters:
 
     The mean gradient of a patient without deterioration drifts gently upward;
     after the latent onset of deterioration it accelerates. This two-phase
-    trajectory is precisely the structure the prototype extract cannot show --
-    only one patient in it has gradients in more than one year -- and it is what
-    makes a landmark model meaningful.
+    trajectory is precisely the structure the prototype extract cannot show -- 4 of
+    its 117 patients have gradients in more than one year -- and it is what makes a
+    landmark model meaningful.
     """
 
     gradient_reference_at_eoa: float = 10.0
@@ -316,12 +343,13 @@ class EchoParameters:
     progression_mmhg_per_year_mean: float = 2.6
     progression_lognormal_sd: float = 0.65
     progression_quadratic_coefficient: float = 0.08
-    """ASSUMPTION. Curvature of the post-onset rise. Deterioration compounds --
-    a stiffer leaflet calcifies faster -- but the coefficient also governs how
-    quickly a moderately deteriorated valve becomes severe, and therefore the
-    ratio between the two stages that the literature reports."""
-    """ASSUMPTION. Post-onset acceleration, lognormal so that a minority of
-    patients deteriorate rapidly -- the clinically important tail."""
+    """ASSUMPTION. Mean, dispersion and curvature of the post-onset rise in mean
+    gradient. The mean rate is lognormal so that a minority of patients
+    deteriorate rapidly -- the clinically important tail. Deterioration also
+    compounds, a stiffer leaflet calcifying faster, which is what the quadratic
+    term expresses; that term additionally governs how quickly a moderately
+    deteriorated valve becomes severe, and therefore the ratio between the two
+    stages that the literature reports."""
 
     measurement_cv_gradient: float = 0.10
     measurement_cv_eoa: float = 0.12

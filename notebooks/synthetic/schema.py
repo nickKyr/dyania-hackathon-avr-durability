@@ -363,7 +363,7 @@ def _kind_matches(series: pd.Series, kind: str) -> bool:
     if kind == "float":
         return pdt.is_numeric_dtype(series) and not pdt.is_bool_dtype(series)
     if kind == "bool":
-        return pdt.is_bool_dtype(series) or set(series.dropna().unique()) <= {0, 1, True, False}
+        return pdt.is_bool_dtype(series) or set(series.dropna().unique()) <= {0, 1}
     return pdt.is_object_dtype(series) or isinstance(series.dtype, pd.CategoricalDtype) or pdt.is_string_dtype(series)
 
 
@@ -405,9 +405,10 @@ def validate(frame: pd.DataFrame, table: str) -> None:
             problems.append(f"{column.name}: dtype {series.dtype} is not compatible with kind {column.kind!r}")
 
         values = series.dropna()
-        if column.allowed is not None:
-            if unexpected := sorted(set(values.unique()) - set(column.allowed)):
-                problems.append(f"{column.name}: values outside the allowed set {list(column.allowed)}: {unexpected}")
+        if column.allowed is not None and (
+            unexpected := sorted(set(values.unique()) - set(column.allowed))
+        ):
+            problems.append(f"{column.name}: values outside the allowed set {list(column.allowed)}: {unexpected}")
         if column.minimum is not None and pdt.is_numeric_dtype(values) and (values < column.minimum).any():
             problems.append(f"{column.name}: {int((values < column.minimum).sum())} values below the minimum {column.minimum}")
         if column.maximum is not None and pdt.is_numeric_dtype(values) and (values > column.maximum).any():

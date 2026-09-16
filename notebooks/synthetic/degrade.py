@@ -10,6 +10,23 @@ This turns a statement no panel can act on -- "the data were poor" -- into a
 ranked, quantified list of which defect costs most, which is the argument a
 hospital needs before it will fund dated, serial, linkable echocardiography.
 
+**What a rung degrades is the analyst's view, not the labels.** Every event
+established during the full serial generation survives, *except* where a rung
+removes ascertainment on purpose: ``extraction_yield`` drops echo-established
+events for the patients whose examinations it removes, and ``no_mortality``
+removes every death. An event's recorded *time* does move, because
+``round_to_year`` coarsens every time in the cohort, but that is the declared
+defect of that rung and not a change of label; the shift stays inside the half
+year rounding implies, which is asserted in the tests. Holding the labels fixed is
+the point of a synthetic ladder, because it separates two costs that are hopelessly
+confounded in real data -- what is lost by no longer *seeing* a patient's
+trajectory, and what is lost by no longer being able to *establish* their endpoint.
+So where a rung below states that a VARC-3 criterion could no longer be applied, it
+describes what a site would lose, not what that rung's ``events`` table contains.
+The second cost is measured rather than assumed, and appears twice: as the fall in
+events per 100 patients from ``single_echo`` to ``as_supplied``, and again as the
+gap between ``as_supplied`` and the real extract at the foot of the ladder.
+
 The rungs are **cumulative**: each adds its defect to all the preceding ones, so
 the ladder descends from the data the protocol asks for to the data we were
 actually given. Each defect mirrors a specific, measured property of the
@@ -44,16 +61,23 @@ def _round_to_year(tables: _Tables, rng: np.random.Generator) -> _Tables:
     """Collapse every time to calendar-year resolution.
 
     Mirrors the date shifting and truncation applied to the extract, where all
-    dates are year-only and 119 of 143 gradient mentions sit beside a redacted
-    ``[DATE]`` token. Ties within a year become unorderable, which is what
-    destroys any within-year trajectory.
+    dates are year-only: of the 150 mean-gradient mentions the abstraction finds,
+    only 13 carry a study date at all and 137 do not. Ties within a year become
+    unorderable, which is what destroys any within-year trajectory.
     """
     out = dict(tables)
-    for name in ("echos", "events", "followup"):
+    # Both ends of an event's censoring interval have to be coarsened, not just the
+    # detection. Rounding one and leaving the other at day resolution inverts the
+    # interval -- an event whose window starts after it was detected -- and turns a
+    # degenerate interval, which is how a death or a reintervention is recorded,
+    # into a spurious one.
+    columns = {"echos": ("days_from_implant",), "followup": ("last_contact_days",),
+               "events": ("days_from_implant", "interval_start_days")}
+    for name, names in columns.items():
         frame = tables[name].copy()
-        column = "last_contact_days" if name == "followup" else "days_from_implant"
-        years = np.round(frame[column].to_numpy() / 365.25)
-        frame[column] = (years * 365.25).round().astype(int)
+        for column in names:
+            years = np.round(frame[column].to_numpy() / 365.25)
+            frame[column] = (years * 365.25).round().astype(int)
         frame["time_resolution"] = "year"
         out[name] = frame
     patients = tables["patients"].copy()
@@ -64,11 +88,15 @@ def _round_to_year(tables: _Tables, rng: np.random.Generator) -> _Tables:
 def _single_echo(tables: _Tables, rng: np.random.Generator) -> _Tables:
     """Keep one examination per patient, and lose the reference examination.
 
-    Mirrors the measured structure of the extract: only one patient in it has
-    gradient values in more than one note or year. The retained examination is the
-    last one, and its reference flag is cleared -- because without a baseline, the
+    Mirrors the measured structure of the extract, in which 21 of 117 patients have
+    more than one gradient value but only 4 have gradients in more than one year, so
+    almost nobody has a trajectory. The retained examination is the last one, and its reference flag is cleared -- because without a baseline, the
     VARC-3 *rise* criteria cannot be evaluated at all and only the weaker
     absolute-threshold arm of the definition survives.
+
+    The ``events`` table is left alone here, so this rung isolates the cost of
+    losing the trajectory from the cost of losing the endpoint; the latter arrives
+    one rung lower, with :func:`_extraction_yield`. See the module docstring.
     """
     echos = tables["echos"].sort_values(["patient_id", "days_from_implant"])
     kept = echos.groupby("patient_id", as_index=False).tail(1).copy()
@@ -179,6 +207,9 @@ def _drop_implant_detail(tables: _Tables, rng: np.random.Generator) -> _Tables:
     return tables | {"patients": patients}
 
 
+# Every defect takes the random generator whether or not it draws from it, so that
+# the table below is uniform and a rung can start sampling without changing how it
+# is called. Deterministic defects simply ignore it.
 _DEFECTS: Final[dict[str, Callable[[_Tables, np.random.Generator], _Tables]]] = {
     "drop_age": _drop_age,
     "round_to_year": _round_to_year,

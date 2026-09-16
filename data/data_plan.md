@@ -149,8 +149,9 @@ review, and negative predictive value on a random sample of rejections.
 
 The prototype extract cannot support the analysis the protocol specifies, and no amount of
 cleaning changes that. It yields 32 assessable labels from 117 patients, 5 of them failures;
-exactly one patient has echocardiographic values in more than one year; age is redacted
-throughout; and timing is known only to the calendar year. The three things the landmark model
+21 of the 117 have more than one gradient value but only 4 have gradients in more than one
+year, so almost nobody has a trajectory; age is redacted throughout; and timing is known only
+to the calendar year. The three things the landmark model
 consumes — serial dated gradients, exact event times, and age at implant — are precisely the
 three the extract lacks.
 
@@ -186,7 +187,7 @@ The cohort is built as a causal chain, in this order:
 
 Each event carries both ends of its censoring interval: `interval_start_days`, the last
 examination at which the event had not yet occurred, and `days_from_implant`, the examination that
-detected it. On this cohort those intervals have a median width of 1.0 years and a maximum of 4.27
+detected it. On this cohort those intervals have a median width of 1.0 years and a maximum of 4.25
 years, so a deterioration recorded at an examination may have begun four years earlier. Supplying
 only the right endpoint, as most extracts do, silently converts an interval-censored outcome into
 an exactly observed one.
@@ -215,8 +216,11 @@ the comparison is like for like rather than an assumption. And it returned the a
 the published 0.91 (95% CI 0.89–0.94): an earlier version used 0.95 on the reasoning that 0.91
 extrapolated across a 50-to-95 age span implies an incredible seventy-fold hazard range, but 0.95
 lies outside the published interval, and citing a meta-analysis while using a value it excludes is
-not a position worth defending. A sensitivity analysis across 0.91–0.97 moves no anchor by more
-than 0.8 percentage points, so nothing rests on it.
+not a position worth defending. A sensitivity analysis across 0.91–0.97, re-solving the
+deterioration scales at each value, moves no anchor by more than 0.43 percentage points, so
+nothing rests on it. The re-solving is the analysis: changing the hazard ratio while holding
+the scales fixed de-calibrates the cohort rather than testing it, and moves the surgical anchor
+by 7.1 points.
 
 **What was fitted.** Nine parameters: three scales solved by bisection — two for deterioration
 against the NOTION moderate-or-severe figures, one for competing mortality against NOTION's
@@ -225,18 +229,18 @@ all-cause death — and six shape parameters selected from small grids.
 | quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | seeds inside band |
 |---|---|---|---|---|---|
 | **targeted** | | | | | |
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.3% ± 2.6 | 7 of 8 |
-| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.3% ± 0.9 | 8 of 8 |
-| all-cause death | TAVR | 10 y | 62.7% | 63.2% ± 1.3 | 8 of 8 |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.1% ± 2.0 | 8 of 8 |
+| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.2% ± 1.3 | 8 of 8 |
+| all-cause death | TAVR | 10 y | 62.7% | 62.6% ± 1.2 | 8 of 8 |
 | **out of sample** | | | | | |
-| severe SVD | SAVR | 10 y | 10.0% | 13.1% ± 1.8 | 4 of 8 |
-| severe SVD | TAVR | 10 y | 1.5% | 9.6% ± 0.9 | **0 of 8** |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 3.8% ± 0.3 | 8 of 8 |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 6.7% ± 0.7 | 8 of 8 |
-| severe SVD | TAVR | 7.8 y | 5.9% | 6.0% ± 0.7 | 8 of 8 |
+| severe SVD | SAVR | 10 y | 10.0% | 12.6% ± 2.0 | 4 of 8 |
+| severe SVD | TAVR | 10 y | 1.5% | 9.2% ± 0.7 | **0 of 8** |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 3.6% ± 0.2 | 8 of 8 |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 6.6% ± 0.6 | 8 of 8 |
+| severe SVD | TAVR | 7.8 y | 5.9% | 5.9% ± 0.6 | 8 of 8 |
 | **post-hoc holdout** | | | | | |
-| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.6% ± 0.9 | 8 of 8 |
-| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 13.1% ± 1.8 | 7 of 8 |
+| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.2% ± 0.7 | 8 of 8 |
+| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 12.6% ± 2.0 | 7 of 8 |
 
 Bands come from one rule, fixed before any cohort was generated and applied uniformly: **two
 percentage points, or a quarter of the published value, whichever is larger**. A per-anchor
@@ -257,7 +261,7 @@ the size of the differences being judged.
 **The two post-hoc rows are the closest this calibration comes to a holdout.** NOTION's
 bioprosthetic-valve-failure figures were found while verifying the other anchors, after every
 parameter had been fixed. They were not used to choose anything, and the cohort reproduces both:
-9.6% against 9.7% in the transcatheter arm and 13.1% against 13.8% in the surgical arm.
+9.2% against 9.7% in the transcatheter arm and 12.6% against 13.8% in the surgical arm.
 
 Nine fitted parameters against ten anchors is still close to saturated, so agreement is **not**
 proof that the cohort is correct — it establishes that the cohort is plausible, landing where
@@ -266,19 +270,18 @@ evidence of correctness is the recovery test below, which no amount of curve-fit
 
 ### The two anchors the cohort misses, and why they are not tuned away
 
-**Severe deterioration after transcatheter implant.** NOTION reports 1.5%; the cohort gives 9.6%.
+**Severe deterioration after transcatheter implant.** NOTION reports 1.5%; the cohort gives 9.2%.
 That figure is 1.5% of 145 randomised patients — **about two events** — and it contradicts the UK
 TAVI registry, which reports severe deterioration in 13 of 221 patients (5.9%) at a *shorter*
 median follow-up of 7.8 years. NOTION's own arms are mutually inconsistent too: its figures imply
 that 48% of deteriorated surgical valves become severe within ten years but only 10% of
 transcatheter ones, a five-fold difference in progression conditional on deterioration between two
-arms of one trial. This cohort sides with the registry, reproducing it to within 0.2 percentage
-points. Fitting a separate progression process per arm would reproduce both numbers by fitting the
+arms of one trial. This cohort sides with the registry, reproducing it exactly at 5.9%. Fitting a separate progression process per arm would reproduce both numbers by fitting the
 sampling noise of a few dozen patients.
 
-**Severe deterioration after surgical implant.** NOTION reports 10.0%; the cohort gives 13.1% —
-which is almost exactly NOTION's *bioprosthetic valve failure* figure of 13.8%, an anchor the
-cohort does hit. The pattern is informative rather than random: this cohort's stage-3 threshold
+**Severe deterioration after surgical implant.** NOTION reports 10.0%; the cohort gives 12.6% —
+which sits at NOTION's *bioprosthetic valve failure* figure of 13.8%, an anchor the cohort does
+hit, rather than at its severe-deterioration figure. The pattern is informative rather than random: this cohort's stage-3 threshold
 behaves like NOTION's adjudicated valve failure rather than its adjudicated severe deterioration,
 so the two categories that a trial adjudication panel separates are not separated here. That is a
 limitation of applying published echocardiographic thresholds mechanically, without the clinical
@@ -330,10 +333,11 @@ in eight to one in eight. Stratifying restored it.
 
 ### Automated tests
 
-`notebooks/synthetic/tests/` holds 41 tests covering the schema contract, reproducibility,
-governance, the VARC-3 criteria, the structure of the generated cohort, what each rung of the
-ladder removes, and the claims made in this document; `notebooks/cohort/tests/` holds a further
-17 over the real rung, 58 in total. They run in a minute or two:
+`notebooks/synthetic/tests/` holds 54 tests covering the schema contract, reproducibility,
+governance, the VARC-3 criteria, the structure of the generated cohort, the two follow-up clocks,
+what each rung of the ladder removes, the convergence of the parameter solvers, and the claims
+made in this document; `notebooks/cohort/tests/` holds a further 18 over the real rung and the
+committed report, 72 in total. They run in a minute or two:
 
 ```bash
 python -m pytest synthetic/tests cohort/tests -q
@@ -378,10 +382,16 @@ poverty had been wrong. Three were corrected; the fourth is a finding and was le
 | property | simulated rung, before | corrected | the extract |
 |---|---|---|---|
 | patients with any examination | 27% | 52% | 52% |
-| examinations per patient | 1.00 | 1.57 | 1.69 |
-| patients with more than one gradient | 0% | 24% | 18% |
+| examinations per patient | 1.00 | 1.59 | 1.69 |
+| patients with more than one gradient | 0% | 22% | 18% |
 | **mortality observed** | **yes** | **no** | **no** |
-| events per 100 patients | 20.5 | 24.8 | **12.0** |
+| events per 100 patients | 20.5 | 20.5 | **12.0** |
+
+The *before* column is a record of what the earlier model of the extract produced, kept because
+the four corrections are the point of the section. It was measured before the cohort was last
+recalibrated, so it is not directly comparable with the column beside it: the two event rates
+coinciding at 20.5 is arithmetic coincidence, not a finding. The *corrected* and *the extract*
+columns are both regenerated by `python -m cohort` and are comparable.
 
 The mortality correction matters most. The extract contains **no death data of any kind** —
 no table, no date, no linkage — so the competing risk is entirely unobserved. That is the

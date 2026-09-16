@@ -1,15 +1,16 @@
 """Calibration of the cohort against published durability evidence.
 
 **What was fitted, and what that does and does not prove.** Nine parameters were
-chosen using the anchors in :data:`synthetic.parameters.ANCHORS`: two Weibull
-scales solved by bisection against the two NOTION moderate-or-severe figures, and
-seven shape parameters governing onset, the rapidly progressive phenotype and
-gradient progression, selected from small grids.
+chosen using the anchors in :data:`synthetic.parameters.ANCHORS`: three scales
+solved by bisection -- two for deterioration against the NOTION moderate-or-severe
+figures, one for competing mortality against NOTION's all-cause death -- and six
+shape parameters governing onset, the rapidly progressive phenotype and gradient
+progression, selected from small grids.
 
-Nine parameters against seven anchors is a saturated fit, so **agreement with the
-anchors is not independent evidence that the cohort is correct**. It establishes
-only that the cohort is plausible: that it lands where published series land, so a
-pipeline exercised on it runs at realistic event rates. The evidence of
+Nine parameters against ten anchors is close to a saturated fit, so **agreement
+with the anchors is not independent evidence that the cohort is correct**. It
+establishes only that the cohort is plausible: that it lands where published series
+land, so a pipeline exercised on it runs at realistic event rates. The evidence of
 correctness is the recovery test in :mod:`synthetic.validation`, which no amount
 of curve-fitting can pass.
 
@@ -47,14 +48,24 @@ deterioration substantially.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Final
 
 import numpy as np
 import pandas as pd
 
 from .generator import DAYS_PER_YEAR, build_cohort
-from .parameters import ANCHORS, Anchor, Parameters
+from .parameters import ANCHORS, DEFAULT, Anchor, Parameters
 
-__all__ = ["cumulative_incidence", "endpoint_times", "solve_scales", "calibration_report"]
+__all__ = [
+    "REGISTRY_ASCERTAINED",
+    "cumulative_incidence",
+    "endpoint_times",
+    "observed",
+    "solve_scales",
+    "solve_death_scale",
+    "calibration_report",
+    "calibration_across_seeds",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,16 +77,39 @@ class _Endpoint:
     """1 for the endpoint of interest, 2 for the competing death, 0 for censored."""
 
 
-def endpoint_times(cohort: dict[str, pd.DataFrame], event_types: tuple[str, ...]) -> _Endpoint:
+def endpoint_times(
+    cohort: dict[str, pd.DataFrame],
+    event_types: tuple[str, ...],
+    *,
+    horizon_days: float | None = None,
+) -> _Endpoint:
     """Reduce a cohort to time-to-first-event for a given endpoint definition.
 
     Whichever of the endpoint or death happens first is what the patient
     contributes; a patient censored before either contributes neither.
 
+    **Two follow-up clocks, because the cohort has two.** Deterioration is
+    ascertained at echocardiography, so it can only be observed while the patient
+    still attends, and an endpoint that depends on imaging is censored at
+    ``last_contact_days``. Death is ascertained by registry linkage, so it is known
+    whether or not the patient still attends, and an endpoint made only of
+    registry-ascertained events is censored at the administrative horizon instead.
+    Using clinical follow-up for both would discard about one death in five and
+    make the cohort's own mortality disagree with the figure it is calibrated to.
+
+    The asymmetry does not run the other way. A patient last imaged at three years
+    who dies at seven contributes a death to the mortality estimate, but is still
+    censored at three years for deterioration: nobody knows whether their valve
+    failed in between, and counting them as a competing death at seven would assert
+    four years of deterioration-free follow-up that was never observed.
+
     Args:
         cohort: Tables as returned by :func:`synthetic.generator.build_cohort`.
         event_types: Event types that together constitute the endpoint, for
             example ``("svd_stage2", "svd_stage3")``.
+        horizon_days: Administrative horizon, used as the censoring time when every
+            requested event type is registry-ascertained. Defaults to the
+            protocol's ten years.
 
     Returns:
         Times in years and causes, aligned with the ``patients`` table.
@@ -89,18 +123,22 @@ def endpoint_times(cohort: dict[str, pd.DataFrame], event_types: tuple[str, ...]
     death_day = np.full(n, np.inf)
 
     selected = events[events["event_type"].isin(event_types)]
-    for pid, day in zip(selected["patient_id"], selected["days_from_implant"]):
+    for pid, day in zip(selected["patient_id"], selected["days_from_implant"], strict=True):
         i = order[pid]
         endpoint_day[i] = min(endpoint_day[i], float(day))
 
     deaths = events[events["event_type"] == "death"]
-    for pid, day in zip(deaths["patient_id"], deaths["days_from_implant"]):
+    for pid, day in zip(deaths["patient_id"], deaths["days_from_implant"], strict=True):
         death_day[order[pid]] = float(day)
 
-    censor_day = np.empty(n)
     followup = cohort["followup"]
-    for pid, day in zip(followup["patient_id"], followup["last_contact_days"]):
-        censor_day[order[pid]] = float(day)
+    if set(event_types) <= REGISTRY_ASCERTAINED:
+        horizon = DEFAULT.visit.horizon_years * DAYS_PER_YEAR if horizon_days is None else horizon_days
+        censor_day = np.full(n, float(horizon))
+    else:
+        censor_day = np.empty(n)
+        for pid, day in zip(followup["patient_id"], followup["last_contact_days"], strict=True):
+            censor_day[order[pid]] = float(day)
 
     time = np.minimum(np.minimum(endpoint_day, death_day), censor_day)
     cause = np.where(endpoint_day <= time, 1, np.where(death_day <= time, 2, 0))
@@ -139,6 +177,21 @@ def cumulative_incidence(endpoint: _Endpoint, horizon_years: float) -> float:
         i = j
     return float(incidence)
 
+
+REGISTRY_ASCERTAINED: Final[frozenset[str]] = frozenset({"death"})
+"""Event types known after a patient stops attending clinic.
+
+Vital status reaches the study through registry linkage rather than through the
+clinic, so these events are not lost when follow-up is. Everything else in the
+cohort is established at an examination or an operation and is therefore only as
+complete as attendance.
+"""
+
+_ARMS: Final[tuple[str, ...]] = ("SAVR", "TAVR")
+"""The two implant approaches, each with its own solved deterioration scale."""
+
+_SOLVED_QUANTITY: Final[str] = "moderate_or_severe_svd"
+"""The quantity :func:`solve_scales` solves against; mortality has its own solver."""
 
 _ENDPOINT_TYPES: dict[str, tuple[str, ...]] = {
     "moderate_or_severe_svd": ("svd_stage2", "svd_stage3"),
@@ -182,8 +235,15 @@ def solve_scales(
     noise: at n = 1,800 the standard error of a 20% incidence is about 1
     percentage point, which is the size of the effect being solved for.
 
-    Because a larger Weibull scale can only postpone onset, incidence is monotone
-    decreasing in the scale, and bisection is guaranteed to converge.
+    Because a larger Weibull scale can only postpone onset, incidence is decreasing
+    in the scale *in expectation*, which is what makes bisection the right search.
+    It is not monotone exactly: changing a scale changes how many examinations each
+    patient receives and therefore how many random draws they consume, so every
+    candidate scale is evaluated on a differently shuffled cohort and the objective
+    carries Monte Carlo noise of about one percentage point at ``n_solve`` = 20,000.
+    Bisection tolerates that as long as the noise is small against the distance to
+    the target, which is why the search runs on a cohort far larger than the study
+    cohort -- and why it verifies that it converged instead of trusting that it did.
 
     Args:
         params: Parameter set whose scales are to be replaced.
@@ -191,25 +251,47 @@ def solve_scales(
             makes the objective deterministic, which bisection requires.
         n_solve: Size of the cohort used for solving.
         tolerance: Convergence tolerance on cumulative incidence.
-        max_iterations: Maximum bisection steps.
+        max_iterations: Maximum bisection steps; at least one.
 
     Returns:
         The solved scales in years, for SAVR and TAVR respectively.
+
+    Raises:
+        ValueError: If ``max_iterations`` is less than one, or if the search ends
+            without reaching ``tolerance`` on both arms. A bisection that has not
+            converged returns whatever midpoint it stopped at, which may be a
+            bracket bound rather than a solution; returning that silently would put
+            an arbitrary number into the parameter file under the word SOLVED.
     """
+    if max_iterations < 1:
+        raise ValueError("max_iterations must be at least 1.")
+
     from dataclasses import replace as _replace
 
-    targets = {a.subgroup: a.value for a in ANCHORS if a.targeted}
-    horizon = {a.subgroup: a.horizon_years for a in ANCHORS if a.targeted}
+    # Select on the quantity as well as the flag. Three anchors are targeted and
+    # two of them are transcatheter, so a dictionary keyed by subgroup alone lets
+    # the all-cause mortality anchor overwrite the transcatheter deterioration
+    # target -- and the search then chases 62.7% deterioration, which no scale can
+    # produce, all the way to the bracket bound. Mortality is solved separately by
+    # solve_death_scale; this function solves the deterioration scales only.
+    deterioration = [a for a in ANCHORS if a.targeted and a.quantity == _SOLVED_QUANTITY]
+    targets = {a.subgroup: a.value for a in deterioration}
+    horizon = {a.subgroup: a.horizon_years for a in deterioration}
+    if set(targets) != set(_ARMS):
+        raise ValueError(
+            f"solve_scales needs one targeted {_SOLVED_QUANTITY!r} anchor per arm; "
+            f"found {sorted(targets)} instead of {sorted(_ARMS)}."
+        )
     large = _replace(params, cohort=_replace(params.cohort, n_patients=n_solve))
 
-    low = {"SAVR": 6.0, "TAVR": 6.0}
-    high = {"SAVR": 60.0, "TAVR": 60.0}
+    low = dict.fromkeys(_ARMS, 6.0)
+    high = dict.fromkeys(_ARMS, 60.0)
 
     for _ in range(max_iterations):
-        middle = {arm: 0.5 * (low[arm] + high[arm]) for arm in ("SAVR", "TAVR")}
+        middle = {arm: 0.5 * (low[arm] + high[arm]) for arm in _ARMS}
         cohort = build_cohort(large.with_scales(middle["SAVR"], middle["TAVR"]), seed=seed)
         gap = {}
-        for arm in ("SAVR", "TAVR"):
+        for arm in _ARMS:
             subset = _subset(cohort, arm)
             value = cumulative_incidence(endpoint_times(subset, _ENDPOINT_TYPES["moderate_or_severe_svd"]), horizon[arm])
             gap[arm] = value - targets[arm]
@@ -218,9 +300,14 @@ def solve_scales(
             else:
                 high[arm] = middle[arm]
         if all(abs(g) < tolerance for g in gap.values()):
-            break
+            return middle["SAVR"], middle["TAVR"]
 
-    return middle["SAVR"], middle["TAVR"]
+    raise ValueError(
+        f"solve_scales did not converge in {max_iterations} iterations: "
+        + ", ".join(f"{arm} off target by {gap[arm]:+.4f} at scale {middle[arm]:.4f}" for arm in gap)
+        + f" (tolerance {tolerance}). Widen the bracket, raise n_solve so the objective is "
+        "less noisy, or check whether an upstream parameter has made the target unreachable."
+    )
 
 
 def solve_death_scale(
@@ -252,15 +339,22 @@ def solve_death_scale(
         seed: Seed held fixed so the objective is deterministic.
         n_solve: Size of the cohort used for solving.
         tolerance: Convergence tolerance on cumulative incidence.
-        max_iterations: Maximum bisection steps.
+        max_iterations: Maximum bisection steps; at least one.
 
     Returns:
         The solved scale in years.
+
+    Raises:
+        ValueError: If ``max_iterations`` is less than one, or if the search ends
+            without reaching ``tolerance``. See :func:`solve_scales`.
     """
     from dataclasses import replace as _replace
 
+    if max_iterations < 1:
+        raise ValueError("max_iterations must be at least 1.")
+
     large = _replace(params, cohort=_replace(params.cohort, n_patients=n_solve))
-    low, high, middle = 5.0, 40.0, 0.0
+    low, high = 5.0, 40.0
     for _ in range(max_iterations):
         middle = 0.5 * (low + high)
         candidate = _replace(large, hazard=_replace(large.hazard, death_scale_years_at_centre=middle))
@@ -271,8 +365,13 @@ def solve_death_scale(
         else:
             high = middle
         if abs(value - target) < tolerance:
-            break
-    return middle
+            return middle
+
+    raise ValueError(
+        f"solve_death_scale did not converge in {max_iterations} iterations: "
+        f"{value:.4f} against a target of {target} at scale {middle:.4f} "
+        f"(tolerance {tolerance})."
+    )
 
 
 def calibration_across_seeds(

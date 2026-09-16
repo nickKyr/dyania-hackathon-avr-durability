@@ -154,8 +154,14 @@ def _patients(long: pd.DataFrame) -> pd.DataFrame:
     ).reset_index(drop=True)
 
 
-def _echos(long: pd.DataFrame, implant_year: pd.Series) -> pd.DataFrame:
-    """Build the examination table, one row per distinct study the abstraction found."""
+def _echos(implant_year: pd.Series) -> pd.DataFrame:
+    """Build the examination table, one row per distinct study the abstraction found.
+
+    The examinations come from the language-model pass rather than from the
+    consolidated long frame: the rules pass does not separate one note's studies
+    from one another, and without that separation a note quoting a prior gradient
+    beside the current one collapses into a single examination.
+    """
     echo = echo_exams(method="llm")
     echo = echo[(echo["valve_context"] == "prosthetic") & (echo["timing"] == "post-operative")].copy()
     echo["value"] = pd.to_numeric(echo["value"], errors="coerce")
@@ -204,7 +210,7 @@ def _echos(long: pd.DataFrame, implant_year: pd.Series) -> pd.DataFrame:
     wide = wide[~wide[measured].isna().all(axis=1)]
     wide = wide.sort_values(["patient", "days_from_implant", "study_number"])
     wide["echo_id"] = [
-        f"{p}-E{i + 1:02d}" for p, i in zip(wide["patient"], wide.groupby("patient").cumcount())
+        f"{p}-E{i + 1:02d}" for p, i in zip(wide["patient"], wide.groupby("patient").cumcount(), strict=True)
     ]
 
     # No examination here can be a VARC-3 reference study: the 30-to-90-day window
@@ -339,7 +345,7 @@ def to_schema(*, validate: bool = True) -> dict[str, pd.DataFrame]:
     patients = _patients(long)
     implant_year = patients.set_index("patient_id")["implant_year"]
 
-    echos = _echos(long, implant_year)
+    echos = _echos(implant_year)
     events = _events(long, implant_year)
     followup = _followup(long, implant_year, echos, events)
 
