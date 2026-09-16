@@ -74,7 +74,6 @@ def cox_snell_r2(cohort: dict[str, pd.DataFrame], features: list[str]) -> tuple[
     from lifelines import CoxPHFitter
 
     tables = landmarks.from_preprocessing(landmarks.synthetic_to_preprocessing(cohort))
-    outcomes = landmarks.build_outcomes(tables, landmarks.LABEL_CONFIG)
     landmark, _ = landmarks.build_landmark_table(tables, landmarks.LABEL_CONFIG)
     X, meta = ml.feature_matrix(landmark)
 

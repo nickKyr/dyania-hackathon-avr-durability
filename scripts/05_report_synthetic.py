@@ -214,7 +214,7 @@ def build_document(seeds: tuple[int, ...], n_patients: int) -> str:
 >
 > Every figure is an aggregate. No patient-level value, note text or identifier appears here.
 
-At the protocol's sample size of {n_patients:,} patients the cohort is {counts}, from seed {seeds[0]}. The tables
+At the generator's default size of {n_patients:,} patients the cohort is {counts}, from seed {seeds[0]}. The tables
 below are the two claims this workstream makes: that the cohort lands where published series
 land, and that the cost of each data defect can be measured rather than asserted.
 

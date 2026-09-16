@@ -96,7 +96,7 @@ def generate(
         preset: Rung of the degradation ladder; see :data:`PRESETS`. ``"ideal"``
             applies no degradation.
         seed: Seed of the random generator.
-        n_patients: Cohort size. Defaults to the protocol's sample size of 1,800.
+        n_patients: Cohort size. Defaults to 1,800, the generator's default cohort size.
         params: Parameter set. Defaults to the calibrated
             :data:`synthetic.parameters.DEFAULT`.
         validate_output: Check the result against the schema before returning.

@@ -151,7 +151,7 @@ def find_sizes(text):
     return sizes
 
 
-def size_near(text, pos, sizes, window=160):
+def size_near(pos, sizes, window=160):
     near = [s for s in sizes if abs(s[1] - pos) <= window]
     if not near:
         return None
@@ -255,7 +255,7 @@ def extract_implant(note_id, patient, year, note_type, signed, text):
             break
     if primary is None and models:
         primary = models[0]
-    size = size_near(text, primary[3], sizes) if primary else (sizes[0][0] if sizes else None)
+    size = size_near(primary[3], sizes) if primary else (sizes[0][0] if sizes else None)
     viv = bool(re.search(r"valve[- ]in[- ]valve", text, re.I)) and not re.search(r"valve in valve:\s*no", text, re.I)
     struct_block = bool(re.search(r"Valve Type Used:|Tissue Implant Type:|Implant Size:", text))
     name_redacted_valve = bool(re.search(r"\d{2}\s?-?\s?mm \[NAME\]|\[NAME\] (?:aortic )?valve|\[NAME\] S3", text))
@@ -286,7 +286,7 @@ def implant_from_followup(note_id, patient, year, text):
     models = find_models(text)
     sizes = find_sizes(text)
     primary = next((f for f in models if f[2] == approach), models[0] if models else None)
-    size = size_near(text, primary[3], sizes, 200) if primary else None
+    size = size_near(primary[3], sizes, 200) if primary else None
     partial = re.search(r"(?:on|in)\s+(\d{1,2}/(?:19|20)\d{2}|(?:19|20)\d{2})\b", text[m.start(): m.end() + 80])
     return dict(note_id=note_id, patient=patient, note_type="follow-up mention", implant_year=None, signed_status=None,
                 approach=approach, approach_reason="history mention in follow-up note",

@@ -1,6 +1,6 @@
 import pathlib
 import pandas as pd
-from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.styles import Font, PatternFill
 
 from _inputs import require
 
