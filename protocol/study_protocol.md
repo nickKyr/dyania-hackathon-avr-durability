@@ -64,9 +64,10 @@ clinical lead.
 ### Cohort Size Estimate
 
 **Not yet decided — owner: the team.** No sample size calculation exists in this repository. The
-synthetic cohort is generated at 1,800 implants, which yields roughly 190 deterioration events
-over ten years; that figure is carried over from [`../model/modeling_brief.md`](../model/modeling_brief.md)
-as a working scale, not derived here. A calculation appropriate to a competing-risks model with
+synthetic cohort is generated at 1,800 implants, which yields **247 stage-2 deterioration events**
+over ten years at the default seed — a figure measured on the generated cohort, not derived from
+any power calculation. The cohort size itself is a working scale chosen in
+[`../model/modeling_brief.md`](../model/modeling_brief.md). A calculation appropriate to a competing-risks model with
 interval-censored outcomes (for example Riley's criteria for the minimum sample size of a
 prediction model) has to be done and written down before this section can be called settled.
 

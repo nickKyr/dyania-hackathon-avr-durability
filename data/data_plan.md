@@ -46,7 +46,7 @@ workbooks, one sheet each, dates shifted and truncated to the calendar year.
 |---|---|---|---|
 | Clinical notes | 215 notes, 117 patients | the only source of valve model, size, procedure type and echo haemodynamics | free text; exam dates redacted; 1–4 notes per patient |
 | Laboratory results | 43,550 rows → 19,002 after de-duplication, 17 patients | renal function, haemoglobin, NT-proBNP, calcium/phosphate | 56% exact duplicates from export join fan-out; only ~half the rows are laboratory data, the remainder are blood gases, respiratory-therapy fields and device interrogation |
-| Medications | 5,807 rows → 2,157 after de-duplication, 17 patients | antithrombotic and heart-failure exposure; procedure-year anchor | 63% exact duplicates; 86% inpatient orders from the index admission, so it is a medication administration record rather than a drug history |
+| Medications | 5,807 rows → 2,157 after de-duplication, 17 patients | antithrombotic and heart-failure exposure; procedure-year anchor | 63% exact duplicates; 64% of the de-duplicated rows are inpatient orders from the index admission (86% before de-duplication), so it is a medication administration record rather than a drug history |
 
 **The extract contains two sub-cohorts that do not overlap.**
 
@@ -72,7 +72,7 @@ fail on this data.
 | Age at implant is available | **Fails.** Redacted in 194 of 215 notes; no demographics table exists and the value cannot be recovered by joining the three files. | High — the strongest published predictor of structural valve deterioration is unavailable |
 | Valve manufacturer and model are consistently coded | Partly. No implant registry exists; model and size are recoverable from operative-report text for most of cohort A, and in some transcatheter reports the device name itself was redacted. | Medium |
 | Echo parameters live in a structured echo table | **Fails.** No echo table exists; all values are embedded in note text under 26 different section headings. | Medium — handled by the abstraction pipeline |
-| Follow-up extends beyond the implant year | Partly. 74 of 100 cohort-A patients have all notes in a single year; 41 have any later note. | High — heavy administrative censoring |
+| Follow-up extends beyond the implant year | Partly. Only **41 of 100** cohort-A patients have any note in a year later than their operative report; 57 have every note in a single calendar year. | High — heavy administrative censoring |
 
 In a production deployment the first three assumptions would hold: a hospital's own echo
 database carries exam dates and serial studies, and the demographics table carries age. The
@@ -186,7 +186,7 @@ The cohort is built as a causal chain, in this order:
 
 Each event carries both ends of its censoring interval: `interval_start_days`, the last
 examination at which the event had not yet occurred, and `days_from_implant`, the examination that
-detected it. On this cohort those intervals have a median width of one year and a maximum of 4.25
+detected it. On this cohort those intervals have a median width of 1.0 years and a maximum of 4.27
 years, so a deterioration recorded at an examination may have begun four years earlier. Supplying
 only the right endpoint, as most extracts do, silently converts an interval-censored outcome into
 an exactly observed one.
@@ -225,7 +225,7 @@ all-cause death — and six shape parameters selected from small grids.
 | quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | seeds inside band |
 |---|---|---|---|---|---|
 | **targeted** | | | | | |
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.4% ± 2.6 | 7 of 8 |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.3% ± 2.6 | 7 of 8 |
 | moderate or severe SVD | TAVR | 10 y | 15.4% | 15.3% ± 0.9 | 8 of 8 |
 | all-cause death | TAVR | 10 y | 62.7% | 63.2% ± 1.3 | 8 of 8 |
 | **out of sample** | | | | | |
@@ -233,7 +233,7 @@ all-cause death — and six shape parameters selected from small grids.
 | severe SVD | TAVR | 10 y | 1.5% | 9.6% ± 0.9 | **0 of 8** |
 | bioprosthetic valve failure | all | 5 y | 3.6% | 3.8% ± 0.3 | 8 of 8 |
 | bioprosthetic valve failure | all | 7 y | 7.2% | 6.7% ± 0.7 | 8 of 8 |
-| severe SVD | TAVR | 7.8 y | 5.9% | 6.1% ± 0.7 | 8 of 8 |
+| severe SVD | TAVR | 7.8 y | 5.9% | 6.0% ± 0.7 | 8 of 8 |
 | **post-hoc holdout** | | | | | |
 | bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.6% ± 0.9 | 8 of 8 |
 | bioprosthetic valve failure | SAVR | 10 y | 13.8% | 13.1% ± 1.8 | 7 of 8 |
@@ -247,6 +247,12 @@ which is what exposed the deficiency the two-component onset model then fixed.
 Results are means and standard deviations across eight seeds rather than one cohort. At 1,800
 patients the Monte Carlo standard error of a 20% incidence is about one percentage point, which is
 the size of the differences being judged.
+
+> The table above is transcribed for readability. The figures are produced by
+> `python -m cohort`, and [`synthetic/results.md`](synthetic/results.md) is the generated copy —
+> if the two ever disagree, that file is right and this one is stale. The grouping into
+> *targeted*, *out of sample* and *post-hoc holdout* is an argument made here and is not
+> carried by the generated table, which separates targeted anchors from the rest only.
 
 **The two post-hoc rows are the closest this calibration comes to a holdout.** NOTION's
 bioprosthetic-valve-failure figures were found while verifying the other anchors, after every
@@ -309,26 +315,28 @@ express the difference between them; forcing one biases every other estimate, wh
 what happened when the mixture was first introduced and recovery collapsed from eight covariates
 in eight to one in eight. Stratifying restored it.
 
-- **Latent hazard.** Over five seeds and seven covariates, the 95% interval covered the injected
+- **Latent hazard.** Over three seeds and seven covariates, the 95% interval covered the injected
   value in **20 of 21 fits (95.2%)**, against a nominal 95%, with a mean log bias of **+0.0005** —
   no detectable systematic error. Coverage is the right criterion rather than a clean sweep: a
   95% interval is supposed to miss about one time in twenty, and treating any miss as failure
   would invite tuning until it passes.
 - **Observed events.** The same effects estimated from what an analyst actually sees — detections
-  at scheduled examinations, with death competing and patients dropping out — are **attenuated**,
-  with a median attenuation of the log hazard ratio around 0.6. This is not a defect. It
+  at scheduled examinations, with death competing and patients dropping out — are **attenuated**:
+  the median attenuation of the log hazard ratio is **0.66** over the same 21 fits, ranging from
+  0.15 to 0.91 across individual covariates and seeds. This is not a defect. It
   quantifies how much sparse guideline-interval surveillance biases effect estimates toward the
   null, and it applies to any real study built the same way, which is why it is restated in the
   limitations.
 
 ### Automated tests
 
-`notebooks/synthetic/tests/` holds 58 tests covering the schema contract, reproducibility,
+`notebooks/synthetic/tests/` holds 41 tests covering the schema contract, reproducibility,
 governance, the VARC-3 criteria, the structure of the generated cohort, what each rung of the
-ladder removes, and the claims made in this document. They run in seconds:
+ladder removes, and the claims made in this document; `notebooks/cohort/tests/` holds a further
+17 over the real rung, 58 in total. They run in a minute or two:
 
 ```bash
-python -m pytest synthetic/tests -q
+python -m pytest synthetic/tests cohort/tests -q
 ```
 
 They are not decoration. Writing them found two defects that had survived review: mismatch grade

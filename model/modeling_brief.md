@@ -99,8 +99,10 @@ Equivalently, read the CSVs at `data/synthetic/<preset>/{patients,echos,events,f
 Every row of every table carries two governance columns that you must never drop:
 `source` (always `simulated` here) and `time_resolution` (`day` / `year` / `unknown`).
 
-**Target scale:** ~1,800 implants, ~190 deterioration events over 10 years — the figures the
-sample size calculation in the protocol arrives at (Riley et al. 2019, `pmsampsize`).
+**Target scale:** 1,800 implants, which produces 247 stage-2 deterioration events over 10 years
+at the default seed. Both are working scales: **no sample size calculation has been done**, and
+the protocol says so ([`../protocol/study_protocol.md`](../protocol/study_protocol.md) §2). A
+calculation on Riley's criteria (`pmsampsize`) is still owed.
 
 **Data-generating process:**
 
@@ -140,8 +142,12 @@ table. If it does not, the generator is wrong — not the literature.
 
 ## 5. Deliverable 1 — the pipeline
 
-One notebook, `notebooks/03_model_training.ipynb` (merge evaluation into it if time is short),
-running end to end on the synthetic cohort.
+Written as scripts rather than the notebook this brief originally asked for:
+[`../data/build_landmark_table.py`](../data/build_landmark_table.py) builds the landmark and
+person-period tables and [`../model/fit_svd_models.py`](../model/fit_svd_models.py) fits and
+evaluates the models. Both are written against the real extract's abstraction workbook
+(`structured_extraction.xlsx`); running them end to end on the synthetic cohort, as this brief
+specifies, is still open.
 
 **Formulation.** Time from implant to SVD-attributable VARC-3 stage ≥2 hemodynamic valve
 deterioration or bioprosthetic valve failure stage 2–3, with death as a competing risk, events

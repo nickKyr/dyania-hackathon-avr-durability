@@ -6,8 +6,10 @@ The analysis, in order. Each notebook reads `data/raw_tables/`, so build those f
 |---|---|---|
 | `01_raw_data_overview.ipynb` | What the three extracts contain: coverage, time span, completeness, duplicates, content | done |
 | `02_preprocessing.ipynb` | Deduplication, lab mapping, one implant per patient, echo timeline, event adjudication, covariates, landmark dataset | skeleton |
-| `03_model_training.ipynb` | Cox / Fine-Gray baseline and competing-risks boosted model | planned |
-| `04_evaluation.ipynb` | Discrimination, calibration, decision curve, SHAP | planned |
+
+The model layer is **not** a notebook. It lives in [`../data/build_landmark_table.py`](../data/build_landmark_table.py)
+(landmark and person-period tables) and [`../model/fit_svd_models.py`](../model/fit_svd_models.py)
+(discrete-time hazard models and their evaluation); see [`../model/approach.md`](../model/approach.md).
 
 `viz.py` holds the shared plot style. Figures are written to `figures/`, prefixed with the notebook number.
 

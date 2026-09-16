@@ -170,7 +170,7 @@ Title your PR: `Team submission: <your-team-name>`
 │   ├── synthetic/                   # Cohort generator, calibration, degradation ladder
 │   └── cohort/                      # The real extract mapped into the study schema
 ├── presentation/
-│   └── slides.pdf                   # Slide deck for the expert panel
+│   └── slides.md                    # Outline only — slides.pdf not yet written
 └── evaluation/
     └── scoring_rubric.md            # Organisers' rubric
 ```

@@ -29,7 +29,7 @@ Group A is the surgical cohort: every patient has at least one operative report 
 
 Per-patient depth in group B is uneven. For labs, 6 of 17 patients have data from a single calendar year, 5 from two years and 6 from six or more years. For medications, 7 patients are single-year, 3 two-year, 1 three-year and 6 span seven or more years. The single-year patients are index-admission dumps: their labs, medications and their one discharge summary or progress note all sit in the same year, and anaesthetic or protamine orders in that year mark the operation.
 
-For group A, 74 of the 100 patients have all their notes in a single year. Follow-up beyond the surgery year exists for 41 patients, with a spread of 1 to 15 years but only one or two later notes each.
+For group A, 57 of the 100 patients have all their notes in a single calendar year, and 59 have no note after their operative-report year. Follow-up beyond the surgery year exists for 41 patients, with a spread of 1 to 15 years but only one or two later notes each.
 
 ## What does not exist
 
