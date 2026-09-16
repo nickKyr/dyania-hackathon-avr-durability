@@ -1,10 +1,11 @@
 # Command-line jobs
 
-Two kinds of script live here. **01 to 04** turn the three provided Excel extracts into the tables the notebooks read; they need the private data and produce patient-level files, every one of which is gitignored. **05 and 06** regenerate published evidence from the synthetic cohort; they need no private data and run on any clone.
+Two kinds of script live here. **00 to 04** read the three provided Excel extracts: 00 profiles them, and 01 to 04 turn them into the tables the notebooks read. They need the private data, and every file they write is gitignored. **05 to 08** regenerate published evidence from the synthetic cohort; they need no private data and run on any clone. **09** measures the supplied extract with the same code as the synthetic rungs, so it needs the private data.
 
-## 01–04 · Data build
+## 00–04 · Data build
 
 ```bash
+uv run python scripts/00_profile_extracts.py     # optional: prints the aggregate profile behind docs/
 uv run python scripts/01_extract_rules.py
 uv run python scripts/02_merge_llm_extraction.py
 uv run python scripts/03_build_raw_tables.py
@@ -13,6 +14,7 @@ uv run python scripts/04_build_single_sheet.py
 
 | Script | Reads | Writes |
 |---|---|---|
+| `00_profile_extracts.py` | `data/*_deidentified.xlsx` | nothing: prints aggregate counts, shares and coverage to the terminal, the figures quoted in [`../docs/`](../docs/README.md) |
 | `01_extract_rules.py` | `data/*_deidentified.xlsx` | `data/structured_extraction.xlsx`: rule-based (regex) reading of the notes: valve model, size, SAVR/TAVR, echo values, event keywords |
 | `02_merge_llm_extraction.py` | `data/llm_json/N*.json`, the workbook above | adds the LLM reading and the rules vs LLM comparison sheets to the same workbook |
 | `03_build_raw_tables.py` | all of the above | `data/raw_tables/*.parquet` and `data/raw_tables.xlsx`: 15 long-format tables with nothing decided yet. **This is what the notebooks start from.** |
@@ -24,9 +26,9 @@ Only step 03 is needed before the notebooks. Steps 01 and 02 must have run at le
 
 **Before the first run,** copy the three supplied extracts into `data/`. They are patient data, so they are never committed and every spreadsheet in that directory is gitignored; keeping them out of the working tree entirely is safer still, but the scripts read `data/` by team decision (see `data/open_questions.md`). If a file is missing, each script now says which one and what to do rather than failing inside pandas — the check is in `_inputs.py`.
 
-## 05–08 · Reporting and experiments
+## 05–09 · Reporting and experiments
 
-No private data. Each writes a Markdown document that is committed, so the evidence can be read without running anything, stamped with the date it ran and the commit it ran against.
+Scripts 05 to 08 need no private data. Each writes a Markdown document that is committed, so the evidence can be read without running anything, stamped with the date it ran and the commit it ran against.
 
 ```bash
 uv run python scripts/05_report_synthetic.py     # ~4 min: regenerates data/synthetic/results.md

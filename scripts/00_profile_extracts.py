@@ -1,5 +1,8 @@
 import re
+
 import pandas as pd
+
+from _inputs import require_extracts
 
 pd.set_option("display.width", 200)
 pd.set_option("display.max_rows", 200)
@@ -12,6 +15,7 @@ def section(title):
 
 
 def load():
+    require_extracts()
     labs = pd.read_excel(f"{DATA}/labs_deidentified.xlsx")
     meds = pd.read_excel(f"{DATA}/medications_deidentified.xlsx")
     notes = pd.read_excel(f"{DATA}/notes_deidentified.xlsx")

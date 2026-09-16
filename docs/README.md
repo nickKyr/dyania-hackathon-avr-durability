@@ -1,6 +1,6 @@
 # Data investigation
 
-Findings from a first pass over the three de-identified EHR extracts in `data/` (16 Sep 2026). All numbers are aggregates; no patient-level rows or note text are reproduced here. Re-run `python docs/profile_data.py` from the repo root (with the venv active) to regenerate every figure quoted.
+Findings from a first pass over the three de-identified EHR extracts in `data/` (16 Sep 2026). All numbers are aggregates; no patient-level rows or note text are reproduced here. Re-run `uv run python scripts/00_profile_extracts.py` from the repo root to regenerate every figure quoted.
 
 | Document | What it covers |
 |---|---|

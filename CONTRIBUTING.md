@@ -18,7 +18,7 @@ commit both `pyproject.toml` and `uv.lock` so everyone resolves the same version
 
 The three supplied extracts are patient data. They are **never** committed: `.gitignore` blocks
 every spreadsheet, CSV, parquet, pickle and derived table under `data/`, and the fork is public.
-Copy them into `data/` before running `scripts/01`–`04`; the scripts say so if they are missing.
+Copy them into `data/` before running `scripts/00`–`04`; the scripts say so if they are missing.
 Notebook outputs must contain aggregates only — no row-level values, no note text, no identifiers.
 
 ## Branch and submission
