@@ -107,3 +107,36 @@ Title your PR: `Team submission: <your-team-name>`
 - [ ] `data/data_plan.md` — data plan
 - [ ] `presentation/slides.pdf` — slide deck
 - [ ] `notebooks/` — proof-of-concept (optional, evaluated positively if present)
+
+
+## uv package manager
+
+1. Install uv on macOS/Linux:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+now you should be able to see the version of uv:
+```bash
+uv --version
+```
+
+2. Go to repository and then, initialize the project with uv:
+```bash
+uv init
+```
+
+3. After git pull, synchronize environment:
+```bash
+uv sync
+```
+
+4. Add dependencies in .venv instead of installing them on the machine, i.e. for pandas:
+```bash
+uv add pandas
+```
+
+5. For removing an unnecessary package from venv, i.e. removing pandas:
+```pandas
+uv remove pandas
+```
