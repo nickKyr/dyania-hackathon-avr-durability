@@ -75,6 +75,47 @@ Pibarot P, Herrmann HC, Wu C, et al. J Am Coll Cardiol 2022;80:545-561, doi:10.1
 
 Older definitions worth knowing because registries used them: VARC-2 (2012) defined prosthetic stenosis as MG 20 mmHg or more with EOA below 0.9 to 1.1 cm2 and DVI below 0.35 [6]; Rodriguez-Gabella 2018 [26] used "subclinical SVD" (MG rise above 10 mmHg plus EOA fall above 0.3 cm2 and/or new mild or moderate AR) and "clinically relevant SVD" (MG rise above 20 mmHg plus EOA fall above 0.6 cm2 and/or new moderate to severe AR); Del Trigo [42] and the TVT registry [51] used a 10 mmHg rise alone.
 
+### 2.5 Subclinical and clinically relevant SVD (the two-tier echo definition)
+
+Supplied by the team as a slide (the heading reads "synthetic valvular dysfunction", an OCR slip
+for *structural*). It is the two-tier formulation already referred to at the end of section 2.4,
+transcribed here in full because it carries Doppler velocity index thresholds that the earlier
+summary omits, and a morphological criterion that the purely haemodynamic definitions do not have.
+
+**Possible (subclinical) SVD**, any of:
+
+1. increase in mean transvalvular gradient above 10 mmHg **with** a concomitant decrease in EOA
+   above 0.3 cm2 and/or a decrease in Doppler velocity index above 0.08;
+2. new onset of at least mild intraprosthetic regurgitation, or an increase of at least one grade
+   over pre-existing intraprosthetic regurgitation, compared with the post-intervention baseline
+   echo, with the resulting grade at most moderate;
+3. change in morphology (thickening, calcification, flail, pannus) and/or mobility (reduced,
+   avulsed) of the bioprosthetic leaflets compared with the post-intervention baseline.
+
+**Clinically relevant SVD**, any of:
+
+1. increase in mean transvalvular gradient above 20 mmHg **with** a concomitant decrease in EOA
+   above 0.6 cm2 and/or a decrease in Doppler velocity index above 0.15;
+2. new occurrence or increase of at least one grade of intraprosthetic AR leading to
+   moderate-to-severe or severe AR.
+
+How it differs from VARC-3 (section 2.3), and why the difference matters to us:
+
+- **No absolute floor on the resulting gradient.** VARC-3 stage 2 requires a rise of 10 mmHg *and*
+  a resulting gradient of at least 20 mmHg; this definition requires only the rise. A patient
+  moving from 6 to 17 mmHg is subclinical SVD here and is nothing under VARC-3.
+- **The DVI thresholds are absolute, not proportional** (0.08 / 0.15 against VARC-3's 0.1 or 20%
+  and 0.2 or 40%).
+- **Criterion 3 is morphological** and needs imaging of leaflet structure, which no extract in this
+  project contains. It is the tier closest to what a CT substudy would detect and is unreachable
+  from note text.
+- The subclinical tier is far more sensitive, which is why the Quebec SAVR series [26] reports
+  subclinical SVD in 30.1 percent against clinically relevant SVD in 6.6 percent in the same
+  patients. Any incidence figure is meaningless without the definition attached to it.
+
+**This definition is not implemented.** The pipeline applies VARC-3 stages 2 and 3; see
+[`../../data/endpoint_criteria.md`](../../data/endpoint_criteria.md).
+
 ## 3. Epidemiology and risk factors
 
 ### 3.1 Randomised trials, TAVR vs SAVR
@@ -155,8 +196,60 @@ Older definitions worth knowing because registries used them: VARC-2 (2012) defi
 | Calcium-phosphorus product | OR 1.11 per unit for CT calcification | Mahjoub 2015 [30] |
 | CT leaflet calcium density 58 AU/cm2 or more | HR 2.23 death or reintervention | Zhang 2020 [29] |
 | Female sex | Late HVD after SAVR; risk factor in Mitroflow cohort | Salaun 2018 [27], Sénage 2019 [36] |
+| Age, per year | HR 0.97 (95% CI 0.96-0.98), p < 0.01 | review Table 4 [T4] |
+| Active smoking | HR 2.58 (95% CI 1.85-3.60), p < 0.001 | review Table 4 [T4] |
+| BMI, per m2 | HR 1.84 (95% CI 1.08-3.16), p = 0.026 | review Table 4 [T4] |
+| Diabetes mellitus | p = 0.020, effect size not reported | review Table 4 [T4] |
+| Dyslipidaemia | OR 3.9, p = 0.011 | review Table 4 [T4] |
+| Renal insufficiency | HR 1.1 (95% CI 1.03-1.16), p = 0.047 | review Table 4 [T4] |
+| Persistent LVH | HR 2.38 (95% CI 1.61-3.51), p < 0.001 | review Table 4 [T4] |
+| Prosthesis size | HR 0.82 (95% CI 0.70-0.98), p = 0.010 | review Table 4 [T4] |
+| PPM | HR 1.79 (95% CI 1.11-2.87), p = 0.017 | review Table 4 [T4] |
+
+**[T4]** These nine rows come from a predictor table supplied by the team (Table 4, "Predictors of
+SVD (Aortic Bioprosthesis)"). Its own source references are numbered 54, 55 and 56 in the
+originating review, which is not identified here — **the citation still has to be filled in
+before this table is quoted in the protocol or the deck**. The figures are recorded because they
+are the only published estimates we hold for several covariates the cohort generator injects; see
+section 3.6.
 | Male sex | HR 2.17 in one TAVR cohort | tabulated in [6] |
 | Early HALT | No association with SVD at 5 years | Iwata 2025 [48] |
+
+### 3.6 Cross-check: the generator's injected hazard ratios against published estimates
+
+The synthetic cohort injects seven covariate effects
+([`../../notebooks/synthetic/parameters.py`](../../notebooks/synthetic/parameters.py)). Table 4
+[T4] gives published estimates for five of them, so they can be checked rather than asserted.
+Nothing below has been changed in response to this check: the cohort is calibrated and every
+figure in [`../../data/synthetic/results.md`](../../data/synthetic/results.md) was produced with
+the values in the first column. This section records agreement and disagreement; any change to a
+parameter is a decision for the team, and would require the calibration to be re-run.
+
+| Covariate | Generator value | Published [T4] | Verdict |
+|---|---|---|---|
+| Age, per year | 0.91 | 0.97 (0.96-0.98) | **Disagrees.** The generator uses a meta-analytic estimate of 0.91 (0.89-0.94); 0.97 comes from a different series. The sensitivity analysis already recorded in `parameters.py` swept 0.91, 0.93, 0.95 and 0.97 and moved no calibration anchor by more than 0.8 percentage points, so the published alternative sits inside the range already tested. |
+| Active smoking | 2.28 | 2.58 (1.85-3.60) | Agrees — the value used lies inside the published interval. |
+| PPM, moderate | 1.95 | 1.79 (1.11-2.87) | Agrees — inside the interval. |
+| Chronic kidney disease | 1.45 | renal insufficiency 1.1 (1.03-1.16) | **Disagrees.** The generator's value is an explicit ASSUMPTION and is stronger than the only published estimate we hold, which excludes it. Worth revisiting; it is not a targeted calibration parameter. |
+| Diabetes | 1.25 | p = 0.020, no effect size | Cannot be checked. The generator's value remains an explicit ASSUMPTION. |
+| Body surface area, per m2 | 1.77 | BMI 1.84 (1.08-3.16) per m2 | Not directly comparable — different body-size measure — but the same direction and a similar magnitude. |
+| PPM, severe | 2.60 | not reported | Cannot be checked; already marked an ASSUMPTION extrapolating the moderate value. |
+
+Three published predictors in Table 4 are **not modelled at all**: persistent left ventricular
+hypertrophy (HR 2.38), dyslipidaemia (OR 3.9) and prosthesis label size as a continuous effect
+(HR 0.82 per size step — the generator carries label size only through the effective orifice area
+and the mismatch grade derived from it). Their absence is a limitation of the cohort, not of the
+protocol, which does specify them as candidate features.
+
+### 3.7 One deviation in the implemented criteria, and its measured size
+
+VARC-3 stage 3 requires severe intraprosthetic regurgitation arising as a **new occurrence or an
+increase of at least two grades**. The generator's implementation tests the resulting grade only
+(`ar_index >= severe`), without also testing the size of the increase. On the reference cohort the
+deviation cannot fire: every reference examination records regurgitation as `none` (1,799 of
+1,800) or `trace` (1), so severe regurgitation is always an increase of at least three grades and
+the omitted condition is satisfied automatically. The simplification is recorded rather than
+patched, because patching it would change nothing and would require the calibration to be re-run.
 
 ## 4. Existing prediction models
 

@@ -14,7 +14,7 @@ Findings from a first pass over the three de-identified EHR extracts in `data/` 
 | `../scripts/03_build_raw_tables.py` | Builds the raw, conclusion-free tables the preprocessing pipeline starts from: `data/raw_tables/*.parquet` plus `data/raw_tables.xlsx` (both gitignored). One table per grain, shared keys, no derived fields |
 | [clinician_brief.html](clinician_brief.html) | Non-technical, chart-based version of these findings for the clinicians on the team |
 | [research/synapsis_ai.md](research/synapsis_ai.md) | How Synapsis AI works (sourced), Dyania's method and events, framing advice for the judges |
-| [research/svd_literature.md](research/svd_literature.md) | VARC-3 and consensus SVD definitions with thresholds, risk factors, trial outcomes, existing models, statistical methods, cohort sizing |
+| [research/svd_literature.md](research/svd_literature.md) | VARC-3 and consensus SVD definitions with thresholds (§2), risk factors and published effect sizes (§3), a cross-check of the cohort generator's injected hazard ratios against those estimates (§3.6), trial outcomes, existing models, statistical methods, cohort sizing |
 | [research/ehr_extraction_methods.md](research/ehr_extraction_methods.md) | Cited methods for each data problem: echo and operative note extraction, assertion, year-only dates, data quality, proxy datasets |
 
 ## Headline findings
