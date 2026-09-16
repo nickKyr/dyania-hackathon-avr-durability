@@ -182,6 +182,11 @@ risk and these models over-predict it by about half.
 
 ## 7. Limitations and Failure Modes
 
+The reporting of this work is mapped against TRIPOD+AI item by item in
+[`tripod_ai.md`](tripod_ai.md), including the five items it does not satisfy. The limitations
+below are the substantive ones.
+
+
 **The supplied extract cannot support estimation, and this is measured rather than asserted.**
 Mapped into the study schema, it reaches an examination for 52.1% of patients, averages 1.69
 examinations each, contains **no mortality data at all**, and records 12.0 endpoint rows per 100

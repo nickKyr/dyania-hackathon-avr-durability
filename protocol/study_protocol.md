@@ -115,6 +115,33 @@ one deterioration, which is a clinical judgement and not a statistical one. It a
 fixed before recalibration, since a decision curve is read off absolute risk and the models
 currently over-predict it.
 
+### Outcome Adjudication
+
+The endpoint is assessed by reading a chart, and reading a chart is a subjective act, so the
+procedure is specified rather than left to whoever happens to do it.
+
+**Who.** Two cardiologists independent of the model work, each blinded to the model's prediction,
+to the patient's risk tier and to the other adjudicator's verdict. The abstraction layer's output
+is presented to them as a proposal with its evidence span, never as a label: the four statuses it
+emits — `accept`, `reject`, `borderline`, `missing information` — are the queue, not the answer.
+
+**What they see.** The examinations and their values, the operative and procedure notes, and the
+stated indication for any reintervention. What they do not see is the model's output, because an
+adjudicator who knows the prediction cannot un-know it when the case is borderline.
+
+**Agreement is measured, not assumed.** Inter-rater agreement is reported as Cohen's kappa on the
+primary endpoint and on the structural-versus-non-structural distinction, which is where the
+disagreements will concentrate: a reintervention driven by endocarditis or a paravalvular leak
+censors the patient, while one driven by deterioration is the event itself, and the note often
+supports both readings. Disagreements go to a third adjudicator, and the rate at which that
+happens is reported alongside the kappa.
+
+**Why this matters more here than in a trial.** In a trial the adjudication committee sees a
+dossier assembled for the purpose. Here the same judgement is made from routine notes written for
+another reason, so the ceiling on label quality is set by this step and not by the model. A study
+that reports model performance without reporting adjudicator agreement is reporting the wrong
+uncertainty.
+
 ### Secondary Endpoints
 
 | Endpoint | Measurement | Timeframe |

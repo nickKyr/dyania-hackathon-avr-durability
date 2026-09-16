@@ -119,7 +119,8 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 ├── model/
 │   ├── approach.md                  # Modelling methodology and validation strategy
 │   ├── stability.md                 # Generated: which model differences survive re-drawing the cohort
-│   ├── decision_curve.md            # Generated: at which thresholds acting on the model pays
+│   ├── decision_curve.md            # Generated: at which thresholds acting on the model pays, and what it costs
+│   ├── tripod_ai.md                 # TRIPOD+AI reporting checklist, item by item, gaps included
 │   └── modeling_brief.md            # Internal work assignment for the model layer
 ├── data/
 │   ├── data_plan.md                 # Data sources, preprocessing, availability
@@ -127,14 +128,14 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 │   ├── endpoint_criteria.md         # Candidate failure definitions
 │   ├── open_questions.md            # Decisions still open, with their owners
 │   └── synthetic/                   # Generated results and a schema sample
-├── docs/                            # Per-source data review (labs, meds, notes, quality)
-├── scripts/                         # 01–04 extracts → tables; 05–07 regenerate published evidence
+├── docs/                            # Per-source data review, research notes, Docathon briefing
+├── scripts/                         # 01–04 extracts → tables; 05–08 regenerate published evidence
 ├── notebooks/
 │   ├── 01_raw_data_overview.ipynb   # What the three extracts contain
 │   ├── 02_preprocessing.ipynb       # Cleaning and abstraction
 │   ├── 03_data_preparation.ipynb    # Labels, landmarks, features, selection
 │   ├── 04_model_training.ipynb      # Comparators, baseline, boosted model, real-extract check
-│   ├── pipeline/                    # Shared code: prep, landmarks, matching, ml, viz
+│   ├── pipeline/                    # Shared code: prep, landmarks, matching, ml, viz (+ tests)
 │   └── synthetic/                   # Cohort generator, calibration, degradation ladder
 ├── presentation/
 │   └── slides.md                    # Outline only — slides.pdf not yet written
