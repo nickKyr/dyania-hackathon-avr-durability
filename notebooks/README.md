@@ -1,40 +1,21 @@
-# Notebooks — Proof-of-Concept Implementation
+# Notebooks
 
-> This folder is **optional** but evaluated positively if present.
+The analysis, in order. Each notebook reads `data/raw_tables/`, so build those first with the scripts in `../scripts/` (see its README).
 
-Place your Jupyter notebooks here. A strong submission includes:
+| Notebook | Purpose | Status |
+|---|---|---|
+| `01_raw_data_overview.ipynb` | What the three extracts contain: coverage, time span, completeness, duplicates, content | done |
+| `02_preprocessing.ipynb` | Deduplication, lab mapping, one implant per patient, echo timeline, event adjudication, covariates, landmark dataset | skeleton |
+| `03_model_training.ipynb` | Cox / Fine-Gray baseline and competing-risks boosted model | planned |
+| `04_evaluation.ipynb` | Discrimination, calibration, decision curve, SHAP | planned |
 
-- Data loading and exploratory analysis
-- Feature engineering pipeline
-- Model training and evaluation
-- SHAP / feature importance visualisation
+`viz.py` holds the shared plot style. Figures are written to `figures/`, prefixed with the notebook number.
 
-## Suggested Notebook Structure
+## Running
 
-```
-notebooks/
-├── 01_eda.ipynb                 # Exploratory data analysis on your chosen dataset
-├── 02_feature_engineering.ipynb # Feature construction (gradient progression rate, EOA index, PPM flag, etc.)
-├── 03_model_training.ipynb      # Model training, cross-validation, hyperparameter tuning
-└── 04_evaluation.ipynb          # Metrics, calibration, SHAP plots, subgroup analysis
-```
-
-You can combine these into a single notebook if preferred — the split is just for readability.
-
-## Environment
-
-Document your dependencies here so the panel can reproduce your results:
-
-```
-python >= 3.10
-pandas
-numpy
-scikit-learn
-xgboost       # or your chosen framework
-lifelines     # or scikit-survival, for time-to-event modelling
-shap
-matplotlib
-jupyter
+```bash
+uv sync
+uv run jupyter lab
 ```
 
-Or include a `requirements.txt` / `environment.yml` in this folder.
+Only aggregate outputs (counts, shares, distributions) may be committed. Clear any cell that shows patient rows or note text.
