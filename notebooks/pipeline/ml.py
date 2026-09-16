@@ -19,6 +19,7 @@ FEATURES = {
     "ckd": F("patient", 1, True, "calcium-phosphate disturbance, early SVD"),
     "smoking": F("patient", 1, True, "HR 2.28 to 2.58"),
     "bicuspid": F("patient", 1, False, "native morphology, younger patients"),
+    "anticoagulation": F("patient", -1, True, "protects against the thrombotic and pannus pathway; apixaban 8.9% vs 13.0% deterioration"),
     "tavr": F("valve", 0, True, "SAVR vs TAVR is the comparison of interest"),
     "valve_sapien_3": F("valve", 0, False, "valve family"),
     "valve_evolut": F("valve", 0, False, "valve family"),

@@ -97,7 +97,7 @@ def _baseline_features(patients):
     b["valve_size_mm"] = p.valve_size_mm.astype(float)
     b["eoa_index_implant"] = p.eoa_index_cm2_m2
     b["ppm_grade"] = p.ppm_grade.map(PPM_ORDINAL)
-    for c in ["diabetes", "ckd", "smoking", "bicuspid"]:
+    for c in ["diabetes", "ckd", "smoking", "bicuspid", "anticoagulation"]:
         b[c] = p[c].map({True: 1.0, False: 0.0})
     return b
 
@@ -206,6 +206,7 @@ def synthetic_to_preprocessing(tables):
         patient=ids, group="simulated", sex=p.sex, bsa_m2=p.bsa_m2, age_at_implant=p.age_at_implant,
         diabetes=yes(p.diabetes), chronic_kidney_disease_or_dialysis=yes(p.ckd),
         smoking=p.smoking.map({True: "current", False: "never"}).fillna("not stated"),
+        anticoagulation=yes(p.anticoagulation),
     ))
     resolution = tables["echos"].time_resolution.iloc[0] if len(tables["echos"]) else "unknown"
     return dict(implants=implants, echo_timeline=echo, events=events, follow_up=follow_up, covariates=covariates,
@@ -233,6 +234,7 @@ def from_preprocessing(prepared):
         ppm_grade=np.select([eoa_i <= 0.65, eoa_i <= 0.85, eoa_i.notna()], ["severe", "moderate", "none"], None),
         diabetes=get("diabetes").map(_yesno), ckd=get("chronic_kidney_disease_or_dialysis").map(_yesno),
         smoking=get("smoking").map({"current": True, "former": False, "never": False}),
+        anticoagulation=get("anticoagulation").map(_yesno),
         bicuspid=imp.native_valve_morphology.map({"bicuspid": True, "unicuspid": True, "tricuspid": False}),
     ))
     iy = patients.set_index("patient_id").implant_year
