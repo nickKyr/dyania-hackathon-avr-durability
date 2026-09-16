@@ -1,7 +1,9 @@
 # Open Questions — Data and Label Construction
 
-Decisions that change what the labels mean, listed with the person who owns the decision.
-Nothing here is settled.
+Decisions that change what the labels mean, listed with the person who owns the decision. Most
+are still open; where one has been settled the row says so and records what was decided. A row
+that is still open is a question for its owner, not an oversight — the labels are built with a
+stated default in the meantime, and the default is named in the row.
 
 | topic | question | decision owner |
 |---|---|---|
