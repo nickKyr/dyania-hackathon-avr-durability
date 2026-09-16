@@ -1,37 +1,24 @@
-# --- Patient / hackathon data: NEVER commit ---
+# Patient data: never commit
 *.xlsx
 *.xls
-*.xlsm
 *.csv
 *.tsv
-*.parquet
-*.feather
 *.pkl
-*.pickle
-*.sav
-*.dta
-*.sas7bdat
+*.parquet
 data/raw/
 data/processed/
 data/private/
-~$*
 
-# Model artifacts trained on real data
-*.joblib
-*.pt
-*.h5
-
-# Env / secrets
+# Secrets / local config
 .env
 .env.*
 !.env.example
 
-# Python / Jupyter
+# Python / Jupyter / uv
 __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 .venv/
-venv/
 
-# OS
+# macOS
 .DS_Store
