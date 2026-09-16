@@ -1,93 +1,292 @@
 # Study Protocol
 
-> **Instructions:** This is the main deliverable. Replace every `> *Fill in:*` block with your team's content. Do not leave any section empty in your final submission.
+> **Status.** Sections are written from what is implemented and runnable in this repository.
+> Where a decision has not been taken, the section says **Not yet decided** and names its owner
+> rather than presenting an intention as a settled design. The open list, with owners, is
+> [`../data/open_questions.md`](../data/open_questions.md).
 
 ---
 
 ## 1. Study Title and Objectives
 
 **Title:**
-> *Fill in: A concise, descriptive title for your proposed study.*
+**Predicting structural deterioration of a bioprosthetic aortic valve from routinely collected
+echocardiographic surveillance, with death as a competing risk: a protocol and a measurement of
+what each missing data element costs.**
 
 **Primary Objective:**
-> *Fill in: One sentence. What is the main clinical question your system answers about aortic valve replacement durability?*
+To estimate, for a patient with a bioprosthetic aortic valve and at every echocardiogram they
+undergo, the cumulative incidence of structural valve deterioration within a fixed horizon under
+the competing risk of death, so that the interval to their next echocardiogram can be set by
+their risk rather than by the calendar.
 
 **Secondary Objectives:**
-> *Fill in: 2–4 additional goals (e.g., differentiating SAVR vs. TAVR failure trajectories, optimising echocardiographic surveillance intervals, reintervention/reoperation timing prediction).*
+
+1. **Quantify what each data defect costs.** The same cohort is run through one unchanged
+   pipeline six times, with age, date resolution and serial imaging progressively removed and the
+   real extract as the final rung, so that "the data were poor" becomes a ranked list of which
+   defect costs how much ([`../data/synthetic/results.md`](../data/synthetic/results.md)).
+2. **Establish what chart abstraction can recover when no structured echo table exists**, and
+   report its reach and its error rather than assuming it.
+3. **Separate the two prediction problems that are routinely conflated** — predicting *what the
+   chart says* (abstraction) from predicting *what happens to the patient* (risk) — and evaluate
+   each with its own metrics.
+4. **Differentiate surgical from transcatheter trajectories.** Incidence is calibrated and
+   reported separately by implant approach throughout.
 
 ---
 
 ## 2. Target Population
 
 ### Inclusion Criteria
-> *Fill in: Who qualifies for durability risk prediction? Consider valve type (bioprosthetic vs. mechanical), implant approach (SAVR/TAVR), age, minimum follow-up period, availability of serial echocardiographic data.*
+
+Adults with a **bioprosthetic** aortic valve, implanted surgically (SAVR) or by transcatheter
+route (TAVR), with an identifiable index operation and implant year. A patient enters the
+analysis at a landmark time only if, at that time, they are alive, free of the endpoint, and still
+under observation beyond it.
+
+How the index operation is identified in the prototype extract — which report counts when a
+patient has two, and how reports marked deleted are treated — is not settled; both questions are
+open in [`../data/open_questions.md`](../data/open_questions.md) and belong to the team with the
+clinical lead.
 
 ### Exclusion Criteria
-> *Fill in: Who should be excluded? Consider confounders (endocarditis, non-structural valve dysfunction, mechanical valve recipients, concurrent multi-valve disease, insufficient follow-up).*
+
+- **Mechanical prostheses.** They do not deteriorate structurally and are outside the question.
+- **Non-structural causes of dysfunction**, which are excluded from the endpoint rather than
+  ignored: regurgitation flagged as paravalvular is excluded from the regurgitation arm, and a
+  reintervention driven by endocarditis or paravalvular leak **censors** the patient at that year
+  instead of counting as an event ([`../data/endpoint_criteria.md`](../data/endpoint_criteria.md)).
+- **Isolated patient–prosthesis mismatch**, which raises the gradient without the valve failing.
+  It is carried as a covariate at the VARC-3 indexed-EOA cut-offs, never as an outcome.
+- **No identifiable implant year**, since every time axis in the study is measured from implant.
 
 ### Cohort Size Estimate
-> *Fill in: How large does the target cohort need to be for your proposed validation? Justify briefly, accounting for the relatively low annual incidence of structural valve deterioration.*
+
+**Not yet decided — owner: the team.** No sample size calculation exists in this repository. The
+synthetic cohort is generated at 1,800 implants, which yields roughly 190 deterioration events
+over ten years; that figure is carried over from [`../model/modeling_brief.md`](../model/modeling_brief.md)
+as a working scale, not derived here. A calculation appropriate to a competing-risks model with
+interval-censored outcomes (for example Riley's criteria for the minimum sample size of a
+prediction model) has to be done and written down before this section can be called settled.
 
 ---
 
 ## 3. Endpoints
 
 ### Primary Endpoint
-> *Fill in: What is the main outcome your model predicts (e.g., structural valve deterioration, hemodynamic valve deterioration, need for reintervention within N years)? How is it defined and measured? What performance threshold makes it clinically useful?*
+
+**First structural failure of the prosthesis**, defined as the earliest of:
+
+1. **VARC-3 stage 2 haemodynamic valve deterioration** — a mean gradient rise ≥ 10 mmHg from the
+   reference examination resulting in ≥ 20 mmHg, *together with* an EOA fall ≥ 0.3 cm² or ≥ 25%
+   and/or a DVI fall ≥ 0.1 or ≥ 20%; or new or one-grade-worse intraprosthetic regurgitation that
+   is at least moderate.
+2. **VARC-3 bioprosthetic valve failure stage 2** — reintervention (valve-in-valve or redo SAVR)
+   for valve deterioration.
+
+The reference examination is the study taken 30 days to 3 months after implant, per VARC-3. Note
+the structure of the gradient arm: a rise *and* an absolute level *and* a corroborating fall in
+area or dimensionless index. **A gradient rise on its own is not deterioration** — it may simply
+be higher flow — and the code enforces exactly this (`test_a_gradient_rise_alone_is_not_deterioration`).
+
+The endpoint is **interval-censored**: it is recorded at the examination that detects it, and the
+interval back to the last clean examination is carried with it. On the reference cohort that
+interval has a median of 1.0 years and a maximum of 4.27, so a deterioration recorded at one
+examination may have begun four years earlier. Supplying only the right endpoint, as most
+extracts do, silently converts an interval-censored outcome into an exactly observed one.
+
+**Clinically useful threshold: not yet decided — owner: the team, with the clinical lead.** No
+decision threshold, risk tier or minimum discrimination has been fixed, and none should be
+asserted before the surveillance action attached to each tier is agreed.
 
 ### Secondary Endpoints
-> *Fill in: List 2–4 secondary outcomes with their measurement approach (e.g., time-to-reintervention, mean gradient progression, paravalvular leak progression, valve thrombosis).*
 
 | Endpoint | Measurement | Timeframe |
 |---|---|---|
-| | | |
-| | | |
+| VARC-3 stage 3 (severe) haemodynamic valve deterioration | rise ≥ 20 mmHg resulting in ≥ 30 mmHg with an EOA fall ≥ 0.6 cm² or ≥ 50% and/or a DVI fall ≥ 0.2 or ≥ 40%; or severe intraprosthetic regurgitation | any examination after the reference study |
+| Reintervention for structural cause | operative or procedural record with a structural indication | any time |
+| All-cause death | vital status feed; treated as the competing risk, never as censoring | any time |
+| Reach of chart abstraction | share of patients for whom an examination can be recovered from free text | per extract |
+
+Stage 3 is held to be strictly harder than stage 2, and every severe event must have a moderate
+one preceding it — both asserted by tests rather than assumed.
 
 ---
 
 ## 4. Proposed Data Sources
 
-> *Fill in: List each data source your system would ingest. For each, describe: what data type it provides, how it would be accessed in a real deployment, and what specific variables are relevant.*
+The specification is [`../notebooks/synthetic/schema.py`](../notebooks/synthetic/schema.py): four
+tables whose columns are validated on every rung of the ladder. A site that can populate them can
+run this study. Access pathways below are deployment assumptions and are labelled as such; the
+variables are not assumptions.
 
-| Source | Data Type | Access Pathway | Key Variables |
+| Source | Data Type | Access Pathway (assumed) | Key Variables |
 |---|---|---|---|
-| | | | |
-| | | | |
+| Implant registry or operative record | one row per implant | registry export, or the operative report through the abstraction pipeline | approach, valve model, label size, EOA, implant year |
+| Demographics | one row per patient | EHR demographics table | age at implant, sex, body surface area — and from them indexed EOA and mismatch grade |
+| Structured echocardiography | one row per **dated** examination | the echo laboratory's reporting database, not the note | mean and peak gradient, DVI, EOA, regurgitation grade, LVEF, reference flag |
+| Procedures | reinterventions with stated indication | EHR procedure table | procedure type and indication, to separate structural from non-structural |
+| Vital status | date of death | hospital registry or national death index | death date — without it the competing risk is unobserved |
+| Comorbidity | diagnoses at implant | EHR problem list | diabetes, chronic kidney disease, smoking, bicuspid anatomy |
+| Encounter record | last contact | EHR encounter table | last contact date, number of examinations, censoring reason |
+
+For what the **prototype** extract actually contains, and how far it falls short of the above, see
+[`../data/data_plan.md`](../data/data_plan.md) sections 2 and 3.
 
 **Ground Truth Definition:**
-> *Fill in: How do you define a confirmed structural valve deterioration / durability failure event? What is your hierarchy (echocardiographic criteria per VARC-3/EAPCI-ESC consensus, reintervention record, explant pathology, clinical adjudication)? This is critical — be specific.*
+
+The hierarchy is applied in this order, and each level is a separate, switchable column so that
+its contribution can be measured:
+
+1. **Reintervention with a structural indication** — the strongest available evidence, and on the
+   supplied extract the only level that fires at all.
+2. **VARC-3 haemodynamic criteria against the patient's own reference examination** — applied
+   examination by examination, never to a pooled summary.
+3. **Single-examination fallback**, used only when no reference examination exists: the
+   absolute-threshold arm of the same definition applied to one measurement. This is strictly
+   weaker than the criteria above and every label built this way must be declared as such. The
+   thresholds are open — see [`../data/endpoint_criteria.md`](../data/endpoint_criteria.md).
+4. **Explicit prosthetic-failure language in the record**, as a separate, optional component that
+   can be switched off so its contribution is measurable.
+
+**Rule-based labels are proposals for clinician adjudication, not ground truth.** Each carries one
+of four statuses — `accept`, `reject`, `borderline`, `missing information` — and points back to
+the text that supports it. Explant pathology is not available in this setting and is not part of
+the hierarchy.
 
 ---
 
 ## 5. Statistical Analysis Plan
 
 ### Sample Size
-> *Fill in: How many event and non-event (or censored) cases do you need? Justify using event-per-variable (EPV) or a power calculation appropriate for time-to-event data.*
+
+**Not yet decided — owner: the team.** See section 2; no calculation exists in this repository.
 
 ### Train / Validation / Test Split
-> *Fill in: How will you partition data? How do you ensure no data leakage across patients or time? How do you handle the low base rate of SVD events (class imbalance)?*
+
+Two requirements are fixed by the design and are not negotiable downstream:
+
+- **Patient-level partition.** One patient contributes many landmark rows, so no patient may
+  appear in more than one of training, validation and test. Splitting by row would let the model
+  see the same patient on both sides of the split.
+- **No feature dated after its landmark.** This has to be asserted mechanically rather than
+  reasoned about, because the feature vector is assembled by iterating over examinations.
+
+A temporal split — training on earlier implant cohorts and testing on later ones — is the
+appropriate secondary check, since valve models, implant technique and surveillance practice all
+drift over time and a model that only works on the era it was fitted to is not deployable.
+
+Class imbalance is **not** addressed by resampling or class weighting. At a low event rate both
+distort calibration, and calibration is the property the clinical use depends on: a model that
+ranks patients correctly but overstates absolute risk will schedule the wrong number of
+echocardiograms. The response to a low event count is a small, regularised model, not a reweighted
+one.
+
+The scheme as implemented is the model workstream's to report, together with the checks it runs.
 
 ### Evaluation Metrics
-> *Fill in: Which metrics will you use to evaluate your model (e.g., time-dependent AUROC, C-index, calibration at fixed horizons)? Why are they appropriate given right-censored follow-up and the clinical cost of false negatives vs. false positives?*
+
+What the design requires, and why:
+
+- **Calibration at fixed horizons against the Aalen–Johansen cumulative incidence.** The output is
+  used to set a surveillance interval, so the absolute risk has to be right, not merely ordered.
+  Comparing against Aalen–Johansen rather than Kaplan–Meier keeps the competing risk in view.
+- **Censoring-aware discrimination.** Under this much censoring Harrell's C is biased; a
+  censoring-weighted concordance and a time-dependent AUC at the reporting horizons are the
+  appropriate measures. Any small-sample substitute for inverse-probability-of-censoring weighting
+  must be named as such rather than reported as if it were the real thing.
+- **An asymmetric view of error.** A false negative is a valve that fails between studies; a false
+  positive is one extra scan. A decision curve, or an explicit statement of the operating point,
+  is what makes that trade-off visible.
+
+Which of these are computed today, and which remain outstanding, is the model workstream's to
+state in [`../model/approach.md`](../model/approach.md) §4.
 
 ### Subgroup Analyses
-> *Fill in: Which patient subgroups will you evaluate separately (e.g., valve type/model, implant approach, age at implant, valve size)? Why?*
+
+**By implant approach (SAVR versus TAVR)** — implemented throughout the cohort and calibration
+work: incidence is targeted and reported separately by arm against separate published anchors,
+because the durability question itself differs between them. **By valve family**, motivated by the
+known behaviour of specific designs. **By patient–prosthesis mismatch grade** at the VARC-3
+indexed-EOA cut-offs, since mismatch is the commonest reason a gradient is high without the valve
+failing.
+
+Subgroup analysis by age band is specified but **not executable on the prototype extract**: age is
+redacted in 194 of 215 notes. Its cost is measured on the `no_age` rung of the degradation ladder
+rather than estimated.
 
 ### Comparator / Baseline
-> *Fill in: What is your model compared against? (e.g., STS-PROM risk score, published SVD nomograms, cardiologist gestalt, time since implant alone)*
+
+A model that does not beat current practice is not worth deploying, so the comparators are chosen
+to represent it:
+
+1. **Time since implant alone.** Current surveillance is scheduled by valve age and nothing else,
+   so this is both the diagnostic floor and the honest representation of practice.
+2. **A model using only the established published predictors**, fitted in the same framework.
+3. **The guideline calendar schedule**, as the operational comparator for any claim about
+   reallocating surveillance capacity.
+
+Which comparators are implemented is the model workstream's to report.
 
 ---
 
 ## 6. Ethical Considerations and Data Privacy
 
 ### IRB / Ethics Review
-> *Fill in: What ethical review would be required for this study? What exemptions might apply for retrospective de-identified data?*
+
+**Not yet decided — owner: the team, with the host institution.** The prototype work is
+retrospective and uses a de-identified extract supplied by the organisers, which in most
+jurisdictions is the ground for a waiver of individual consent; the applicable review pathway is
+the host institution's to determine and has not been confirmed here.
 
 ### Data Privacy
-> *Fill in: How do you ensure HIPAA compliance? How is PHI handled during model training and inference?*
+
+The controls below are implemented, not merely intended.
+
+- **Source data never enter the working tree.** Paths are resolved through
+  [`../notebooks/data_paths.py`](../notebooks/data_paths.py), which reads `AVR_DATA_DIR` and
+  **refuses any path inside the repository**. `.gitignore` additionally blocks spreadsheet, CSV,
+  parquet and pickle files.
+- **Derived tables are treated as source data.** Abstraction output retains verbatim note snippets
+  as evidence for each extracted value, so it is held outside the repository with the source. The
+  loader drops the evidence column by default — some 787,000 characters of note text — because it
+  is needed to verify an extraction by eye and for nothing else.
+- **Only aggregates are committed.** No patient-level value, note text or identifier appears in
+  any document, figure or notebook output in this repository.
+- **Synthetic data are labelled as synthetic at row level.** Every row carries `source` and
+  `time_resolution`, so a reader holding one CSV and no access to this repository can still tell
+  that nothing in it came from a patient. Tests assert that synthetic identifiers cannot be
+  mistaken for real ones, and that real rows declare real provenance at year resolution.
+- **Inference stays local.** Any language-model step in the abstraction pipeline runs on the
+  machine holding the data; note text is not sent to an external API.
+- **Identifiability observations** made while reviewing the extract were reported directly to the
+  organisers rather than documented here.
+
+In deployment the equivalent controls are a data use agreement with the operating site, inference
+behind the institutional firewall, and access through the hospital's own identity management.
 
 ### Algorithmic Fairness
-> *Fill in: How will you evaluate and mitigate bias across demographic subgroups (age, sex, race/ethnicity) and across valve manufacturers/models?*
+
+**Partly decided.** What is implemented: incidence and performance are reported separately by
+implant approach and are recoverable by valve family, so a model that works for one device family
+and not another is visible rather than hidden.
+
+What is **not** possible on the prototype extract, and is stated rather than glossed: age is
+redacted throughout and sex is inferable only from pronouns in free text, so neither subgroup can
+be audited here. Race and ethnicity are absent entirely. This is a limitation of the extract, not
+a design choice — but it means no fairness claim of any kind can be made from this prototype, and
+none is made. In deployment these audits are a precondition of use, not a follow-up analysis.
+
+A second fairness risk is specific to this endpoint and is structural: the outcome can only be
+observed in patients who are imaged. Any group that is imaged less often will appear lower-risk,
+and the model will then recommend imaging them even less. The surveillance gap must therefore be
+surfaced beside every prediction.
 
 ### Clinical Transparency
-> *Fill in: How are model outputs presented to clinicians? What safeguards ensure the model is decision-support (e.g., prompting earlier echo surveillance) rather than decision-replacement for reintervention timing?*
+
+**Not yet decided — owner: the team, with the clinical lead.** The intended form is decision
+support: a risk estimate refreshed at each echocardiogram that moves the next study earlier or
+later, never a reintervention recommendation. What has not been fixed is the decision threshold,
+the action attached to each risk tier, and how the surveillance gap is displayed alongside the
+risk. Those are clinical decisions, and none of them is encoded in code today.

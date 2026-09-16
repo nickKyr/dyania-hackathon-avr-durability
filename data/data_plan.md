@@ -13,12 +13,27 @@ the team has not taken yet and are marked accordingly. Companion documents:
 
 ## 1. Data Sources — Real Deployment
 
-> **DECISION NEEDED** — blocked on the study-design decision in [`open_questions.md`](open_questions.md).
-> *Fill in: What data sources would your system ingest in a production clinical environment? For each, describe what it contains, how it would be accessed, and any integration dependencies.*
+The specification is not prose: it is [`notebooks/synthetic/schema.py`](../notebooks/synthetic/schema.py).
+The four tables defined there, and their columns, are exactly what a site must supply for the
+protocol to run, and every rung of the degradation ladder is validated against them. A site that
+can populate these four tables can run this study; a site that cannot is measurably worse off,
+and the ladder in [`synthetic/results.md`](synthetic/results.md) says by how much.
 
-| Source | Data Type | Access Pathway | Variables Used |
+| Source | Data Type | Access pathway (assumed) | Variables used — the `schema.py` table it fills |
 |---|---|---|---|
-| | | | |
+| Implant registry / operative record | one row per implant | institutional registry export, or the operative report through the abstraction pipeline when no registry exists | `patients`: `implant_year`, `approach`, `valve_model`, `valve_size_mm`, `eoa_cm2` |
+| Demographics | one row per patient | EHR demographics table | `patients`: `age_at_implant`, `sex`, `bsa_m2` — and from these `eoa_index_cm2_m2` and `ppm_grade` at the VARC-3 cut-offs |
+| Structured echocardiography | one row per examination, **dated** | the echo laboratory's own reporting database, not the note | `echos`: `days_from_implant`, `is_reference`, `mean_gradient_mmhg`, `peak_gradient_mmhg`, `dvi`, `eoa_cm2`, `ar_grade`, `lvef_pct` |
+| Procedures | reinterventions with their stated indication | EHR procedure table | `events`: `event_type = bvf_reintervention`, with the indication needed to separate structural from endocarditis- or paravalvular-leak-driven reintervention |
+| Vital status | date and cause of death | hospital registry or national death index | `events`: `event_type = death` — without it the competing risk is unobserved and cumulative incidence is not comparable across cohorts |
+| Comorbidity | diagnoses at implant | EHR problem list / diagnosis table | `patients`: `diabetes`, `ckd`, `smoking`, `bicuspid` |
+| Encounter record | last contact and censoring reason | EHR encounter table | `followup`: `last_contact_days`, `n_echos`, `censoring_reason` |
+
+The access pathways are deployment assumptions and are labelled as such; the **variables** are
+not assumptions, they are the frozen interface the code already validates against. Two of these
+sources are wholly absent from the prototype extract — demographics and vital status — and their
+cost is quantified rather than asserted: the `no_age` rung of the ladder measures the first, and
+the absence of the second is why the real rung reports no competing risk at all.
 
 ---
 
