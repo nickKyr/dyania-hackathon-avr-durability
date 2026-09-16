@@ -75,17 +75,6 @@ def _arrays(meta):
     return meta.time_to_end.to_numpy(float), meta.status.to_numpy()
 
 
-def ipcw_weights(time, status, h, G):
-    t, s = np.asarray(time, float), np.asarray(status)
-    case = (s == "svd") & (t <= h)
-    dead = (s == "death") & (t <= h)
-    control = (t > h) | dead
-    w = np.zeros(len(t))
-    w[case | dead] = 1 / np.maximum(G(t[case | dead], left=True), 1e-3)
-    w[t > h] = 1 / max(float(G([h])[0]), 1e-3)
-    return case, control, w
-
-
 def uno_c(pred, time, status, tau, G=None):
     t, s = np.asarray(time, float), np.asarray(status)
     p = np.asarray(pred, float)
@@ -210,7 +199,7 @@ def tier_table(p, meta, h):
     t, s = _arrays(meta)
     tiers = tier_labels(p).to_numpy()
     rows = []
-    for cut, name, action in ml.RISK_TIERS:
+    for _, name, action in ml.RISK_TIERS:
         m = tiers == name
         rows.append(dict(tier=name, action=action, rows=int(m.sum()), share=m.mean(), valves=meta.patient_id[m].nunique(),
                          valves_with_event=meta.patient_id[m & (s == "svd") & (t <= h)].nunique(),
@@ -222,7 +211,7 @@ def tier_table(p, meta, h):
 def threshold_metrics(p, meta, h, cut):
     t, s = _arrays(meta)
     G = ml.censoring_survival(t, s)
-    case, control, w = ipcw_weights(t, s, h, G)
+    case, control, w = ml._ipcw(t, s, h, G)
     pos = np.asarray(p, float) >= cut
     tp, fn = (w * (case & pos)).sum(), (w * (case & ~pos)).sum()
     fp, tn = (w * (control & pos)).sum(), (w * (control & ~pos)).sum()
@@ -232,7 +221,7 @@ def threshold_metrics(p, meta, h, cut):
                 accuracy_flag_nobody=div(tn + fp, tp + tn + fp + fn))
 
 
-def subgroup_table(preds, meta, X, h, groups, min_events=3):
+def subgroup_table(preds, meta, h, groups, min_events=3):
     t, s = _arrays(meta)
     rows = []
     for gname, mask in groups.items():
@@ -291,7 +280,7 @@ def compare_runs(processed, real_dir, horizon=5):
             rows.append(dict(run=run_dir.name, model="(failed)", note=str(err)[:80]))
             continue
         stamp = datetime.fromtimestamp((run_dir / "models" / "primary.pkl").stat().st_mtime).isoformat(timespec="minutes")
-        for (name, h), r in perf.iterrows():
+        for (name, _), r in perf.iterrows():
             rows.append(dict(run=run_dir.name, trained=stamp, label=bundle.get("label"),
                              selection_enabled=bool(bundle.get("selection", {}).get("enabled", False)),
                              model=name, auc=r.auc, c_index=r.c_index, scaled_brier=r.scaled_brier, oe_ratio=r.oe_ratio))

@@ -54,7 +54,6 @@ FEATURES = {
     "n_echo_recent": F("surveillance", 0, False, "dense recent surveillance signals clinical concern"),
     "years_since_last_echo": F("surveillance", 0, False, "how stale the echo features are"),
 }
-BLOCKS = list(dict.fromkeys(v["block"] for v in FEATURES.values()))
 OUTCOME_CLASSES = {1.0: "SVD", 0.0: "no SVD", 2.0: "died first"}
 
 FIXED_FEATURES = ("landmark_years", "tavr", "valve_size_mm", "valve_trifecta", "ref_mg", "ref_missing", "last_mg", "delta_mg")
@@ -269,16 +268,7 @@ class DiscreteTimeCompetingRisks:
         return hs, hd
 
     def predict_cif(self, X):
-        hs, hd = self.hazards(X)
-        surv = np.ones(len(X))
-        cif_s, cif_d = np.zeros_like(hs), np.zeros_like(hd)
-        rs, rd = np.zeros(len(X)), np.zeros(len(X))
-        for k in range(self.horizon):
-            rs, rd = rs + surv * hs[:, k], rd + surv * hd[:, k]
-            cif_s[:, k], cif_d[:, k] = rs, rd
-            surv = surv * np.clip(1 - hs[:, k] - hd[:, k], 0, 1)
-        cols = [f"svd_{k}y" for k in range(1, self.horizon + 1)] + [f"death_{k}y" for k in range(1, self.horizon + 1)]
-        return pd.DataFrame(np.hstack([cif_s, cif_d]), columns=cols, index=X.index)
+        return cif_from_hazards(*self.hazards(X), X.index)
 
 
 def censoring_survival(time, status):

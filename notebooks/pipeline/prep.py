@@ -603,7 +603,7 @@ def parse_body_size(text):
     return h, w
 
 
-def build_covariates(raw, implants, cohort):
+def build_covariates(raw, cohort):
     c = raw["clinical_context"]
     body = c.height_weight_bsa_bmi_as_written.map(parse_body_size)
     c = c.assign(height_cm=[b[0] for b in body], weight_kg=[b[1] for b in body])

@@ -197,7 +197,7 @@ def resample_case_mix(prepared, profile, n, rng):
 
 
 def _mask_flags(cov, profile, rng):
-    for col, (pos, neg) in FLAG_FIELDS.items():
+    for col, (pos, _) in FLAG_FIELDS.items():
         if col not in cov:
             continue
         v = cov[col].astype(object)
@@ -257,7 +257,6 @@ def match_to_reference(prepared, profile, config=MATCH_CONFIG):
     imp, echo, ev, fu, cov = (out[k] for k in ["implants", "echo_timeline", "events", "follow_up", "covariates"])
     if c["gradient_scale"]:
         echo = _scale_gradients(imp, echo, profile)
-    iy = imp.set_index("episode_id").implant_year
     if c["hide_age"]:
         cov["age_at_implant"] = np.nan
     if c["hide_implant_eoa"]:

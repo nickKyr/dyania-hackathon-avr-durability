@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -143,7 +145,7 @@ def _family(model):
     if not isinstance(model, str):
         return None
     for family, pattern in FAMILY_PATTERNS:
-        if pd.Series([model]).str.contains(pattern, case=False).iloc[0]:
+        if re.search(pattern, model, re.IGNORECASE):
             return family
     return model
 
