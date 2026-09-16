@@ -119,8 +119,12 @@ def _draw_patients(rng: np.random.Generator, params: Parameters) -> pd.DataFrame
 
     size = np.array([_label_size(rng, m, b) for m, b in zip(model, bsa)], dtype=int)
     eoa_nominal = np.array([_EOA_TABLE[m][s] for m, s in zip(model, size)], dtype=float)
-    eoa = (eoa_nominal * rng.lognormal(0.0, 0.11, n)).clip(0.45, 3.4)
-    eoa_index = eoa / bsa
+    eoa = (eoa_nominal * rng.lognormal(0.0, 0.11, n)).clip(0.45, 3.4).round(3)
+    # Round before classifying, not after. Mismatch is graded on the indexed area,
+    # and if the published column were rounded after grading then a borderline
+    # patient's grade would contradict the number beside it, and anyone
+    # recomputing the grade from the table would disagree with us.
+    eoa_index = (eoa / bsa).round(3)
 
     bicuspid_p = np.where(is_savr, cohort.bicuspid_prevalence_savr, cohort.bicuspid_prevalence_tavr)
 
@@ -130,12 +134,12 @@ def _draw_patients(rng: np.random.Generator, params: Parameters) -> pd.DataFrame
             "implant_year": rng.integers(cohort.implant_year_first, cohort.implant_year_last + 1, n),
             "age_at_implant": np.round(age, 1),
             "sex": sex,
-            "bsa_m2": np.round(bsa, 3),
+            "bsa_m2": bsa.round(3),
             "approach": approach,
             "valve_model": model,
             "valve_size_mm": size,
-            "eoa_cm2": np.round(eoa, 3),
-            "eoa_index_cm2_m2": np.round(eoa_index, 3),
+            "eoa_cm2": eoa,
+            "eoa_index_cm2_m2": eoa_index,
             "ppm_grade": _ppm_grade(eoa_index),
             "diabetes": rng.random(n) < cohort.diabetes_prevalence,
             "ckd": rng.random(n) < cohort.ckd_prevalence,
@@ -167,24 +171,38 @@ def _log_hazard_ratio(patients: pd.DataFrame, params: Parameters) -> np.ndarray:
     )
 
 
-def _weibull_time(rng: np.random.Generator, scale: np.ndarray, shape: float, log_hr: np.ndarray) -> np.ndarray:
+def _weibull_time(
+    rng: np.random.Generator, scale: np.ndarray, shape: np.ndarray | float, log_hr: np.ndarray
+) -> np.ndarray:
     """Draw Weibull survival times under proportional hazards.
 
     Inverting the survival function ``S(t) = exp(-(t/scale)**shape * exp(log_hr))``
-    gives ``t = scale * (-log(U) / exp(log_hr)) ** (1/shape)``.
+    gives ``t = scale * (-log(U) / exp(log_hr)) ** (1/shape)``. ``shape`` may be an
+    array, so that a mixture of processes can be drawn in one call.
     """
     uniform = rng.random(len(scale))
-    return scale * np.power(-np.log(uniform) / np.exp(log_hr), 1.0 / shape)
+    return scale * np.power(-np.log(uniform) / np.exp(log_hr), 1.0 / np.asarray(shape))
 
 
 def _latent_times(
     rng: np.random.Generator, patients: pd.DataFrame, params: Parameters
-) -> tuple[np.ndarray, np.ndarray]:
-    """Return latent years to deterioration onset and to death."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return latent years to deterioration onset, years to death, and the early-failure flag.
+
+    Onset is a mixture of two processes: a small early rapid-failure population and
+    the late calcific process that dominates. Covariate effects apply to both, so a
+    patient at high risk is at high risk under either.
+    """
     h = params.hazard
     is_savr = (patients["approach"] == "SAVR").to_numpy()
-    svd_scale = np.where(is_savr, h.svd_scale_savr_years, h.svd_scale_tavr_years)
-    onset = _weibull_time(rng, svd_scale, h.svd_shape, _log_hazard_ratio(patients, params))
+    is_early = rng.random(len(patients)) < h.early_failure_fraction
+    svd_scale = np.where(
+        is_early,
+        h.early_onset_scale_years,
+        np.where(is_savr, h.svd_scale_savr_years, h.svd_scale_tavr_years),
+    )
+    svd_shape = np.where(is_early, h.early_onset_shape, h.svd_shape)
+    onset = _weibull_time(rng, svd_scale, svd_shape, _log_hazard_ratio(patients, params))
 
     log_hr_death = (
         np.log(h.hr_death_per_year_age) * (patients["age_at_implant"].to_numpy() - h.age_centre)
@@ -193,7 +211,7 @@ def _latent_times(
     )
     death_scale = np.full(len(patients), h.death_scale_years_at_centre)
     death = _weibull_time(rng, death_scale, h.death_shape, log_hr_death)
-    return onset, death
+    return onset, death, is_early
 
 
 def _visit_days(
@@ -303,7 +321,7 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
     visit = params.visit
 
     patients = _draw_patients(rng, params)
-    onset_years, death_years = _latent_times(rng, patients, params)
+    onset_years, death_years, is_early_failure = _latent_times(rng, patients, params)
 
     baseline_gradient = (
         echo_params.gradient_reference_at_eoa
@@ -316,7 +334,7 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
     drift = rng.normal(echo_params.drift_mmhg_per_year, echo_params.drift_sd_mmhg_per_year, len(patients))
     progression = rng.lognormal(
         np.log(echo_params.progression_mmhg_per_year_mean), echo_params.progression_lognormal_sd, len(patients)
-    )
+    ) * np.where(is_early_failure, params.hazard.early_progression_multiplier, 1.0)
     lvef_baseline = rng.normal(echo_params.lvef_mean, echo_params.lvef_sd, len(patients)).clip(25.0, 75.0)
     dvi_baseline = rng.normal(echo_params.dvi_reference, echo_params.dvi_sd, len(patients)).clip(0.25, 0.75)
 
@@ -423,9 +441,16 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
             if rng.random() < visit.reintervention_probability:
                 delay = rng.exponential(visit.reintervention_delay_days_mean)
                 treated = stage3_day + delay
-                if treated <= min(death, visit.horizon_years) * DAYS_PER_YEAR:
+                # Bounded by the end of clinical follow-up, not merely by death: a
+                # patient lost to follow-up is not reoperated by us, and recording
+                # it would give the cohort ascertainment nobody had.
+                if treated <= observation_end * DAYS_PER_YEAR:
                     event_rows.append({"patient_id": patient_id, "event_type": "bvf_reintervention", "days_from_implant": int(round(treated)), "interval_start_days": int(round(treated)), "ascertainment": "reintervention"})
 
+        # Death is ascertained by registry linkage, so unlike every other event it
+        # is still observed after a patient stops attending. That asymmetry is real
+        # and it matters: the competing risk is captured more completely than the
+        # outcome, which is the usual situation and one the analysis must respect.
         if death <= visit.horizon_years:
             event_rows.append({"patient_id": patient_id, "event_type": "death", "days_from_implant": int(round(death * DAYS_PER_YEAR)), "interval_start_days": int(round(death * DAYS_PER_YEAR)), "ascertainment": "registry"})
 

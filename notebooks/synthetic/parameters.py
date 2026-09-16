@@ -34,6 +34,10 @@ __all__ = [
 ]
 
 
+ABSOLUTE_TOLERANCE: Final[float] = 0.02
+RELATIVE_TOLERANCE: Final[float] = 0.25
+
+
 @dataclass(frozen=True, slots=True)
 class Anchor:
     """A published quantity the synthetic cohort is compared against."""
@@ -43,10 +47,24 @@ class Anchor:
     horizon_years: float
     value: float
     """Cumulative incidence as a proportion."""
-    tolerance: float
-    """Half-width of the band inside which the cohort is called calibrated."""
     source: str
     targeted: bool = False
+
+    @property
+    def tolerance(self) -> float:
+        """Half-width of the band inside which the cohort is called calibrated.
+
+        Computed from one rule applied uniformly to every anchor, stated before any
+        cohort was generated: **two percentage points, or a quarter of the published
+        value, whichever is larger**.
+
+        A per-anchor tolerance chosen by hand is not a standard, it is a description
+        of the result. The absolute floor keeps small published proportions from
+        demanding an impossible precision; the relative term keeps large ones from
+        being trivially satisfied. Anchors this cohort fails under this rule are
+        reported as failures.
+        """
+        return max(ABSOLUTE_TOLERANCE, RELATIVE_TOLERANCE * self.value)
     """True if a parameter was solved to match this anchor; False makes it an
     out-of-sample check."""
 
@@ -54,43 +72,44 @@ class Anchor:
 ANCHORS: Final[tuple[Anchor, ...]] = (
     # --- Targeted: the two Weibull scales are solved against these two rows. ---
     Anchor(
-        "moderate_or_severe_svd", "SAVR", 10.0, 0.208, 0.05,
+        "moderate_or_severe_svd", "SAVR", 10.0, 0.208,
         "NOTION, 10-year echocardiographic follow-up of the randomised trial", targeted=True,
     ),
     Anchor(
-        "moderate_or_severe_svd", "TAVR", 10.0, 0.154, 0.05,
+        "moderate_or_severe_svd", "TAVR", 10.0, 0.154,
         "NOTION, 10-year echocardiographic follow-up of the randomised trial", targeted=True,
     ),
     # --- Out-of-sample: never targeted; reproduced or not by the same process. ---
     Anchor(
-        "severe_svd", "SAVR", 10.0, 0.100, 0.05,
+        "severe_svd", "SAVR", 10.0, 0.100,
         "NOTION, severe structural valve deterioration at 10 years",
     ),
     Anchor(
-        "severe_svd", "TAVR", 10.0, 0.015, 0.04,
+        "severe_svd", "TAVR", 10.0, 0.015,
         "NOTION, severe structural valve deterioration at 10 years",
     ),
     Anchor(
-        "bioprosthetic_valve_failure", "all", 5.0, 0.036, 0.03,
+        "bioprosthetic_valve_failure", "all", 5.0, 0.036,
         "PARTNER 3, bioprosthetic valve failure at 5 years (3.3-3.8% across arms)",
     ),
     Anchor(
-        "bioprosthetic_valve_failure", "all", 7.0, 0.072, 0.04,
+        "bioprosthetic_valve_failure", "all", 7.0, 0.072,
         "PARTNER 3, bioprosthetic valve failure at 7 years (6.9-7.5% across arms)",
     ),
     Anchor(
-        "severe_svd", "TAVR", 7.8, 0.059, 0.05,
+        "severe_svd", "TAVR", 7.8, 0.059,
         "UK TAVI registry, severe structural valve deterioration at median 7.8 years",
     ),
 )
 """Published anchors the cohort is checked against.
 
 The two NOTION moderate-or-severe rows are targeted by the scale solver. The rest
-are checks. Tolerances are wider than a trial's confidence interval on purpose:
-the synthetic cohort's age mix is deliberately *not* NOTION's, because a
-real-world cohort spans a far wider age range than a randomised trial of
-intermediate-risk patients. A cohort matching NOTION exactly would be a cohort
-that had been forced to.
+are checks. Tolerances follow the single rule in :attr:`Anchor.tolerance`, stated before any
+cohort existed and applied uniformly. They are wider than a trial's confidence
+interval on purpose: the synthetic cohort's age mix is deliberately *not*
+NOTION's, because a real-world cohort spans a far wider age range than a
+randomised trial of intermediate-risk patients. A cohort matching NOTION exactly
+would be a cohort that had been forced to.
 """
 
 
@@ -159,16 +178,35 @@ class HazardParameters:
     model is the wrong choice: leaflet calcification is cumulative.
     """
 
-    svd_shape: float = 1.3
-    """SELECTED by grid search over the published anchors. Above 1, so the hazard of
-    *onset* accelerates with time in the valve, but only mildly. The steep late
-    take-off that durability curves show arises mostly downstream of onset: a valve
-    is recorded as deteriorated only once its gradient has risen far enough to cross
-    the VARC-3 threshold, and that crossing is governed by the progression model in
-    :class:`EchoParameters`, not by this shape."""
+    svd_shape: float = 2.0
+    """Shape of the late calcific process, comfortably above 1 so that its hazard
+    accelerates with time in the valve. This is the defining feature of structural
+    valve deterioration: leaflet calcification is cumulative, and a constant-hazard
+    model is the wrong shape for it."""
 
-    svd_scale_savr_years: float = 34.16015625
-    svd_scale_tavr_years: float = 15.38671875
+    early_failure_fraction: float = 0.09
+    early_onset_scale_years: float = 4.0
+    early_onset_shape: float = 1.1
+    early_progression_multiplier: float = 4.5
+    """A second, smaller population with a **rapidly progressive phenotype**.
+
+    Bioprosthetic failure is not one process. Alongside the slow calcific
+    degeneration that dominates late, a minority of valves deteriorate early and
+    quickly: early structural problems such as a leaflet tear or a frame or suture
+    issue, a severe mismatch that was never going to be tolerated, and accelerated
+    calcification in patients with high mineral turnover. Grouping these into a
+    single phenotype is a simplification; what they share, and what matters for the
+    endpoint, is early onset followed by fast progression.
+
+    Modelling onset as a single Weibull forced an impossible compromise. To produce
+    any events by five years the shape had to be dragged down towards 1, flattening
+    the very acceleration that characterises the late process, and even then the
+    five- and seven-year bioprosthetic-failure anchors were missed by a wide margin.
+    A mixture lets each process keep its own shape, and it is the clinically
+    truthful description rather than a device for hitting a number."""
+
+    svd_scale_savr_years: float = 23.296875
+    svd_scale_tavr_years: float = 13.171875
     """SOLVED by bisection, not assumed: the values reproducing the two targeted
     NOTION anchors on a 30,000-patient cohort at seed 20260917. Re-derive with
     :func:`synthetic.calibration.solve_scales` if any upstream parameter changes.

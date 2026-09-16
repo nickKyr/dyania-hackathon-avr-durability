@@ -40,6 +40,7 @@ from .calibration import (
 from .degrade import PRESET_DESCRIPTIONS, PRESETS, apply_preset
 from .generator import VARC3_STAGE2, VARC3_STAGE3, build_cohort
 from .parameters import ANCHORS, DEFAULT, Parameters
+from .validation import CoxFit, coverage_test, fit_cox, recovery_test
 from .schema import TABLE_NAMES, TABLES, SchemaError, describe, validate, validate_all
 
 __all__ = [
@@ -61,6 +62,9 @@ __all__ = [
     "cumulative_incidence",
     "endpoint_times",
     "solve_scales",
+    "coverage_test",
+    "recovery_test",
+    "fit_cox",
     "validate",
     "validate_all",
     "describe",

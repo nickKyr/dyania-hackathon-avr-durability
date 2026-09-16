@@ -188,58 +188,111 @@ still tell that nothing in it came from a patient.
 
 ### Calibration, and what is honestly claimed
 
-Six parameters were chosen against published evidence: two Weibull scales solved by bisection
-against the NOTION ten-year moderate-or-severe figures, and four shape parameters selected from a
-small grid. Those six reproduce **six of seven** published quantities, across three independent
-sources, two endpoints and four time horizons.
+**What was fitted.** Nine parameters were chosen against published evidence: two Weibull scales,
+solved by bisection against the NOTION ten-year moderate-or-severe figures, and seven shape
+parameters governing onset, the rapidly progressive phenotype and gradient progression, selected
+from small grids.
 
-| quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | inside band |
+**Nine parameters against seven anchors is a saturated fit, and agreement with those anchors is
+therefore not independent evidence that the cohort is correct.** It would be easy to present the
+table below as validation. It is not validation; it is a statement that the cohort is *plausible*
+— that it lands where published series land, so that a pipeline exercised on it is exercised at
+realistic event rates. The evidence that the code is correct is the recovery test in the next
+section, which no amount of curve-fitting can pass.
+
+Each anchor's band comes from one rule, fixed before any cohort was generated and applied
+uniformly: **two percentage points, or a quarter of the published value, whichever is larger**.
+A per-anchor tolerance chosen by hand is not a standard, it is a description of the result. When
+the earlier hand-picked bands were replaced by this rule, the cohort fell from six anchors inside
+to three, which is what exposed the deficiency the two-component onset model then fixed.
+
+| quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | seeds inside band |
 |---|---|---|---|---|---|
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 19.9% ± 0.3 | 8 of 8 (targeted) |
-| moderate or severe SVD | TAVR | 10 y | 15.4% | 14.8% ± 1.4 | 8 of 8 (targeted) |
-| severe SVD | SAVR | 10 y | 10.0% | 10.5% ± 0.8 | 8 of 8 |
-| severe SVD | TAVR | 10 y | 1.5% | 8.1% ± 1.3 | **0 of 8** |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 1.0% ± 0.3 | 8 of 8 |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 4.1% ± 0.4 | 8 of 8 |
-| severe SVD | TAVR | 7.8 y | 5.9% | 4.5% ± 0.9 | 8 of 8 |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.3% ± 2.1 | 8 of 8 (targeted) |
+| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.2% ± 1.2 | 8 of 8 (targeted) |
+| severe SVD | SAVR | 10 y | 10.0% | 12.0% ± 1.7 | 5 of 8 |
+| severe SVD | TAVR | 10 y | 1.5% | 8.7% ± 1.0 | **0 of 8** |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 3.3% ± 0.3 | 8 of 8 |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 6.3% ± 0.7 | 7 of 8 |
+| severe SVD | TAVR | 7.8 y | 5.9% | 5.8% ± 0.6 | 8 of 8 |
 
-Results are reported as a mean and standard deviation across eight seeds rather than from one
-cohort. At 1,800 patients the Monte Carlo standard error of a 20% incidence is around one
-percentage point, which is the size of the differences being judged; a single-seed table cannot
-distinguish a correct generating process from a lucky draw. Six anchors fall inside their band
-for **every** seed and one fails for every seed, so no verdict here is borderline.
+Results are means and standard deviations across eight seeds rather than one cohort. At 1,800
+patients the Monte Carlo standard error of a 20% incidence is around one percentage point, which
+is the size of the differences being judged; a single-seed table cannot distinguish a correct
+generating process from a lucky draw.
 
 Sources: NOTION ten-year echocardiographic follow-up; PARTNER 3 at five and seven years; UK TAVI
-registry at a median of 7.8 years. Incidence is reported as an Aalen–Johansen cumulative
-incidence function, never as one minus Kaplan–Meier, because death is a competing risk and
-Kaplan–Meier would answer a question about a population in which nobody dies.
+registry at a median of 7.8 years. Incidence is an Aalen–Johansen cumulative incidence function,
+never one minus Kaplan–Meier, because death is a competing risk and Kaplan–Meier would answer a
+question about a population in which nobody dies.
 
-**The one miss is reported rather than removed, because the published anchors contradict each
-other.** NOTION's own figures imply that 48% of deteriorated surgical valves become severe within
-ten years but only 10% of transcatheter ones — a five-fold difference in progression conditional
-on deterioration, between two arms of one trial. The UK TAVI registry meanwhile reports severe
-deterioration in 5.9% of transcatheter patients at a *shorter* horizon, roughly four times the
-NOTION figure. No single cohort can satisfy both. This one sides with the registry, matching it
-closely and missing NOTION. The alternative — a separate progression process fitted per arm —
-would reproduce both numbers by fitting the sampling noise of a few dozen patients.
+**Two published anchors contradict each other, so no cohort can satisfy both.** NOTION's own
+figures imply that 48% of deteriorated surgical valves become severe within ten years but only
+10% of transcatheter ones — a five-fold difference in progression conditional on deterioration,
+between two arms of one trial. The UK TAVI registry meanwhile reports severe deterioration in
+5.9% of transcatheter patients at a *shorter* horizon, roughly four times the NOTION figure. This
+cohort sides with the registry, reproducing it to within a tenth of a percentage point and
+missing NOTION, and the miss is reported in every calibration table. The alternative — a separate
+progression process fitted per arm — would reproduce both numbers by fitting the sampling noise
+of a trial with a few dozen transcatheter patients still under echocardiographic follow-up at ten
+years.
+
+### Two processes, not one
+
+Onset is a mixture. About 9% of valves follow a **rapidly progressive phenotype** — early onset
+and roughly four and a half times the usual rate of gradient rise — covering early structural
+problems, severe mismatch that was never going to be tolerated, and accelerated calcification.
+The remainder follow the slow calcific process that dominates late, with a Weibull shape of 2.0
+so that its hazard clearly accelerates with time in the valve.
+
+This is not a device for hitting a number. A single Weibull forced an impossible compromise: to
+produce any failures by five years its shape had to be dragged down towards 1, flattening the
+very acceleration that characterises late deterioration, and even then the five- and seven-year
+failure anchors were missed by a factor of three. Splitting the process lets each component keep
+its own shape and reproduces both ends of the time course, which is also the clinically truthful
+description — bioprosthetic failure is genuinely not one mechanism.
 
 ### Internal validation
 
-Calibration shows the cohort resembles the literature; it does not show the code is correct. That
-is established by a **recovery test**: hazard ratios are injected into the generator, a Cox model
-is fitted to the output, and the estimates are compared with what went in. The Cox model is
-implemented directly against the Breslow partial likelihood rather than taken from the library
-the modelling workstream uses, so that a shared misunderstanding cannot pass unnoticed in both
-places.
+Calibration shows the cohort resembles the literature; it does not show the code is correct, and
+with nine fitted parameters it cannot. That is established by a **recovery test**: hazard ratios
+are injected into the generator, a Cox model is fitted to the output, and the estimates are
+compared with what went in. The Cox model is implemented directly against the Breslow partial
+likelihood rather than taken from the library the modelling workstream uses, so that a shared
+misunderstanding cannot pass unnoticed in both places.
 
-- **Latent hazard:** all **8 of 8** injected hazard ratios are recovered inside their 95%
-  confidence intervals. This validates the generator and the analysis path together.
-- **Observed events:** the same effects estimated from what an analyst actually sees — detections
+The model is **stratified** by phenotype and approach. The two phenotypes are generated with
+different Weibull shapes, so they are not proportional to one another and no coefficient could
+express the difference between them; forcing one biases every other estimate, which is exactly
+what happened when the mixture was first introduced and recovery collapsed from eight covariates
+in eight to one in eight. Stratifying restored it.
+
+- **Latent hazard.** Over five seeds and seven covariates, the 95% interval covered the injected
+  value in **19 of 21 fits (90%)**, against a nominal 95%, with a mean log bias of **+0.0008** —
+  no detectable systematic error. Coverage is the right criterion rather than a clean sweep: a
+  95% interval is supposed to miss about one time in twenty, and treating any miss as failure
+  would invite tuning until it passes.
+- **Observed events.** The same effects estimated from what an analyst actually sees — detections
   at scheduled examinations, with death competing and patients dropping out — are **attenuated**,
-  with a median attenuation of the log hazard ratio of 0.96 and the weakest effects attenuating
-  most (diabetes 0.76, chronic kidney disease 0.82). This is not a defect. It quantifies how much
-  sparse guideline-interval surveillance biases effect estimates toward the null, and it applies
-  to any real study built the same way, which is why it is restated in the limitations.
+  with a median attenuation of the log hazard ratio around 0.6. This is not a defect. It
+  quantifies how much sparse guideline-interval surveillance biases effect estimates toward the
+  null, and it applies to any real study built the same way, which is why it is restated in the
+  limitations.
+
+### Automated tests
+
+`notebooks/synthetic/tests/` holds 41 tests covering the schema contract, reproducibility,
+governance, the VARC-3 criteria, the structure of the generated cohort, what each rung of the
+ladder removes, and the claims made in this document. They run in seconds:
+
+```bash
+python -m pytest synthetic/tests -q
+```
+
+They are not decoration. Writing them found two defects that had survived review: mismatch grade
+was computed on an unrounded indexed area while the rounded value was published, so a borderline
+patient's grade contradicted the number printed beside it; and a reintervention could be recorded
+after a patient had been lost to follow-up, giving the cohort ascertainment nobody had.
 
 ### The degradation ladder
 

@@ -32,6 +32,10 @@ defect costs. See [`../data/synthetic/README.md`](../data/synthetic/README.md) f
 python -m synthetic --preset ideal
 ```
 
+```bash
+python -m pytest synthetic/tests -q
+```
+
 ## Environment
 
 Document your dependencies here so the panel can reproduce your results:

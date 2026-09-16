@@ -4,13 +4,13 @@ SYN-00002,2015,81.8,female,1.533,SAVR,Trifecta,19,1.276,0.832,moderate,False,Fal
 SYN-00003,2022,76.8,female,1.76,SAVR,Epic,25,1.834,1.042,none,False,False,False,False,simulated,day
 SYN-00004,2014,89.9,male,1.95,TAVR,Sapien 3,23,1.443,0.74,moderate,True,False,False,False,simulated,day
 SYN-00005,2018,72.4,female,1.81,SAVR,Trifecta,23,1.836,1.014,none,False,False,False,False,simulated,day
-SYN-00006,2022,80.0,female,1.651,TAVR,Sapien 3,23,1.705,1.033,none,False,False,False,True,simulated,day
+SYN-00006,2022,80.0,female,1.651,TAVR,Sapien 3,23,1.705,1.032,none,False,False,False,True,simulated,day
 SYN-00007,2012,93.8,female,1.729,TAVR,Sapien 3,26,1.938,1.121,none,False,False,True,False,simulated,day
 SYN-00008,2024,73.2,female,1.433,TAVR,Evolut,23,1.93,1.347,none,False,True,False,False,simulated,day
 SYN-00009,2011,61.2,female,1.656,SAVR,Trifecta,19,1.23,0.743,moderate,False,False,False,False,simulated,day
 SYN-00010,2020,68.0,female,1.6,SAVR,Perimount,21,1.258,0.786,moderate,True,False,False,False,simulated,day
 SYN-00011,2023,65.4,female,1.882,SAVR,Magna,25,2.06,1.094,none,False,False,False,False,simulated,day
-SYN-00012,2011,86.6,male,2.299,TAVR,Sapien 3,29,2.342,1.019,none,False,True,False,False,simulated,day
+SYN-00012,2011,86.6,male,2.299,TAVR,Sapien 3,29,2.342,1.018,none,False,True,False,False,simulated,day
 SYN-00013,2010,76.1,male,1.725,SAVR,Perimount,23,1.443,0.836,moderate,False,True,False,False,simulated,day
 SYN-00014,2011,67.0,male,2.141,SAVR,Inspiris,25,1.777,0.83,moderate,False,True,True,True,simulated,day
 SYN-00015,2021,86.2,female,1.506,TAVR,Sapien 3,20,1.224,0.813,moderate,False,False,True,False,simulated,day
@@ -23,7 +23,7 @@ SYN-00021,2023,68.7,male,1.968,SAVR,Trifecta,23,1.825,0.927,none,False,True,Fals
 SYN-00022,2022,61.1,female,1.514,SAVR,Trifecta,19,1.245,0.822,moderate,True,False,True,False,simulated,day
 SYN-00023,2010,78.4,male,1.938,TAVR,Sapien 3,26,1.782,0.92,none,True,False,False,False,simulated,day
 SYN-00024,2012,74.5,male,1.987,SAVR,Trifecta,25,2.171,1.092,none,False,True,False,False,simulated,day
-SYN-00025,2017,83.3,male,1.946,TAVR,Evolut,29,2.253,1.158,none,False,False,True,False,simulated,day
+SYN-00025,2017,83.3,male,1.946,TAVR,Evolut,29,2.253,1.157,none,False,False,True,False,simulated,day
 SYN-00026,2017,75.0,male,1.883,SAVR,Perimount,23,1.437,0.763,moderate,False,False,False,False,simulated,day
 SYN-00027,2017,50.0,female,1.837,SAVR,Trifecta,23,1.677,0.913,none,False,False,False,False,simulated,day
 SYN-00028,2023,50.0,male,1.801,SAVR,Trifecta,23,2.116,1.175,none,True,False,False,False,simulated,day
@@ -31,22 +31,22 @@ SYN-00029,2021,72.4,male,1.877,SAVR,Trifecta,23,1.712,0.912,none,False,False,Fal
 SYN-00030,2024,82.3,male,1.872,TAVR,Sapien 3,23,1.699,0.908,none,True,False,False,False,simulated,day
 SYN-00031,2024,81.6,female,1.731,TAVR,Sapien 3,23,1.164,0.672,moderate,False,True,False,False,simulated,day
 SYN-00032,2022,75.9,male,2.043,SAVR,Trifecta,27,2.301,1.126,none,False,False,True,False,simulated,day
-SYN-00033,2018,59.3,male,1.893,SAVR,Trifecta,23,1.651,0.873,none,True,False,False,False,simulated,day
-SYN-00034,2023,81.6,male,2.014,TAVR,Sapien 3,23,1.439,0.714,moderate,False,False,False,False,simulated,day
+SYN-00033,2018,59.3,male,1.893,SAVR,Trifecta,23,1.651,0.872,none,True,False,False,False,simulated,day
+SYN-00034,2023,81.6,male,2.014,TAVR,Sapien 3,23,1.439,0.715,moderate,False,False,False,False,simulated,day
 SYN-00035,2011,84.5,male,2.016,TAVR,Evolut,34,2.527,1.253,none,True,False,False,True,simulated,day
 SYN-00036,2020,89.0,male,2.022,TAVR,Evolut,26,1.939,0.959,none,False,False,True,False,simulated,day
 SYN-00037,2010,75.0,female,1.72,TAVR,Evolut,26,2.315,1.346,none,False,True,False,False,simulated,day
 SYN-00038,2010,64.7,male,1.867,SAVR,Perimount,21,1.577,0.845,moderate,False,False,False,False,simulated,day
 SYN-00039,2011,73.9,female,1.43,TAVR,Sapien 3,20,1.113,0.778,moderate,True,False,False,False,simulated,day
 SYN-00040,2018,75.0,female,1.596,TAVR,Evolut,26,2.097,1.314,none,False,False,False,False,simulated,day
-SYN-00041,2023,81.5,male,2.212,TAVR,Sapien 3,29,2.929,1.325,none,False,False,False,False,simulated,day
+SYN-00041,2023,81.5,male,2.212,TAVR,Sapien 3,29,2.929,1.324,none,False,False,False,False,simulated,day
 SYN-00042,2023,79.0,male,1.998,TAVR,Evolut,29,2.612,1.307,none,False,True,False,False,simulated,day
 SYN-00043,2016,50.0,female,1.5,SAVR,Inspiris,19,1.2,0.8,moderate,False,False,False,False,simulated,day
-SYN-00044,2019,60.5,female,1.855,SAVR,Perimount,23,1.613,0.869,none,False,True,False,False,simulated,day
-SYN-00045,2015,75.2,male,1.856,TAVR,Sapien 3,26,1.677,0.903,none,True,False,False,False,simulated,day
+SYN-00044,2019,60.5,female,1.855,SAVR,Perimount,23,1.613,0.87,none,False,True,False,False,simulated,day
+SYN-00045,2015,75.2,male,1.856,TAVR,Sapien 3,26,1.677,0.904,none,True,False,False,False,simulated,day
 SYN-00046,2018,56.7,female,1.764,SAVR,Trifecta,21,1.355,0.768,moderate,False,False,False,False,simulated,day
-SYN-00047,2017,68.0,female,1.734,SAVR,Perimount,21,1.407,0.811,moderate,False,False,False,False,simulated,day
-SYN-00048,2015,71.6,male,1.856,SAVR,Perimount,23,1.632,0.88,none,True,True,False,True,simulated,day
+SYN-00047,2017,68.0,female,1.734,SAVR,Perimount,21,1.407,0.812,moderate,False,False,False,False,simulated,day
+SYN-00048,2015,71.6,male,1.856,SAVR,Perimount,23,1.632,0.879,none,True,True,False,True,simulated,day
 SYN-00049,2011,67.6,male,1.839,SAVR,Epic,25,1.56,0.848,moderate,True,True,False,False,simulated,day
 SYN-00050,2010,72.8,female,1.663,SAVR,Perimount,21,1.202,0.723,moderate,False,False,False,True,simulated,day
 SYN-00051,2013,82.6,male,2.041,TAVR,Sapien 3,29,2.114,1.036,none,False,False,True,False,simulated,day
@@ -54,8 +54,8 @@ SYN-00052,2015,69.2,male,2.311,SAVR,Epic,27,1.906,0.825,moderate,True,False,Fals
 SYN-00053,2015,75.5,female,1.737,TAVR,Sapien 3,23,1.637,0.943,none,False,False,True,False,simulated,day
 SYN-00054,2023,78.7,male,1.998,TAVR,Sapien 3,26,1.66,0.831,moderate,True,False,False,False,simulated,day
 SYN-00055,2015,67.4,female,1.731,SAVR,Inspiris,23,1.801,1.041,none,True,False,True,False,simulated,day
-SYN-00056,2012,95.0,female,2.059,TAVR,Evolut,34,2.521,1.224,none,True,False,False,False,simulated,day
+SYN-00056,2012,95.0,female,2.059,TAVR,Evolut,34,2.521,1.225,none,True,False,False,False,simulated,day
 SYN-00057,2010,60.2,male,2.006,SAVR,Trifecta,23,1.876,0.935,none,False,False,True,False,simulated,day
-SYN-00058,2014,77.4,female,1.74,TAVR,Sapien 3,23,1.479,0.85,none,True,False,False,False,simulated,day
-SYN-00059,2015,79.6,male,2.031,TAVR,Sapien 3,29,2.585,1.272,none,False,False,False,False,simulated,day
+SYN-00058,2014,77.4,female,1.74,TAVR,Sapien 3,23,1.479,0.85,moderate,True,False,False,False,simulated,day
+SYN-00059,2015,79.6,male,2.031,TAVR,Sapien 3,29,2.585,1.273,none,False,False,False,False,simulated,day
 SYN-00060,2012,66.6,male,2.038,SAVR,Magna,25,1.768,0.867,none,False,False,False,True,simulated,day

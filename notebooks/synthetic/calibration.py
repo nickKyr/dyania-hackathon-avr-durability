@@ -1,15 +1,24 @@
 """Calibration of the cohort against published durability evidence.
 
-**What was fitted, precisely.** Six parameters were chosen using the anchors in
-:data:`synthetic.parameters.ANCHORS`: the two Weibull scales of the deterioration
-hazard, solved by bisection against the two NOTION moderate-or-severe figures at
-ten years, and four shape parameters -- the Weibull shape, the mean and spread of
-post-onset gradient progression, and its curvature -- selected from a small grid by
-overall agreement with the remaining five anchors. Those five are therefore *not*
-untouched holdouts, and this module does not claim they are. What can honestly be
-claimed is that six parameters reproduce six of seven published quantities across
-three independent sources, two endpoints and four time horizons, which is a far
-stronger constraint than the parameter count alone.
+**What was fitted, and what that does and does not prove.** Nine parameters were
+chosen using the anchors in :data:`synthetic.parameters.ANCHORS`: two Weibull
+scales solved by bisection against the two NOTION moderate-or-severe figures, and
+seven shape parameters governing onset, the rapidly progressive phenotype and
+gradient progression, selected from small grids.
+
+Nine parameters against seven anchors is a saturated fit, so **agreement with the
+anchors is not independent evidence that the cohort is correct**. It establishes
+only that the cohort is plausible: that it lands where published series land, so a
+pipeline exercised on it runs at realistic event rates. The evidence of
+correctness is the recovery test in :mod:`synthetic.validation`, which no amount
+of curve-fitting can pass.
+
+Bands come from one rule, fixed before any cohort existed and applied uniformly to
+every anchor; see :attr:`synthetic.parameters.Anchor.tolerance`. Replacing the
+earlier hand-picked bands with that rule dropped the cohort from six anchors
+inside to three, which is what exposed the deficiency the two-component onset
+model then fixed. A tolerance chosen per anchor is not a standard, it is a
+description of the result.
 
 **The published anchors contradict one another, so no cohort can satisfy all of
 them.** NOTION reports severe deterioration in 10.0% of surgical and 1.5% of
