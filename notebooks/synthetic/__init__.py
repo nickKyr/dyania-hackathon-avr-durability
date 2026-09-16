@@ -64,6 +64,7 @@ __all__ = [
     "endpoint_times",
     "solve_scales",
     "solve_death_scale",
+    "CoxFit",
     "coverage_test",
     "recovery_test",
     "fit_cox",

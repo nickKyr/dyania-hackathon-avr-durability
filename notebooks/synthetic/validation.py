@@ -33,9 +33,9 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-from scipy import optimize, stats
+from scipy import optimize
 
-from .generator import DAYS_PER_YEAR, _draw_patients, _latent_times, _log_hazard_ratio
+from .generator import DAYS_PER_YEAR, _draw_patients, _latent_times
 from .parameters import DEFAULT, Parameters
 
 __all__ = ["CoxFit", "fit_cox", "recovery_test", "coverage_test"]

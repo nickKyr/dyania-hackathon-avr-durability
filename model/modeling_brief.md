@@ -178,11 +178,45 @@ top three contributing features, and a recommended next echo interval.
 
 ### The degradation ladder — a joint deliverable, and the one original result in the submission
 
-The data workstream supplies the **same cohort five times**, degraded one defect at a time. You run
-**the unchanged pipeline** on each and report the primary metric per rung:
+The data workstream supplies the **same cohort six times**. Five are the same patients with their
+data progressively stripped; the sixth is not simulated at all. You run **the unchanged pipeline**
+on each and report the primary metric per rung:
 
-| preset | what is removed | the question it answers |
+| rung | what is removed | the question it answers |
 |---|---|---|
+| `ideal` | nothing | what the design achieves when the data are what the protocol asks for |
+| `no_age` | age at implant | what the strongest published predictor is worth |
+| `year_resolution` | exact dates, collapsed to calendar year | what date-shifting to the year costs |
+| `single_echo` | all follow-up examinations but one | what serial surveillance is worth |
+| `as_supplied` | our simulation of the extract: one encounter with its quoted priors, examinations for only the 52% abstraction reaches, no device identity, **no mortality** | what our extract supports, as modelled |
+| `as_received` | **nothing — this *is* the supplied extract**, mapped into the same schema | what our extract supports, in fact |
+
+Get them all, real rung included, in one call:
+
+```python
+from cohort.ladder import full_ladder, availability
+rungs = full_ladder()            # dict of six, in ladder order
+print(availability())            # what an analyst can see in each, before any model
+```
+
+This converts "the data were poor" into a **ranked, quantified list of which defect costs most**,
+which is the argument a hospital needs in order to justify supplying dated serial echoes. And
+because the last rung is the extract itself rather than a simulation of it, the panel is not being
+asked to take the simulation on trust.
+
+**Three things to expect on the real rung, so they do not surprise you mid-run.** It has 117
+patients, not 1,800. It carries **no deaths at all** — the extract contains no mortality data, so
+the competing risk is unobserved and a cumulative incidence computed there is not comparable with
+one computed where death is known; say so wherever you report it. And its only events are 14
+documented reinterventions, because haemodynamic staging needs a reference examination the extract
+does not contain. Expect the metric to be uninformative on that rung. **That is the finding, not a
+failure** — and it is the strongest argument in the submission for building the abstraction
+pipeline the protocol proposes.
+
+Budget for it: one loop over six cohorts, the same function you already wrote. Do not restructure
+the pipeline for it — if it is not a loop, the rungs are wrong and that is the data workstream's bug.
+
+---|---|---|
 | `ideal` | nothing | what the design achieves when the data are what the protocol asks for |
 | `no_age` | age at implant | what the strongest published predictor is worth |
 | `year_resolution` | exact dates, collapsed to calendar year | what date-shifting to the year costs |
@@ -238,7 +272,8 @@ force-push, and keep every file in the repository in English.
 - [ ] The notebook consumes the supplied cohort through the section 4 interface, with no local
       copy of the generator and no hand-edited data.
 - [ ] The notebook runs top to bottom on a clean checkout after `uv sync`.
-- [ ] The degradation ladder is reported for all five presets as a single table or figure.
+- [ ] The degradation ladder is reported for all six rungs, the real one included, as a single
+      table or figure.
 - [ ] Uno's C, time-dependent AUC, IBS and calibration are reported for the primary model and for
       all three comparators.
 - [ ] The two figures are exported as files and handed over for the deck.

@@ -303,7 +303,7 @@ in eight to one in eight. Stratifying restored it.
 
 ### Automated tests
 
-`notebooks/synthetic/tests/` holds 41 tests covering the schema contract, reproducibility,
+`notebooks/synthetic/tests/` holds 58 tests covering the schema contract, reproducibility,
 governance, the VARC-3 criteria, the structure of the generated cohort, what each rung of the
 ladder removes, and the claims made in this document. They run in seconds:
 
