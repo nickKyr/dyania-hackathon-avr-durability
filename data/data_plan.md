@@ -148,7 +148,9 @@ review, and negative predictive value on a random sample of rejections.
 ### Why a synthetic cohort is necessary here
 
 The prototype extract cannot support the analysis the protocol specifies, and no amount of
-cleaning changes that. It yields 32 assessable labels from 117 patients, 5 of them failures;
+cleaning changes that. It yields 32 assessable labels from 117 patients, 5 of them failures
+(counted as patients under the label rule; [`endpoint_criteria.md`](endpoint_criteria.md)
+reconciles this with the episode and row counts used elsewhere);
 21 of the 117 have more than one gradient value but only 4 have gradients in more than one
 year, so almost nobody has a trajectory; age is redacted throughout; and timing is known only
 to the calendar year. The three things the landmark model
@@ -435,7 +437,9 @@ most of the reason this section had to be rewritten.** A valve that deteriorates
 to stage 3, then is reintervened is one affected patient and three endpoint rows. The extract's
 12.0 was measured before that distinction was made explicit, so it cannot yet be placed against
 either synthetic figure — it falls between them. Recomputing it under the definition in
-`ladder_metrics` is a one-line change in notebook 02 and is the outstanding item here.
+`ladder_metrics` is a one-line change in notebook 02 and is the outstanding item here. Every event
+count this repository quotes for the extract, and the unit each one counts, is tabulated in
+[`endpoint_criteria.md`](endpoint_criteria.md).
 
 The mortality correction matters most. The extract contains **no death data of any kind** —
 no table, no date, no linkage — so the competing risk is entirely unobserved. That is the

@@ -38,3 +38,43 @@ Three questions remain open and are listed in [`open_questions.md`](open_questio
 their owners: whether a later valve-in-valve counts as the outcome of the first implant, how an
 ambiguous native-versus-prosthetic gradient is resolved, and whether inferred sex is used as a
 covariate. None of them is encoded in code, and none should be until the clinical lead signs off.
+
+## How many events the supplied extract contains: 5, 8, 14 or 17
+
+Four different event counts appear across this repository, and every one of them is correct
+inside its own frame. They differ because they count different objects — patients, valve
+episodes or endpoint rows — under different inclusion rules. Quoted without that frame, two of
+them read as a contradiction, so this table is the single place where all four are placed side
+by side. **No figure in this repository should be quoted without its denominator.**
+
+| count | what it counts | denominator | inclusion rule | produced by | published in |
+|---|---|---|---|---|---|
+| **5** | patients whose rule-based label is `accept` | 32 assessable labels among 117 patients | patient-level `svd_label`: a documented reintervention for a failed bioprosthesis. Haemodynamic thresholds alone give `borderline`, not `accept` | the labelling rule described in [`data_dictionary.md`](data_dictionary.md) | [`../model/modeling_brief.md`](../model/modeling_brief.md), [`data_plan.md`](data_plan.md) §4 |
+| **8** | valve episodes whose follow-up ends in an SVD event | 51 modelled valve episodes | first **structural** event per episode, whatever its source (haemodynamic stage or reintervention); a patient with two valves contributes two episodes | `prep.build_follow_up`, which reads `events[events.is_structural]` and takes the earliest per episode | [`../model/approach.md`](../model/approach.md) §5 |
+| **14** | structural endpoint **rows** | 117 patients, reported as 12.0 rows per 100 | every structural row is kept: one episode can contribute a haemodynamic-stage row *and* a reintervention row, and a patient with two reinterventions contributes two rows | `prep.build_events`, structural subset | [`../README.md`](../README.md), [`../model/approach.md`](../model/approach.md) §7, [`data_plan.md`](data_plan.md) §8 |
+| **17** | all candidate event rows before the structural filter | 117 patients | adds the rows whose `non_structural_evidence` is non-empty — endocarditis, valve thrombosis or a paravalvular reason — which the study rules **censor** rather than count | `prep.build_events` before `is_structural` is applied | printed by [`../notebooks/02_preprocessing.ipynb`](../notebooks/02_preprocessing.ipynb) |
+
+Read downwards, each row relaxes exactly one restriction of the row above it:
+
+1. **5 → 8** changes the unit from the patient to the valve episode and widens the rule from
+   reintervention-only to any structural event. It also drops the requirement that the patient be
+   assessable at all: the 5 is counted among the 32 patients who receive a usable label, the 8
+   among the 51 episodes the model pipeline builds.
+2. **8 → 14** changes the unit from the affected episode to the endpoint row. One valve that
+   deteriorates and is then reintervened is *one* affected episode and *two* rows. This is the
+   same distinction the degradation ladder makes explicitly in
+   [`synthetic/results.md`](synthetic/results.md), where the two ways of counting differ by
+   roughly a factor of two on every rung.
+3. **14 → 17** adds back the provisionally non-structural events. Endocarditis, thrombosis and
+   isolated paravalvular leak are excluded from the endpoint by the exclusion row of the table
+   above; they censor the patient instead. The three rows that separate 17 from 14 are exactly
+   what that exclusion removes, and they are the rows most in need of clinician adjudication,
+   because the evidence flag is set by keyword rather than by review.
+
+**Which figure to quote.** When the subject is *what the extract can label*, quote the pair
+"32 assessable labels from 117 patients, 5 of them failures". When the subject is *what the
+model was given*, quote "51 valve episodes, 8 with an SVD event, no deaths recorded". The row
+count of 14 belongs only where endpoint rows per 100 patients are compared against the synthetic
+ladder, which counts rows the same way. All four are measured on the private extract and are
+therefore not reproducible from a clone of this repository; every figure derived from the
+synthetic cohort is.

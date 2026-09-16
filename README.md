@@ -45,7 +45,10 @@ Mapped into the study schema, the extract reaches an examination for 52.1% of pa
 100 patients — all of them documented reinterventions, because haemodynamic staging needs a
 reference examination the extract does not contain. Those figures are printed, alongside the
 synthetic rungs they are compared against, in
-[`data/synthetic/results.md`](data/synthetic/results.md).
+[`data/synthetic/results.md`](data/synthetic/results.md). Endpoint **rows** are not the same
+quantity as affected patients or affected valves, and this repository reports all three; the four
+counts and the frame each belongs to are reconciled in
+[`data/endpoint_criteria.md`](data/endpoint_criteria.md).
 
 Simulating that same poverty on a cohort whose truth we know puts a number on what it costs:
 extract-quality surveillance loses **34% of the patients who deteriorate and 42% of the endpoint

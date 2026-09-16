@@ -137,7 +137,9 @@ that is a claim about the ideal rung, and the matched-cohort ranking here has no
 The ideal-rung numbers themselves are in [`stability.md`](stability.md) and supersede the earlier
 single-run figures that used to be quoted here.
 
-**Results on the real extract (51 valves, 8 events, no deaths recorded).** Trained on the ideal
+**Results on the real extract (51 valves, 8 events, no deaths recorded** — the unit here is the
+valve episode, and the other event counts quoted in this repository are placed against it in
+[`../data/endpoint_criteria.md`](../data/endpoint_criteria.md)**).** Trained on the ideal
 cohort, the boosted model ranked the real valves worse than chance (5-year AUC 0.29), because it had
 never seen the inputs the extract lacks. Trained on the matched cohort, the regression baseline
 reaches 0.78 (95% interval 0.60 to 0.95), the Cox comparator 0.75, valve age alone 0.74, the
