@@ -16,22 +16,36 @@ the models only through `notebooks/02_preprocessing.ipynb`.
 
 ## Generating it
 
-From the `notebooks/` directory:
+First install the environment once, from the repository root:
 
 ```bash
-python -m synthetic --preset ideal --out ../data/synthetic/ideal
+uv sync
+```
+
+Then, **from the `notebooks/` directory**:
+
+```bash
+uv run python -m synthetic --preset ideal --out ../data/synthetic/ideal
 ```
 
 ```bash
-python -m synthetic --ladder --out ../data/synthetic
+uv run python -m synthetic --ladder --out ../data/synthetic
 ```
 
 ```bash
-python -m synthetic --preset ideal --sample 60 --out ../data/synthetic/sample
+uv run python -m synthetic --preset ideal --sample 60 --out ../data/synthetic/sample
 ```
 
 The first prints the calibration table against the published anchors. Generated cohorts are
 ignored by git; the committed sample is the single exception, declared in `.gitignore`.
+
+Both halves of the command matter. `python -m` resolves the package from the working
+directory, so it fails anywhere but `notebooks/`; and the dependencies live in the
+project environment rather than in the system interpreter, so it fails without `uv run`.
+
+Useful flags: `--n-patients` for the cohort size (default 1,800), `--seed` for a
+different cohort, and `--no-calibration` to skip the calibration table, which is the
+slow part because it repeats the cohort over several seeds.
 
 ## Using it
 
@@ -53,7 +67,7 @@ ladder = {name: generate(preset=name) for name in PRESETS}
 ## Testing it
 
 ```bash
-python -m pytest synthetic/tests -q
+uv run python -m pytest synthetic/tests -q
 ```
 
 54 tests covering the schema contract, reproducibility, governance, the VARC-3 criteria, the

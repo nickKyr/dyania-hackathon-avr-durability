@@ -23,4 +23,14 @@ uv sync
 uv run jupyter lab
 ```
 
+To build the synthetic cohort without opening a notebook, from this directory:
+
+```bash
+uv run python -m synthetic --preset ideal --out ../data/synthetic/ideal
+```
+
+`--ladder` writes every rung instead of one, `--n-patients` sets the cohort size and
+`--no-calibration` skips the calibration table. Full options and the presets are in
+[`../data/synthetic/README.md`](../data/synthetic/README.md).
+
 Only aggregate outputs (counts, shares, distributions) may be committed. Clear any cell that shows patient rows or note text.
