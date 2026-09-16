@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1010" viewBox="0 0 1600 1010" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#898781"/></marker></defs>
+<rect width="1600" height="1010" fill="#fcfcfb"/>
+<text x="40" y="52" font-size="28" font-weight="700" fill="#0b0b0b">The AVR durability system</text>
+<text x="40" y="82" font-size="16" fill="#52514e">From hospital notes to a surveillance recommendation. Real and simulated patients take one route through identical code.</text>
+<rect x="30" y="110" width="1540" height="250" rx="14" fill="none" stroke="#e1e0d9" stroke-width="1.2"/><text x="46" y="134" font-size="12" font-weight="700" fill="#898781" letter-spacing="1.5">REAL EXTRACT</text>
+<rect x="30" y="380" width="1540" height="170" rx="14" fill="none" stroke="#e1e0d9" stroke-width="1.2"/><text x="46" y="404" font-size="12" font-weight="700" fill="#898781" letter-spacing="1.5">SIMULATED PATIENTS</text>
+<rect x="30" y="570" width="1540" height="300" rx="14" fill="none" stroke="#e1e0d9" stroke-width="1.2"/><text x="46" y="594" font-size="12" font-weight="700" fill="#898781" letter-spacing="1.5">ONE SHARED ROUTE</text>
+<rect x="60" y="150" width="250" height="180" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="76" y="178" font-size="17" font-weight="700" fill="#0b0b0b">Hospital extract</text>
+<text x="76" y="202" font-size="14" fill="#52514e">215 clinical notes</text>
+<text x="76" y="222" font-size="14" fill="#52514e">labs and medications</text>
+<text x="76" y="242" font-size="14" fill="#52514e">117 patients, year-only dates</text>
+<rect x="370" y="150" width="260" height="180" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="386" y="178" font-size="13" font-weight="700" fill="#2a78d6">scripts 01 to 03</text>
+<text x="386" y="200" font-size="17" font-weight="700" fill="#0b0b0b">Chart abstraction</text>
+<text x="386" y="224" font-size="14" fill="#52514e">rules pass (patterns)</text>
+<text x="386" y="244" font-size="14" fill="#52514e">language-model pass,</text>
+<text x="386" y="264" font-size="14" fill="#52514e">one note at a time,</text>
+<text x="386" y="284" font-size="14" fill="#52514e">quoted evidence</text>
+<rect x="690" y="150" width="260" height="180" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="706" y="178" font-size="13" font-weight="700" fill="#2a78d6">notebook 02</text>
+<text x="706" y="200" font-size="17" font-weight="700" fill="#0b0b0b">Preprocessing</text>
+<text x="706" y="224" font-size="14" fill="#52514e">duplicates, lab names, units</text>
+<text x="706" y="244" font-size="14" fill="#52514e">one record per valve</text>
+<text x="706" y="264" font-size="14" fill="#52514e">echo timeline, events,</text>
+<text x="706" y="284" font-size="14" fill="#52514e">follow-up, covariates</text>
+<rect x="1010" y="150" width="250" height="180" rx="10" fill="#fdf0ea" stroke="#eb6834" stroke-width="1.5"/>
+<text x="1026" y="178" font-size="17" font-weight="700" fill="#0b0b0b">Clinician review</text>
+<text x="1026" y="202" font-size="14" fill="#52514e">structural or not</text>
+<text x="1026" y="222" font-size="14" fill="#52514e">VARC-3 stage</text>
+<text x="1026" y="242" font-size="14" fill="#52514e">per candidate event</text>
+<rect x="1320" y="150" width="220" height="180" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="1336" y="178" font-size="17" font-weight="700" fill="#0b0b0b">Five tables</text>
+<text x="1336" y="202" font-size="14" fill="#52514e">valves</text>
+<text x="1336" y="222" font-size="14" fill="#52514e">echoes</text>
+<text x="1336" y="242" font-size="14" fill="#52514e">events</text>
+<text x="1336" y="262" font-size="14" fill="#52514e">follow-up</text>
+<text x="1336" y="282" font-size="14" fill="#52514e">covariates</text>
+<line x1="310" y1="240" x2="368" y2="240" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="630" y1="240" x2="688" y2="240" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="950" y1="240" x2="1008" y2="240" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="1260" y1="240" x2="1318" y2="240" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<rect x="60" y="415" width="250" height="110" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="76" y="443" font-size="17" font-weight="700" fill="#0b0b0b">Team generator</text>
+<text x="76" y="467" font-size="14" fill="#52514e">literature-calibrated</text>
+<text x="76" y="487" font-size="14" fill="#52514e">6,000 patients</text>
+<rect x="370" y="415" width="260" height="110" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="386" y="443" font-size="17" font-weight="700" fill="#0b0b0b">Convert</text>
+<text x="386" y="467" font-size="14" fill="#52514e">into the same five tables</text>
+<text x="386" y="487" font-size="14" fill="#52514e">checked row for row</text>
+<rect x="690" y="415" width="400" height="110" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="706" y="443" font-size="17" font-weight="700" fill="#0b0b0b">Reshape like the real extract</text>
+<text x="706" y="467" font-size="14" fill="#52514e">year-only dates, no age, no deaths,</text>
+<text x="706" y="487" font-size="14" fill="#52514e">real echo counts and missing rates</text>
+<rect x="1150" y="415" width="390" height="110" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="1166" y="443" font-size="17" font-weight="700" fill="#0b0b0b">Five tables, same format</text>
+<text x="1166" y="467" font-size="14" fill="#52514e">training data for the models</text>
+<line x1="310" y1="470" x2="368" y2="470" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="630" y1="470" x2="688" y2="470" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="1090" y1="470" x2="1148" y2="470" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<rect x="60" y="610" width="330" height="230" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="76" y="638" font-size="13" font-weight="700" fill="#2a78d6">notebook 03</text>
+<text x="76" y="660" font-size="17" font-weight="700" fill="#0b0b0b">Labels and checkpoints</text>
+<text x="76" y="684" font-size="14" fill="#52514e">failure, death, censoring</text>
+<text x="76" y="704" font-size="14" fill="#52514e">a row per valve at 0.5, 1, 2</text>
+<text x="76" y="724" font-size="14" fill="#52514e">... 10 years after implant</text>
+<text x="76" y="744" font-size="14" fill="#52514e">only data known by then</text>
+<rect x="440" y="610" width="330" height="230" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="456" y="638" font-size="13" font-weight="700" fill="#2a78d6">notebook 03</text>
+<text x="456" y="660" font-size="17" font-weight="700" fill="#0b0b0b">41 features</text>
+<text x="456" y="684" font-size="14" fill="#52514e">patient, valve, first echo,</text>
+<text x="456" y="704" font-size="14" fill="#52514e">latest echo, change,</text>
+<text x="456" y="724" font-size="14" fill="#52514e">surveillance</text>
+<text x="456" y="744" font-size="14" fill="#52514e">switchable selection</text>
+<rect x="820" y="610" width="330" height="230" rx="10" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+<text x="836" y="638" font-size="13" font-weight="700" fill="#2a78d6">notebook 04</text>
+<text x="836" y="660" font-size="17" font-weight="700" fill="#0b0b0b">Models</text>
+<text x="836" y="684" font-size="14" fill="#52514e">calendar schedule, valve age,</text>
+<text x="836" y="704" font-size="14" fill="#52514e">Cox, regression baseline,</text>
+<text x="836" y="724" font-size="14" fill="#52514e">gradient boosting</text>
+<text x="836" y="744" font-size="14" fill="#52514e">death as competing risk</text>
+<rect x="1200" y="610" width="340" height="230" rx="10" fill="#e9f7f1" stroke="#1baf7a" stroke-width="1.5"/>
+<text x="1216" y="638" font-size="13" font-weight="700" fill="#1baf7a">notebook 05</text>
+<text x="1216" y="660" font-size="17" font-weight="700" fill="#0b0b0b">Results on real valves</text>
+<text x="1216" y="684" font-size="14" fill="#52514e">discrimination, calibration,</text>
+<text x="1216" y="704" font-size="14" fill="#52514e">decision curve, risk tiers</text>
+<text x="1216" y="724" font-size="14" fill="#52514e">run log across experiments</text>
+<line x1="390" y1="725" x2="438" y2="725" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="770" y1="725" x2="818" y2="725" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<line x1="1150" y1="725" x2="1198" y2="725" stroke="#c3c2b7" stroke-width="2.2" marker-end="url(#head)"/>
+<path d="M 1540 300 L 1586 300 L 1586 592 L 1400 592 L 1400 606" fill="none" stroke="#2a78d6" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="1390" y="586" font-size="13" fill="#2a78d6" text-anchor="end">real tables: same labels and features, scored only</text>
+<path d="M 1345 527 L 1345 552 L 300 552 L 300 606" fill="none" stroke="#eb6834" stroke-width="2.2" marker-end="url(#head)"/>
+<text x="820" y="546" font-size="13" fill="#eb6834" text-anchor="middle">simulated tables: used to train</text>
+<rect x="60" y="890" width="1480" height="90" rx="10" fill="#e9f7f1" stroke="#1baf7a" stroke-width="1.5"/>
+<text x="76" y="918" font-size="17" font-weight="700" fill="#0b0b0b">What a clinician gets at each echo visit</text>
+<text x="76" y="942" font-size="14" fill="#52514e">risk of structural deterioration within 2, 5 and 8 years, a risk tier, the recommended next echo, and the three factors that moved the risk most</text>
+</svg>

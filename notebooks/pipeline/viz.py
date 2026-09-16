@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,7 +11,7 @@ INK_SECONDARY = "#52514e"
 MUTED = "#898781"
 GRID = "#e1e0d9"
 AXIS = "#c3c2b7"
-FIG_DIR = Path(__file__).resolve().parent.parent / "figures"
+FIG_DIR = Path(os.environ.get("AVR_FIG_DIR", Path(__file__).resolve().parent.parent / "figures"))
 
 
 def use_style():
@@ -69,7 +70,7 @@ def year_axis(ax):
 
 
 def save(fig, name):
-    FIG_DIR.mkdir(exist_ok=True)
+    FIG_DIR.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIG_DIR / f"{name}.png", bbox_inches="tight", dpi=160)
 
 

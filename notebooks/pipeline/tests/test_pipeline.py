@@ -319,9 +319,10 @@ def test_matching_hides_age_and_collapses_time_to_the_year(matched):
 
 
 def test_matching_only_ever_removes_information(prepared, matched):
-    """Every matching rule masks, drops or censors. None of them may invent a
-    patient, an examination or an event that the cohort did not have."""
-    assert len(matched["implants"]) == len(prepared["implants"])
+    """Matching masks, drops, censors, resamples the case mix, rescales gradients
+    and moves kept examinations within a valve's follow-up. None of these may
+    invent a patient, an examination or an event that the cohort did not have."""
+    assert set(matched["implants"].episode_id) <= set(prepared["implants"].episode_id)
     assert len(matched["echo_timeline"]) <= len(prepared["echo_timeline"])
     assert len(matched["events"]) <= len(prepared["events"])
     assert set(matched["echo_timeline"].study_id) <= set(prepared["echo_timeline"].study_id)

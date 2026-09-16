@@ -6,7 +6,7 @@ ENDPOINTS = {
     "stage2_or_worse": ("svd_stage2", "svd_stage3", "bvf_reintervention"),
     "stage3_or_bvf": ("svd_stage3", "bvf_reintervention"),
 }
-AR_ORDINAL = {"none": 0.0, "trace": 0.5, "mild": 1.0, "moderate": 2.0, "severe": 3.0}
+AR_ORDINAL = {"none": 0.0, "trace": 0.5, "mild": 1.0, "mild-moderate": 1.5, "moderate": 2.0, "moderate-severe": 2.5, "severe": 3.0}
 PPM_ORDINAL = {"none": 0.0, "moderate": 1.0, "severe": 2.0}
 VALVE_FAMILIES = ["Sapien 3", "Evolut", "Trifecta", "Perimount", "Epic", "Magna", "Inspiris"]
 ECHO_VALUES = {"mean_gradient_mmhg": "mg", "peak_gradient_mmhg": "peak", "dvi": "dvi", "eoa_cm2": "eoa", "ar": "ar", "lvef_pct": "lvef"}
@@ -135,7 +135,7 @@ def build_landmark_table(tables, config=LABEL_CONFIG):
 
 FAMILY_PATTERNS = [("Sapien 3", r"sapien"), ("Evolut", r"evolut|corevalve"), ("Trifecta", r"trifecta"),
                    ("Perimount", r"perimount|carpentier"), ("Magna", r"magna"), ("Inspiris", r"inspiris"), ("Epic", r"\bepic\b")]
-AR_LABELS = [(0.25, "none"), (0.75, "trace"), (1.75, "mild"), (2.75, "moderate"), (9.0, "severe")]
+AR_LABELS = [(0.25, "none"), (0.75, "trace"), (1.25, "mild"), (1.75, "mild-moderate"), (2.25, "moderate"), (2.75, "moderate-severe"), (9.0, "severe")]
 EVENT_TYPES = {"HVD stage 2": "svd_stage2", "HVD stage 3": "svd_stage3"}
 
 

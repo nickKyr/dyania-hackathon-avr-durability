@@ -3,8 +3,10 @@
 > **Status.** Every section describes code that runs in this checkout: the real extract through
 > [`../notebooks/02_preprocessing.ipynb`](../notebooks/02_preprocessing.ipynb), labels, landmarks and
 > features in [`../notebooks/03_data_preparation.ipynb`](../notebooks/03_data_preparation.ipynb), and
-> models in [`../notebooks/04_model_training.ipynb`](../notebooks/04_model_training.ipynb), with the
-> shared code in [`../notebooks/pipeline/`](../notebooks/pipeline/). Performance numbers come from
+> models in [`../notebooks/04_model_training.ipynb`](../notebooks/04_model_training.ipynb), scoring of
+> the real extract in [`../notebooks/05_results.ipynb`](../notebooks/05_results.ipynb), with the
+> shared code in [`../notebooks/pipeline/`](../notebooks/pipeline/). Every evaluation on the real
+> extract is recorded, with its full settings, in [`../results/LEDGER.md`](../results/LEDGER.md). Performance numbers come from
 > the synthetic cohort and are labelled as such; the real extract is scored, never trained on.
 
 ---
@@ -78,7 +80,7 @@ The catalogue (`FEATURES` in `ml.py`) lists 41 features in seven blocks, each wi
 the literature expects and whether it is a clinical prior:
 
 - **time:** years since implant at the landmark
-- **patient:** age at implant, sex, BSA, diabetes, CKD, smoking, bicuspid anatomy
+- **patient:** age at implant, sex, BSA, diabetes, CKD, smoking, bicuspid anatomy, anticoagulation
 - **valve:** SAVR or TAVR, valve family, label size, indexed EOA at implant, mismatch grade
 - **reference echo:** mean and peak gradient, DVI, EOA, regurgitation, LVEF, and a flag when it is missing
 - **latest echo:** the same measurements at the most recent study before the landmark
@@ -90,12 +92,23 @@ reference gradient, gradient change); the regression baseline and the Cox compar
 these. A change is computed only against a genuine reference examination, never from values that
 share one note.
 
-**Feature selection is switchable and off by default.** Four filters run on training rows only:
-missing on more than 60% of rows, near-constant, Spearman correlation above 0.95 (the prior wins),
-and stability selection (an L1-penalised hazard model on 40 random halves of the training
-patients, kept if chosen in 60% of fits). With selection off every feature is used and the report
-shows what each filter would drop. Features that are entirely empty in a training set are dropped
-automatically.
+**The primary and baseline models use a fixed clinical feature list by default**
+(`ml.FIXED_FEATURES`): years since implant, SAVR or TAVR, label size, Trifecta, the reference
+mean gradient and a flag when it is missing, the latest mean gradient, and the change between the
+two. These are the valve-level predictors the SVD literature names and the ones the extract
+actually records. The Trifecta flag is there because of the FDA 2023 safety communication and the
+reported excess of early leaflet tears. The surveillance block is never used, because the number
+and timing of echoes reflect how worried the clinician was, not how the valve is doing.
+
+Automatic selection remains available (`SELECTION["mode"] = "auto"`), and notebook 03 always shows
+what it would have chosen. It uses four filters on training rows only: missing on more than 60% of
+rows, near-constant, Spearman correlation above 0.95 (the prior wins), and stability selection (an
+L1-penalised hazard model on 40 random halves of the training patients, kept if chosen in 60% of
+fits). It was not made the default because it picked different features on different synthetic
+draws (body surface area in one, bicuspid anatomy in another). Fixing the list did not change
+discrimination on the real extract (regression baseline 0.72 ± 0.03 either way over five draws),
+and a fixed list is the one a clinician can check. Features that are entirely empty in a training
+set are dropped automatically.
 
 ---
 
@@ -113,7 +126,30 @@ automatically.
   synthetic cohort is reshaped to look like it (`TRAIN_LIKE_REAL`,
   [`../notebooks/pipeline/matching.py`](../notebooks/pipeline/matching.py)): year-only dates, no
   age, no recorded deaths, echo counts and missing fields at the rates measured in the extract,
-  reintervention-only events and extract-like follow-up.
+  reintervention-only events and extract-like follow-up. Four further steps close the gaps a
+  statistical comparison of the two datasets found:
+  - **Case mix.** A cohort three times the needed size is drawn and resampled (raking weights) to
+    the extract's approach by implant era (TAVR is 88% of its implants from 2019 on), its sex ratio
+    and its valve families.
+  - **Informative missingness.** In the notes a risk factor is mostly written down when it is
+    present (diabetes is "yes" in 83% of the patients where it is stated, CKD in 93%). The cohort
+    keeps a "yes" more often than a "no" so that both the stated rate and the share of "yes"
+    match. A covariate the extract does not record at all, such as anticoagulation, is hidden.
+  - **Gradient level.** Mean and peak gradients are rescaled by approach and by reference or later
+    study to the extract's medians (surgical reference gradient 7 mmHg in the extract, 11 in the
+    raw cohort).
+  - **Echo timing.** Kept follow-up studies are placed where the extract has them, mostly in the
+    last year the valve is seen (84% in the extract, 17% before this step, 59% after it).
+
+  How alike the two datasets are is measured, not asserted: a classifier is trained to tell
+  extract rows from cohort rows (`matching.distinguishability`, cross-validated by patient). Its
+  AUC on the clinical features fell from 0.85 to 0.80 with these steps (0.5 would mean the two
+  cannot be told apart). The remaining difference is mostly deliberate. Most real events belong to
+  valves with long follow-up, a pattern of how the notes were written that a model should not
+  learn, so it is not copied.
+- **Repeated on the real extract.** Each configuration evaluated on the extract is trained on five
+  independently drawn cohorts (`AVR_SEED`), and the mean and spread are quoted, not one draw. With
+  10 events one synthetic draw can move the boosted model's AUC from 0.47 to 0.76.
 - **Repeated, not single-shot.** `scripts/06_model_stability.py` reruns the whole pipeline on eight
   independently drawn cohorts and reports the spread, because a ranking read off one draw is a
   description of the seed. Its output is [`stability.md`](stability.md), and it is the file to
@@ -137,15 +173,42 @@ that is a claim about the ideal rung, and the matched-cohort ranking here has no
 The ideal-rung numbers themselves are in [`stability.md`](stability.md) and supersede the earlier
 single-run figures that used to be quoted here.
 
-**Results on the real extract (51 valves, 8 events, no deaths recorded** — the unit here is the
-valve episode, and the other event counts quoted in this repository are placed against it in
-[`../data/endpoint_criteria.md`](../data/endpoint_criteria.md)**).** Trained on the ideal
-cohort, the boosted model ranked the real valves worse than chance (5-year AUC 0.29), because it had
-never seen the inputs the extract lacks. Trained on the matched cohort, the regression baseline
-reaches 0.78 (95% interval 0.60 to 0.95), the Cox comparator 0.75, valve age alone 0.74, the
-unconstrained boosted model 0.71 and the constrained one 0.57 (0.30 to 0.82). With 8 events the
-intervals overlap and no ranking is established, and every model predicts far more SVD than the
-observed 12.6% at 5 years, so recalibration on real outcomes comes before any clinical use.
+**Results on the real extract (51 valve episodes, 301 landmark rows, 10 episodes with an SVD
+event, no deaths recorded** — the unit is the valve episode; the other event counts in this
+repository are placed against it in
+[`../data/endpoint_criteria.md`](../data/endpoint_criteria.md)**).** Trained on the ideal cohort,
+the boosted model ranked the real valves worse than chance (5-year AUC 0.29), because it had never
+seen the inputs the extract lacks. Trained on the matched cohort with the fixed feature list, the
+mean 5-year AUC over five synthetic draws (± standard deviation) is:
+
+| Model | 5-year AUC | Mean predicted 5-year risk |
+|---|---|---|
+| Regression baseline | 0.71 ± 0.02 | 15.9% |
+| Cox on risk factors | 0.71 ± 0.00 | 10.6% |
+| Valve age only | 0.71 ± 0.00 | 10.9% |
+| Gradient boosting (constrained) | 0.64 ± 0.05 | 11.1% |
+
+The committed notebooks show one of these draws (ledger run `final`): regression baseline 0.72
+(0.55 to 0.89) with a mean predicted risk of 17.3%, boosted model 0.67 (0.46 to 0.89) at 12.8%.
+The observed 5-year incidence is 16.6%, with a patient-bootstrap 95% interval of 7.7% to 27.6%.
+Each single draw carries a bootstrap interval roughly 0.3 wide (for example 0.59 to 0.90 for the
+regression baseline), so with 10 events no model is shown to rank better than valve age alone.
+The regression baseline's average risk falls inside the observed interval without any fitting to
+real outcomes. The boosted model is less stable than the baseline across draws and never better on
+average, so the regression baseline is the model we would take forward.
+
+Two changes moved these numbers, and both were checked over five draws rather than one. Reshaping
+the cohort (the steps above) raised the boosted model's mean AUC from 0.63 to 0.68 and its mean
+predicted risk from 7.3% to 10.9%. The three-mode failure process in the generator left AUC
+unchanged, halved the boosted model's spread (0.12 to 0.05), and brought the baseline's risk from
+13.7% to 15.9%.
+
+**Local recalibration was tested and not adopted.** Shifting every predicted risk by one constant
+on the logit scale, learned on four fifths of the real patients and applied to the fifth, brings
+the average to 16.5% but made the baseline's individual risks slightly worse (scaled Brier score
+lower in four of five draws), and the learned shift varied from −0.13 to +0.47 between folds. Ten
+events cannot fix a calibration intercept. The protocol therefore recalibrates at each site only
+once it has enough local events (§6).
 
 ---
 
@@ -157,8 +220,8 @@ echo interval attached to the tier (guideline schedule, every two years, every y
 features that moved the risk most, from SHAP values of the boosted SVD hazard. Notebook 04 prints
 one worked example. The tier thresholds remain provisional, but no longer for want of an analysis:
 [`decision_curve.md`](decision_curve.md) reports the net benefit at every candidate threshold and
-what each of the two boundaries above would buy. They should be fixed only after recalibration,
-because a decision curve is read off absolute risk and these models over-predict it.
+what each of the two boundaries above would buy. They should be fixed only after recalibration
+at the deploying site, because a decision curve is read off absolute risk.
 
 ---
 
@@ -175,8 +238,9 @@ and changing nothing, what each candidate boundary buys in deteriorations caught
 patients, and what the tiered schedule costs in examinations per 1,000 patient-years against each
 of the two guideline calendars — the number a service line is actually planned in, and the one
 figure a claim about reallocating surveillance cannot be made without. Two things are still outstanding and neither is a computation — clinical agreement on
-the action attached to each tier, and a recalibrated model, since the curve is read off absolute
-risk and these models over-predict it by about half.
+the action attached to each tier, and a model recalibrated on the deploying site's own outcomes,
+since the curve is read off absolute risk and ten real events cannot pin the risk level down (§4).
+Recalibration waits until a site has at least 100 events of its own, the minimum Collins et al. (Stat Med 2016) found for a reliable external calibration estimate.
 
 ---
 

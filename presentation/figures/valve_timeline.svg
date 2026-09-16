@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1680" height="690" viewBox="0 0 1680 690" font-family="-apple-system, 'Helvetica Neue', Arial, sans-serif">
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#898781"/></marker></defs>
+<rect width="1680" height="690" fill="#fcfcfb"/>
+<text x="40" y="52" font-size="28" font-weight="700" fill="#0b0b0b">How one valve becomes training rows</text>
+<text x="40" y="82" font-size="16" fill="#52514e">A checkpoint splits a valve's history into what the model may use and what it must predict.</text>
+<line x1="120" y1="300" x2="1560" y2="300" stroke="#52514e" stroke-width="3"/>
+<line x1="120.0" y1="292" x2="120.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="120.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">0</text>
+<line x1="264.0" y1="292" x2="264.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="264.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">1</text>
+<line x1="408.0" y1="292" x2="408.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="408.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">2</text>
+<line x1="552.0" y1="292" x2="552.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="552.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">3</text>
+<line x1="696.0" y1="292" x2="696.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="696.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">4</text>
+<line x1="840.0" y1="292" x2="840.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="840.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">5</text>
+<line x1="984.0" y1="292" x2="984.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="984.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">6</text>
+<line x1="1128.0" y1="292" x2="1128.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="1128.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">7</text>
+<line x1="1272.0" y1="292" x2="1272.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="1272.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">8</text>
+<line x1="1416.0" y1="292" x2="1416.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="1416.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">9</text>
+<line x1="1560.0" y1="292" x2="1560.0" y2="308" stroke="#52514e" stroke-width="2"/>
+<text x="1560.0" y="332" font-size="14" fill="#52514e" text-anchor="middle">10</text>
+<text x="840.0" y="362" font-size="15" fill="#52514e" text-anchor="middle">years since implant</text>
+<rect x="120.0" y="150" width="432.0" height="120" rx="8" fill="#eef4fc" stroke="#2a78d6" stroke-dasharray="6 5"/>
+<text x="134.0" y="178" font-size="15" font-weight="700" fill="#2a78d6">features: only what is known by year 3</text>
+<text x="134.0" y="202" font-size="14" fill="#52514e">echoes, change since the first echo,</text>
+<text x="134.0" y="222" font-size="14" fill="#52514e">patient and valve details</text>
+<rect x="552.0" y="150" width="720.0" height="120" rx="8" fill="#fdf0ea" stroke="#eb6834" stroke-dasharray="6 5"/>
+<text x="566.0" y="178" font-size="15" font-weight="700" fill="#eb6834">labels: what happens in the next 2, 5 and 8 years</text>
+<text x="566.0" y="202" font-size="14" fill="#52514e">failure, death first, or follow-up ending early</text>
+<line x1="552.0" y1="130" x2="552.0" y2="310" stroke="#0b0b0b" stroke-width="3"/>
+<text x="552.0" y="120" font-size="15" font-weight="700" fill="#0b0b0b" text-anchor="middle">checkpoint at year 3</text>
+<circle cx="120.0" cy="300" r="9" fill="#898781" stroke="#fcfcfb" stroke-width="3"/>
+<circle cx="141.6" cy="300" r="9" fill="#2a78d6" stroke="#fcfcfb" stroke-width="3"/>
+<circle cx="264.0" cy="300" r="9" fill="#2a78d6" stroke="#fcfcfb" stroke-width="3"/>
+<circle cx="552.0" cy="300" r="9" fill="#2a78d6" stroke="#fcfcfb" stroke-width="3"/>
+<circle cx="984.0" cy="300" r="9" fill="#2a78d6" stroke="#fcfcfb" stroke-width="3"/>
+<circle cx="1185.6" cy="300" r="9" fill="#eb6834" stroke="#fcfcfb" stroke-width="3"/>
+<text x="120.0" y="410" font-size="14" fill="#898781" text-anchor="middle">implant</text>
+<line x1="120.0" y1="370" x2="120.0" y2="394" stroke="#e1e0d9" stroke-width="1"/>
+<text x="141.6" y="440" font-size="14" fill="#2a78d6" text-anchor="middle">first echo</text>
+<line x1="141.6" y1="370" x2="141.6" y2="424" stroke="#e1e0d9" stroke-width="1"/>
+<text x="264.0" y="410" font-size="14" fill="#2a78d6" text-anchor="middle">echo</text>
+<line x1="264.0" y1="370" x2="264.0" y2="394" stroke="#e1e0d9" stroke-width="1"/>
+<text x="552.0" y="440" font-size="14" fill="#2a78d6" text-anchor="middle">echo</text>
+<line x1="552.0" y1="370" x2="552.0" y2="424" stroke="#e1e0d9" stroke-width="1"/>
+<text x="984.0" y="410" font-size="14" fill="#2a78d6" text-anchor="middle">echo: normal</text>
+<line x1="984.0" y1="370" x2="984.0" y2="394" stroke="#e1e0d9" stroke-width="1"/>
+<text x="1185.6" y="440" font-size="14" fill="#eb6834" text-anchor="middle">echo: failure found</text>
+<line x1="1185.6" y1="370" x2="1185.6" y2="424" stroke="#e1e0d9" stroke-width="1"/>
+<rect x="984.0" y="282" width="201.5999999999999" height="36" rx="6" fill="#eb6834" opacity="0.18"/>
+<text x="1084.8" y="362" font-size="14" fill="#eb6834" text-anchor="middle">failure happened in this gap</text>
+<rect x="120" y="560" width="460" height="100" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="136" y="588" font-size="17" font-weight="700" fill="#0b0b0b">One valve, many rows</text>
+<text x="136" y="612" font-size="14" fill="#52514e">a row at 0.5, 1, 2, 3 ... years while the</text>
+<text x="136" y="632" font-size="14" fill="#52514e">valve is still working and followed</text>
+<rect x="610" y="560" width="460" height="100" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="626" y="588" font-size="17" font-weight="700" fill="#0b0b0b">No peeking</text>
+<text x="626" y="612" font-size="14" fill="#52514e">nothing recorded after the checkpoint</text>
+<text x="626" y="632" font-size="14" fill="#52514e">enters the row</text>
+<rect x="1100" y="560" width="460" height="100" rx="10" fill="#f3f3f0" stroke="#898781" stroke-width="1.5"/>
+<text x="1116" y="588" font-size="17" font-weight="700" fill="#0b0b0b">Death competes</text>
+<text x="1116" y="612" font-size="14" fill="#52514e">a patient who dies first counts as</text>
+<text x="1116" y="632" font-size="14" fill="#52514e">not failing, not as lost</text>
+</svg>

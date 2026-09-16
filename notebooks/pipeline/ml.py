@@ -57,13 +57,17 @@ FEATURES = {
 BLOCKS = list(dict.fromkeys(v["block"] for v in FEATURES.values()))
 OUTCOME_CLASSES = {1.0: "SVD", 0.0: "no SVD", 2.0: "died first"}
 
+FIXED_FEATURES = ("landmark_years", "tavr", "valve_size_mm", "valve_trifecta", "ref_mg", "ref_missing", "last_mg", "delta_mg")
 SELECTION_CONFIG = dict(
-    enabled=False,
+    enabled=True,
+    mode="fixed",
+    fixed=FIXED_FEATURES,
     drop_missing=True, max_missing=0.6,
     drop_constant=True, max_mode_share=0.98,
     drop_correlated=True, max_corr=0.95,
     stability=True, n_boot=40, l1_c=0.05, min_freq=0.6,
     keep_priors=True,
+    drop_blocks=("surveillance",),
     horizon=5,
     seed=0,
 )
@@ -124,17 +128,23 @@ def pca_view(X, seed=0):
     return pca.transform(Z)[:, :2], pca.explained_variance_ratio_
 
 
-def expand_discrete(X, meta, horizon):
-    t = meta.time_to_end.to_numpy(float)
+def expand_discrete(X, meta, horizon, partial="drop", return_weights=False):
+    t = np.round(meta.time_to_end.to_numpy(float), 2)
     status = meta.status.to_numpy()
     event = status != "censored"
-    n_int = np.where(event & (t <= horizon), np.ceil(t), np.floor(np.minimum(t, horizon))).astype(int)
+    full = np.floor(np.minimum(t, horizon))
+    frac = np.where(event | (t >= horizon), 0.0, t - full)
+    keep_partial = (frac > 0) if partial == "weight" else np.zeros(len(t), bool)
+    n_int = np.where(event & (t <= horizon), np.ceil(t), full + keep_partial).astype(int)
     n_int = np.maximum(n_int, 0)
     rep = np.repeat(np.arange(len(X)), n_int)
     k = np.concatenate([np.arange(1, m + 1) for m in n_int]) if n_int.sum() else np.array([], int)
     last = event[rep] & (k == np.ceil(t[rep])) & (t[rep] <= horizon)
     target = np.where(last & (status[rep] == "svd"), 1, np.where(last & (status[rep] == "death"), 2, 0))
+    weight = np.where(keep_partial[rep] & (k == n_int[rep]), frac[rep], 1.0)
     Xe = X.iloc[rep].reset_index(drop=True).assign(interval=k)
+    if return_weights:
+        return Xe, target, meta.patient_id.to_numpy()[rep], weight
     return Xe, target, meta.patient_id.to_numpy()[rep]
 
 
@@ -144,8 +154,9 @@ def select_features(X, meta, config=SELECTION_CONFIG):
     rep["missing"] = X.isna().mean()
     rep["mode_share"] = X.apply(lambda s: s.value_counts(normalize=True).iloc[0] if s.notna().any() else 1.0)
     rep["flag"] = ""
+    rep.loc[rep.block.isin(c.get("drop_blocks", ())), "flag"] = "process feature, not valve biology"
     if c["drop_missing"]:
-        rep.loc[rep.missing > c["max_missing"], "flag"] = "too much missing"
+        rep.loc[(rep.flag == "") & (rep.missing > c["max_missing"]), "flag"] = "too much missing"
     if c["drop_constant"]:
         rep.loc[(rep.flag == "") & (rep.mode_share > c["max_mode_share"]), "flag"] = "almost constant"
     if c["drop_correlated"]:
@@ -179,11 +190,16 @@ def select_features(X, meta, config=SELECTION_CONFIG):
             fits += 1
         rep.loc[keep, "stability"] = counts / max(fits, 1)
         rep.loc[(rep.flag == "") & (rep.stability < c["min_freq"]), "flag"] = "unstable in bootstrap"
-    hard = rep.flag.str.startswith(("too much", "almost"))
+    hard = rep.flag.str.startswith(("too much", "almost", "process"))
     rep["would_keep"] = (rep.flag == "") | (c["keep_priors"] & rep.prior & ~hard)
     rep["used"] = rep.would_keep if c["enabled"] else True
     kept_label = np.where(rep.flag == "", "kept", "kept as clinical prior (" + rep.flag + ")")
-    if c["enabled"]:
+    if c["enabled"] and c.get("mode") == "fixed":
+        rep["fixed"] = rep.index.isin(c["fixed"])
+        rep["used"] = rep.fixed
+        auto = np.where(rep.would_keep, "automatic selection would keep", "automatic selection would drop: " + rep.flag)
+        rep["decision"] = np.where(rep.fixed, "fixed list; " + auto, "not in fixed list; " + auto)
+    elif c["enabled"]:
         rep["decision"] = np.where(rep.would_keep, kept_label, "dropped: " + rep.flag)
     else:
         rep["decision"] = np.where(rep.would_keep, "used; selection would keep", "used; selection would drop: " + rep.flag)
@@ -202,31 +218,43 @@ def _gbm(monotone, **params):
 
 
 class DiscreteTimeCompetingRisks:
-    def __init__(self, features, kind="gbm", horizon=8, monotone=True, **params):
+    def __init__(self, features, kind="gbm", horizon=8, monotone=True, partial="weight", missing_indicators=False, **params):
         self.features, self.kind, self.horizon, self.monotone, self.params = list(features), kind, horizon, monotone, params
+        self.partial, self.missing_indicators = partial, missing_indicators
 
     def _estimator(self, cause):
         if self.kind == "logit":
             return _logit(**self.params)
-        mono = [FEATURES.get(f, {}).get("direction", 0) if (cause == "svd" and self.monotone) else 0 for f in self.features] + [0]
-        return _gbm(mono, **self.params)
+        indicators = getattr(self, "indicators_", [])
+        mono = [FEATURES.get(f, {}).get("direction", 0) if (cause == "svd" and self.monotone) else 0 for f in self.features]
+        return _gbm(mono + [0] * (len(indicators) + 1), **self.params)
 
     def _design(self, Xe):
-        D = Xe[self.features + ["interval"]].copy()
+        D = Xe[self.features].copy()
+        for f in getattr(self, "indicators_", []):
+            D[f"{f}_missing"] = Xe[f].isna().astype(float)
+        D["interval"] = Xe["interval"].to_numpy()
         if self.kind == "logit":
             for k in range(2, self.horizon + 1):
                 D[f"interval_{k}"] = (D.interval == k).astype(float)
             D = D.drop(columns="interval")
         return D
 
+    def _fit_one(self, cause, D, y, w):
+        est = self._estimator(cause)
+        key = "logisticregression__sample_weight" if self.kind == "logit" else "sample_weight"
+        return est.fit(D, y, **{key: w})
+
     def fit(self, X, meta):
         self.requested_ = list(self.features)
         self.features = [f for f in self.requested_ if X[f].nunique() > 1]
         self.dropped_ = [f for f in self.requested_ if f not in self.features]
-        Xe, target, _ = expand_discrete(X[self.features], meta, self.horizon)
+        use_ind = self.kind == "gbm" and getattr(self, "missing_indicators", False)
+        self.indicators_ = [f for f in self.features if use_ind and X[f].isna().any() and X[f].notna().any()]
+        Xe, target, _, w = expand_discrete(X[self.features], meta, self.horizon, partial=getattr(self, "partial", "drop"), return_weights=True)
         D = self._design(Xe)
-        self.svd_ = self._estimator("svd").fit(D, (target == 1).astype(int))
-        self.death_ = self._estimator("death").fit(D, (target == 2).astype(int)) if (target == 2).sum() >= 5 else None
+        self.svd_ = self._fit_one("svd", D, (target == 1).astype(int), w)
+        self.death_ = self._fit_one("death", D, (target == 2).astype(int), w) if (target == 2).sum() >= 5 else None
         self.n_rows_, self.n_events_ = len(D), dict(svd=int((target == 1).sum()), death=int((target == 2).sum()))
         return self
 
@@ -352,3 +380,80 @@ class CoxRiskFactors:
     def predict_cif(self, X):
         sf = self.model_.predict_survival_function(X[self.used_].fillna(self.median_), times=list(range(1, self.horizon + 1)))
         return pd.DataFrame((1 - sf.T).to_numpy(), columns=[f"svd_{h}y" for h in range(1, self.horizon + 1)], index=X.index)
+
+
+def _logit_of(p):
+    p = np.clip(np.asarray(p, float), 1e-4, 1 - 1e-4)
+    return np.log(p / (1 - p))
+
+
+def _fit_recalibration(z, y, w, method):
+    a, b = 0.0, 1.0
+    for _ in range(100):
+        eta = a + b * z if method == "platt" else a + z
+        pr = 1 / (1 + np.exp(-eta))
+        r, v = w * (y - pr), w * pr * (1 - pr) + 1e-9
+        if method == "platt":
+            J = np.array([[v.sum(), (v * z).sum()], [(v * z).sum(), (v * z * z).sum()]]) + 1e-6 * np.eye(2)
+            step = np.linalg.solve(J, [r.sum(), (r * z).sum()])
+        else:
+            step = np.array([r.sum() / v.sum(), 0.0])
+        a, b = a + step[0], b + step[1]
+        if np.abs(step).max() < 1e-8:
+            break
+    return float(a), float(b)
+
+
+def cif_from_hazards(hs, hd, index=None):
+    n, horizon = hs.shape
+    surv, rs, rd = np.ones(n), np.zeros(n), np.zeros(n)
+    cif_s, cif_d = np.zeros_like(hs), np.zeros_like(hd)
+    for k in range(horizon):
+        rs, rd = rs + surv * hs[:, k], rd + surv * hd[:, k]
+        cif_s[:, k], cif_d[:, k] = rs, rd
+        surv = surv * np.clip(1 - hs[:, k] - hd[:, k], 0, 1)
+    cols = [f"svd_{k}y" for k in range(1, horizon + 1)] + [f"death_{k}y" for k in range(1, horizon + 1)]
+    return pd.DataFrame(np.hstack([cif_s, cif_d]), columns=cols, index=index)
+
+
+class RecalibratedModel:
+    def __init__(self, base, method="intercept", folds=3, seed=0):
+        self.base, self.method, self.folds, self.seed = base, method, folds, seed
+
+    def fit(self, X, meta):
+        import copy
+        from sklearn.model_selection import GroupKFold
+        self.horizon = self.base.horizon
+        n = len(X)
+        oof_s, oof_d = np.zeros((n, self.horizon)), np.zeros((n, self.horizon))
+        groups = meta.patient_id.to_numpy()
+        for fit_idx, cal_idx in GroupKFold(n_splits=self.folds, shuffle=True, random_state=self.seed).split(X, groups=groups):
+            m = copy.deepcopy(self.base).fit(X.iloc[fit_idx], meta.iloc[fit_idx])
+            oof_s[cal_idx], oof_d[cal_idx] = m.hazards(X.iloc[cal_idx])
+        rows = pd.DataFrame({"row": np.arange(n)}, index=X.index)
+        Xe, target, _, w = expand_discrete(rows, meta, self.horizon, partial=getattr(self.base, "partial", "drop"), return_weights=True)
+        r, k = Xe.row.to_numpy(), Xe.interval.to_numpy() - 1
+        self.params_ = {"svd": _fit_recalibration(_logit_of(oof_s[r, k]), (target == 1).astype(float), w, self.method)}
+        if (target == 2).sum() >= 5 and oof_d.any():
+            self.params_["death"] = _fit_recalibration(_logit_of(oof_d[r, k]), (target == 2).astype(float), w, self.method)
+        self.oof_cif_ = cif_from_hazards(oof_s, oof_d, X.index)
+        self.model_ = copy.deepcopy(self.base).fit(X, meta)
+        return self
+
+    def _adjust(self, h, cause):
+        if cause not in self.params_ or not h.any():
+            return h
+        a, b = self.params_[cause]
+        return 1 / (1 + np.exp(-(a + b * _logit_of(h))))
+
+    def hazards(self, X):
+        hs, hd = self.model_.hazards(X)
+        return self._adjust(hs, "svd"), self._adjust(hd, "death")
+
+    def predict_cif(self, X):
+        return cif_from_hazards(*self.hazards(X), X.index)
+
+    def __getattr__(self, name):
+        if name.startswith("__") or name in ("model_", "base"):
+            raise AttributeError(name)
+        return getattr(self.model_, name)

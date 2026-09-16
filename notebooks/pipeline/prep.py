@@ -8,6 +8,9 @@ CONFIG = dict(
     lab_lookback_years=2,
     med_modes=("Outpatient",),
     reference_window_years=1,
+    reference_prefers_gradient=True,
+    fill_from_rules=True,
+    ppm_excludes_echo_events=False,
     use_written_dates=True,
     event_year_rule="midpoint",
     require_eoa_or_dvi_confirmation=False,
@@ -329,6 +332,29 @@ def _studies(raw):
     return s
 
 
+RULE_FILL_PARAMETERS = ["mean_gradient_mmhg", "peak_gradient_mmhg", "dvi", "aortic_valve_area_cm2"]
+HEMODYNAMIC = ["mean_gradient_mmhg", "peak_gradient_mmhg", "dvi", "aortic_valve_area_cm2", "ar_intraprosthetic"]
+
+
+def _fill_from_rules(s, raw):
+    e = raw["echo_measurements"]
+    rules = e[~is_llm(e.method) & e.valve_assessed.eq("prosthetic") & e.parameter.isin(RULE_FILL_PARAMETERS) & e.value_num.notna()]
+    rules = rules.groupby(["note_id", "parameter"]).value_num.apply(lambda v: set(v.round(2)))
+    s = s.copy()
+    s["values_from_rules"] = ""
+    for param in RULE_FILL_PARAMETERS:
+        for nid, g in s.groupby("note_id"):
+            found = rules.get((nid, param))
+            if not found:
+                continue
+            unused = found - set(g[param].dropna().round(2))
+            missing = g.index[g[param].isna()]
+            if len(unused) == 1 and len(missing) == 1:
+                s.loc[missing[0], param] = next(iter(unused))
+                s.loc[missing[0], "values_from_rules"] = (s.loc[missing[0], "values_from_rules"] + " " + param).strip()
+    return s
+
+
 def _assign_episode(study, eps, reint_notes):
     if eps.empty:
         return None
@@ -349,6 +375,7 @@ def _assign_episode(study, eps, reint_notes):
 def build_echo_timeline(raw, implants, config=CONFIG):
     s = _studies(raw)
     s = s[s.valve_assessed.eq("prosthetic") & s.patient.isin(implants.patient)].copy()
+    s = _fill_from_rules(s, raw) if config.get("fill_from_rules", False) else s.assign(values_from_rules="")
     written = s.date_as_written.map(year_from_text)
     s["study_year"] = np.where(config["use_written_dates"] & written.notna() & (written <= s.service_year), written, s.service_year).astype(int)
     s["study_month"] = s.date_as_written.map(month_from_text)
@@ -378,6 +405,10 @@ def build_echo_timeline(raw, implants, config=CONFIG):
             post = post[(post.study_year >= iy) & (post.study_year <= iy + config["reference_window_years"])]
         else:
             post = post.iloc[0:0]
+        if len(post) and config.get("reference_prefers_gradient", False):
+            has_mg = post.mean_gradient_mmhg.notna()
+            has_any = post[HEMODYNAMIC].notna().any(axis=1)
+            post = post[has_mg] if has_mg.any() else post[has_any] if has_any.any() else post
         if len(post):
             s.loc[post.index[0], "is_reference"] = True
     ref_year = s[s.is_reference].set_index("episode_id").study_year
@@ -385,7 +416,7 @@ def build_echo_timeline(raw, implants, config=CONFIG):
     s["sequence"] = s.groupby("episode_id").cumcount() + 1
     cols = ["study_id", "episode_id", "patient", "note_id", "study_year", "study_month", "timing", "sequence", "is_reference", "implant_year", "years_since_implant", "years_since_reference",
             "mean_gradient_mmhg", "peak_gradient_mmhg", "peak_velocity_m_s", "dvi", "aortic_valve_area_cm2", "aortic_valve_area_indexed_cm2_m2", "lvef_percent",
-            "ar_intraprosthetic", "ar_paravalvular", "mean_gradient_confirmed_by_rules"]
+            "ar_intraprosthetic", "ar_paravalvular", "mean_gradient_confirmed_by_rules", "values_from_rules"]
     return s[cols].reset_index(drop=True)
 
 
@@ -458,13 +489,17 @@ def build_events(raw, implants, echo_timeline, adjudication_csv=None, config=CON
     kw = raw["events_regex"]
     kw = kw[~kw.negated & kw.event_type.str.contains("endocard|thromb", case=False, na=False)]
     endo = raw["clinical_context"]
-    endo = set(endo.loc[endo.comorbidity_endocarditis_history.eq("yes"), "patient"])
+    endo = endo.loc[endo.comorbidity_endocarditis_history.eq("yes"), ["patient", "service_year"]]
     provisional = []
     for x in ev.itertuples():
         start = imp.loc[x.episode_id, "implant_year_low"]
         start = -1 if pd.isna(start) else start
-        causes = set(nonstruct[(nonstruct.patient == x.patient) & (nonstruct.service_year >= start) & (nonstruct.service_year <= x.year_high)].category)
-        if x.patient in endo or len(kw[(kw.patient == x.patient) & (kw.service_year >= start)]):
+        high = 9999 if pd.isna(x.year_high) else x.year_high
+        causes = set(nonstruct[(nonstruct.patient == x.patient) & (nonstruct.service_year >= start) & (nonstruct.service_year <= high)].category)
+        if x.source == "echo" and not config.get("ppm_excludes_echo_events", True):
+            causes.discard("patient-prosthesis mismatch")
+        in_window = lambda d: d[(d.patient == x.patient) & (d.service_year >= start) & (d.service_year <= high)]
+        if len(in_window(endo)) or len(in_window(kw)):
             causes.add("endocarditis or thrombosis mentioned")
         if isinstance(x.reason_as_written, str) and re.search(NON_STRUCTURAL_REASON, x.reason_as_written, re.I):
             causes.add("reason as written")
