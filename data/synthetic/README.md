@@ -8,6 +8,16 @@ function of its seed, and is regenerated rather than stored: only the 60-patient
 Full rationale, calibration results and limitations are in
 [`../data_plan.md`](../data_plan.md), section 5.
 
+## Results
+
+[`results.md`](results.md) holds the calibration table and the degradation ladder, regenerated
+from the code rather than maintained by hand, so the evidence is legible without running
+anything:
+
+```bash
+python -m cohort > ../data/synthetic/results.md
+```
+
 ## Generating it
 
 From the `notebooks/` directory:
