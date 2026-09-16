@@ -304,8 +304,11 @@ surfaced beside every prediction.
 
 ### Clinical Transparency
 
-**Not yet decided — owner: the team, with the clinical lead.** The intended form is decision
+**Partly decided — owner: the team, with the clinical lead.** The intended form is decision
 support: a risk estimate refreshed at each echocardiogram that moves the next study earlier or
-later, never a reintervention recommendation. What has not been fixed is the decision threshold,
-the action attached to each risk tier, and how the surveillance gap is displayed alongside the
-risk. Those are clinical decisions, and none of them is encoded in code today.
+later, never a reintervention recommendation. The analysis behind the threshold now exists —
+[`../model/decision_curve.md`](../model/decision_curve.md) gives the range over which acting on the
+model beats both scanning everyone and changing nothing, and what each candidate boundary buys.
+What remains unfixed is genuinely clinical: which operating point inside that range to take, the
+action attached to each risk tier, and how the surveillance gap is displayed beside the risk.
+None of those is encoded in code today, and none should be before recalibration.

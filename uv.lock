@@ -587,6 +587,7 @@ dependencies = [
     { name = "pandas" },
     { name = "pyarrow" },
     { name = "scikit-learn" },
+    { name = "scipy" },
     { name = "shap" },
 ]
 
@@ -608,6 +609,7 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "scikit-learn", specifier = ">=1.9.1" },
+    { name = "scipy", specifier = ">=1.18.1" },
     { name = "shap", specifier = ">=0.52.0" },
 ]
 

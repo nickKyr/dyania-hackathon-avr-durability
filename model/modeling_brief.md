@@ -99,10 +99,12 @@ Equivalently, read the CSVs at `data/synthetic/<preset>/{patients,echos,events,f
 Every row of every table carries two governance columns that you must never drop:
 `source` (always `simulated` here) and `time_resolution` (`day` / `year` / `unknown`).
 
-**Target scale:** 1,800 implants, which produces 247 stage-2 deterioration events over 10 years
-at the default seed. Both are working scales: **no sample size calculation has been done**, and
-the protocol says so ([`../protocol/study_protocol.md`](../protocol/study_protocol.md) §2). A
-calculation on Riley's criteria (`pmsampsize`) is still owed.
+**Target scale:** 1,800 implants, which produces 262 stage-2 deterioration events over 10 years
+at the default seed. That is a working scale, and it is now known to be **too small**: the
+calculation on Riley's criteria was done and is in
+[`../protocol/sample_size.md`](../protocol/sample_size.md), which puts the requirement at 3,580
+patients for the eleven-parameter primary model. Treat 1,800 as the scale the pipeline is
+exercised at, not as the scale the study would be run at.
 
 **Data-generating process:**
 

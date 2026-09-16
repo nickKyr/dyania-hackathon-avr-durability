@@ -1,7 +1,7 @@
 [project]
 name = "dyania-hackathon-avr-durability"
 version = "0.1.0"
-description = "Add your description here"
+description = "Predicting bioprosthetic aortic valve durability: study protocol, abstraction pipeline and competing-risk model (Dyania Health Hackathon 2026, team dyanooumenoi)"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -16,6 +16,7 @@ dependencies = [
     "pandas>=3.0.5",
     "pyarrow>=25.0.1",
     "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
     "shap>=0.52.0",
 ]
 

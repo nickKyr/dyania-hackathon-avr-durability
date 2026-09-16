@@ -234,18 +234,18 @@ all-cause death — and six shape parameters selected from small grids.
 | quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | seeds inside band |
 |---|---|---|---|---|---|
 | **targeted** | | | | | |
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.1% ± 2.0 | 8 of 8 |
-| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.2% ± 1.3 | 8 of 8 |
-| all-cause death | TAVR | 10 y | 62.7% | 62.6% ± 1.2 | 8 of 8 |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 21.1% ± 0.8 | 8 of 8 |
+| moderate or severe SVD | TAVR | 10 y | 15.4% | 14.7% ± 1.0 | 8 of 8 |
+| all-cause death | TAVR | 10 y | 62.7% | 62.8% ± 1.0 | 8 of 8 |
 | **out of sample** | | | | | |
-| severe SVD | SAVR | 10 y | 10.0% | 12.6% ± 2.0 | 4 of 8 |
-| severe SVD | TAVR | 10 y | 1.5% | 9.2% ± 0.7 | **0 of 8** |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 3.6% ± 0.2 | 8 of 8 |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 6.6% ± 0.6 | 8 of 8 |
-| severe SVD | TAVR | 7.8 y | 5.9% | 5.9% ± 0.6 | 8 of 8 |
+| severe SVD | SAVR | 10 y | 10.0% | 13.7% ± 1.2 | **1 of 8** |
+| severe SVD | TAVR | 10 y | 1.5% | 9.6% ± 1.1 | **0 of 8** |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 3.2% ± 0.5 | 8 of 8 |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 6.3% ± 0.4 | 8 of 8 |
+| severe SVD | TAVR | 7.8 y | 5.9% | 5.8% ± 0.7 | 8 of 8 |
 | **post-hoc holdout** | | | | | |
-| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.2% ± 0.7 | 8 of 8 |
-| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 12.6% ± 2.0 | 7 of 8 |
+| bioprosthetic valve failure | TAVR | 10 y | 9.7% | 9.6% ± 1.1 | 8 of 8 |
+| bioprosthetic valve failure | SAVR | 10 y | 13.8% | 13.7% ± 1.2 | 8 of 8 |
 
 Bands come from one rule, fixed before any cohort was generated and applied uniformly: **two
 percentage points, or a quarter of the published value, whichever is larger**. A per-anchor
@@ -258,15 +258,16 @@ patients the Monte Carlo standard error of a 20% incidence is about one percenta
 the size of the differences being judged.
 
 > The table above is transcribed for readability from
-> [`synthetic/results.md`](synthetic/results.md), generated on 16 September — if the two ever
-> disagree, that file is right and this one is stale. The grouping into
+> [`synthetic/results.md`](synthetic/results.md), which `scripts/05_report_synthetic.py`
+> regenerates from the current code — if the two ever disagree, that file is right and this one is
+> stale, and the fix is to rerun the script and re-transcribe. The grouping into
 > *targeted*, *out of sample* and *post-hoc holdout* is an argument made here and is not
 > carried by the generated table, which separates targeted anchors from the rest only.
 
 **The two post-hoc rows are the closest this calibration comes to a holdout.** NOTION's
 bioprosthetic-valve-failure figures were found while verifying the other anchors, after every
 parameter had been fixed. They were not used to choose anything, and the cohort reproduces both:
-9.2% against 9.7% in the transcatheter arm and 12.6% against 13.8% in the surgical arm.
+9.6% against 9.7% in the transcatheter arm and 13.7% against 13.8% in the surgical arm.
 
 Nine fitted parameters against ten anchors is still close to saturated, so agreement is **not**
 proof that the cohort is correct — it establishes that the cohort is plausible, landing where
@@ -275,17 +276,17 @@ evidence of correctness is the recovery test below, which no amount of curve-fit
 
 ### The two anchors the cohort misses, and why they are not tuned away
 
-**Severe deterioration after transcatheter implant.** NOTION reports 1.5%; the cohort gives 9.2%.
+**Severe deterioration after transcatheter implant.** NOTION reports 1.5%; the cohort gives 9.6%.
 That figure is 1.5% of 145 randomised patients — **about two events** — and it contradicts the UK
 TAVI registry, which reports severe deterioration in 13 of 221 patients (5.9%) at a *shorter*
 median follow-up of 7.8 years. NOTION's own arms are mutually inconsistent too: its figures imply
 that 48% of deteriorated surgical valves become severe within ten years but only 10% of
 transcatheter ones, a five-fold difference in progression conditional on deterioration between two
-arms of one trial. This cohort sides with the registry, reproducing it exactly at 5.9%. Fitting a separate progression process per arm would reproduce both numbers by fitting the
+arms of one trial. This cohort sides with the registry, reproducing it at 5.8%. Fitting a separate progression process per arm would reproduce both numbers by fitting the
 sampling noise of a few dozen patients.
 
-**Severe deterioration after surgical implant.** NOTION reports 10.0%; the cohort gives 12.6% —
-which sits at NOTION's *bioprosthetic valve failure* figure of 13.8%, an anchor the cohort does
+**Severe deterioration after surgical implant.** NOTION reports 10.0%; the cohort gives 13.7% —
+which sits on NOTION's *bioprosthetic valve failure* figure of 13.8%, an anchor the cohort does
 hit, rather than at its severe-deterioration figure. The pattern is informative rather than random: this cohort's stage-3 threshold
 behaves like NOTION's adjudicated valve failure rather than its adjudicated severe deterioration,
 so the two categories that a trial adjudication panel separates are not separated here. That is a
