@@ -71,7 +71,7 @@ Item wording is abbreviated; the authoritative text is the
 | 12c | Model type, rationale, model-building steps, hyperparameter tuning, internal validation | `approach.md` §2 and §4; code in [`../notebooks/pipeline/ml.py`](../notebooks/pipeline/ml.py) | Reported |
 | 12d | Heterogeneity across clusters (hospitals, countries) | Protocol §5, *External Validation* | Planned — the prototype has one centre, so there is no cluster structure to quantify |
 | 12e | Measures and plots used to evaluate performance, and their rationale | Protocol §5, *Evaluation Metrics*; `approach.md` §4; [`stability.md`](stability.md); [`decision_curve.md`](decision_curve.md) | Reported |
-| 12f | Model updating such as recalibration | Protocol §6, *Post-Deployment Monitoring* — recalibration before retraining, with the triggers that fire it | Planned — specified and not yet executed; the models over-predict and this is the top open item |
+| 12f | Model updating such as recalibration | Protocol §6, *Post-Deployment Monitoring* — recalibration before retraining, with the triggers that fire it | Planned — recalibration at a deploying site is specified and waits for at least 100 local events; recalibration on the training cohort is implemented (`ml.RecalibratedModel`, notebook 04) and changes little |
 | 12g | How predictions were calculated at evaluation | Code: `pipeline/ml.py`, driven by `scripts/06` and `scripts/08`; every generated document carries the commit it was produced from | Reported |
 | 13 | Class imbalance methods, and any subsequent recalibration | Protocol §5 — resampling and class weighting are **rejected**, with the reason: both distort the calibration the clinical use depends on | Reported |
 | 14 | Approaches used to address model fairness | Protocol §6, *Algorithmic Fairness*; subgroup analyses in §5 | Partial — by approach and valve family only; age, sex and ethnicity cannot be audited on this extract and no fairness claim is made |
@@ -104,10 +104,10 @@ Item wording is abbreviated; the authoritative text is the
 | 20b | Characteristics, key dates, predictors, sample size, events | `data/synthetic/results.md`; notebook 03 figures | Partial — demographics are absent from the extract, so its characteristics table is unavoidably thin |
 | 20c | Comparison of predictor distributions between development and evaluation data | `matching.compare_profiles` and the ladder tables in `results.md` | Reported |
 | 21 | Number of participants and events in each analysis | `results.md`; [`stability.md`](stability.md); `endpoint_criteria.md` | Reported |
-| 22 | Full model, sufficient for prediction in new individuals | Code plus fixed seeds reproduce every fitted model exactly | Partial — no serialised model object is committed, deliberately: a model fitted on synthetic data must not be portable enough to be mistaken for a clinical tool |
+| 22 | Full model, sufficient for prediction in new individuals | Code plus fixed seeds reproduce every model fitted on the unreshaped cohort exactly; the models reshaped to the extract (`TRAIN_LIKE_REAL`) also need the extract's profile, which is private | Partial — no serialised model object is committed, deliberately: a model fitted on synthetic data must not be portable enough to be mistaken for a clinical tool |
 | 23a | Performance with confidence intervals, including key subgroups | `approach.md` §4, including the patient-level bootstrap interval for the extract; [`stability.md`](stability.md) reports mean ± SD and the range across cohorts, with the finding that a single-seed comparison in this repository is noise | Reported |
 | 23b | Heterogeneity in performance across clusters | — | N/A — one centre |
-| 24 | Results of any model updating | — | Not done — recalibration is specified (item 12f) and has not been run; every absolute risk in this repository is therefore over-predicted by roughly half, and every document that quotes one says so |
+| 24 | Results of any model updating | — | Not done at a site — the training-cohort recalibrated models are reported beside the originals in notebook 05, and a local recalibration on the extract was tested and not adopted, because ten events cannot fix an intercept (`approach.md` §4). Miscalibration differs by setting: on the synthetic cohort the models over-predict five-year risk by up to 57% ([`stability.md`](stability.md)); on the extract the regression baseline predicts 15.9% on average against 16.6% observed |
 
 ## Discussion
 
@@ -126,8 +126,8 @@ for the real study and not executed here, 5 are honest gaps, and one does not ap
 are worth listing on their own, because a checklist that hides its failures is worth nothing:
 
 1. **Funding, conflicts and registration** (18a, 18b, 18d) — three sentences the team owes.
-2. **Model updating** (24) — recalibration is the single most consequential open item in the
-   modelling work, and it is specified rather than done.
+2. **Model updating** (24) — recalibration at a deploying site is the single most consequential
+   open item in the modelling work, and it is specified rather than done.
 3. **Patient and public involvement** (19) — none, on a design that changes how often patients are
    examined.
 

@@ -25,14 +25,14 @@ deterioration incidence around 15–21% (anchors with their primary citations in
 with a working valve. An estimator that treats death as censoring answers a question about a
 population in which nobody dies, so every incidence reported in this work is an Aalen–Johansen
 cumulative incidence function under the competing risk
-([`synthetic/calibration.py`](../notebooks/synthetic/calibration.py)).
+([`notebooks/synthetic/calibration.py`](../notebooks/synthetic/calibration.py)).
 
 **The event is not observed when it happens; it is observed when someone images the patient.**
 An event is recorded at the examination that *detects* it, and both ends of the censoring interval
-travel with it (`interval_start_days`, `days_from_implant`). On the reference cohort the interval
-between a patient's last clean examination and the one that detected stage-2 deterioration has a
-median of 1.0 years and a maximum of 4.25 — so a deterioration recorded at one examination may
-have begun four years earlier. `test_the_censoring_interval_brackets_the_event` holds the
+travel with it (`interval_start_days`, `days_from_implant`). On the synthetic cohort (ideal rung,
+1,800 patients, seed 20260917) the interval between a patient's last clean examination and the one
+that detected stage-2 deterioration has a median of 1.1 years and a maximum of 4.2, so a
+deterioration recorded at one examination may have begun four years earlier. `test_the_censoring_interval_brackets_the_event` holds the
 property; a generator emitting latent onset times would instead produce a dataset on which any
 model looks better than it could be in clinic.
 
@@ -46,14 +46,19 @@ decision the model serves — when to image this patient next — recurs every t
 imaged. That is a landmark design, implemented in
 [`../notebooks/pipeline/landmarks.py`](../notebooks/pipeline/landmarks.py): a row per valve at 0.5,
 1, 2 … 10 years after implant while the valve is event-free and observed, features taken only
-from records dated at or before the landmark, and the outcome measured from it.
+from records dated at or before the landmark, and the outcome measured from it. The first
+landmark, at six months, falls after the VARC-3 reference examination (30 days to 3 months after
+implant), so a reference study can exist at every landmark.
 
 ---
 
 ## 2. Chosen Model(s)
 
 All models answer one question: from a landmark, what is the cumulative incidence of SVD at 2, 5
-and 8 years, with death as a competing event. Code in
+and 8 years, with death as a competing event. Two years is the shortest interval the risk tiers
+schedule (§5); five and eight years are where the published series report durability (PARTNER 3
+at 5 and 7 years, the UK TAVI registry at a median of 7.8;
+[`../data/synthetic/results.md`](../data/synthetic/results.md)). Code in
 [`../notebooks/pipeline/ml.py`](../notebooks/pipeline/ml.py), trained in notebook 04.
 
 | Model | Role | Why |
@@ -68,15 +73,16 @@ Death is never treated as censoring: the SVD and death hazards are fitted separa
 so a patient who dies first counts as not having SVD. Fine–Gray, random survival forests and
 DeepHit are not implemented; the joint longitudinal model of the gradient is the planned extension.
 
-**Why gradient boosting and not deep learning.** A protocol-sized cohort has 100 to 200 events;
-trees with native missing-value handling and monotone constraints are the strongest option at that
-scale and stay explainable with SHAP.
+**Why gradient boosting and not deep learning.** The protocol's cohort is sized at 3,580 patients
+with about 565 deteriorations ([`../protocol/sample_size.md`](../protocol/sample_size.md)); trees
+with native missing-value handling and monotone constraints are the strongest option at that scale
+and stay explainable with SHAP.
 
 ---
 
 ## 3. Feature Engineering
 
-The catalogue (`FEATURES` in `ml.py`) lists 41 features in seven blocks, each with the direction
+The catalogue (`FEATURES` in `ml.py`) lists 42 features in seven blocks, each with the direction
 the literature expects and whether it is a clinical prior:
 
 - **time:** years since implant at the landmark
@@ -87,17 +93,23 @@ the literature expects and whether it is a clinical prior:
 - **trajectory:** change from reference in gradient, DVI, EOA and regurgitation, highest gradient so far, gradient slope over the last two studies
 - **surveillance:** number of echoes, echoes in the last two years, years since the last one
 
-Ten are clinical priors (valve age, age, diabetes, CKD, smoking, SAVR vs TAVR, size, mismatch,
-reference gradient, gradient change); the regression baseline and the Cox comparator use only
-these. A change is computed only against a genuine reference examination, never from values that
+Eleven are clinical priors (valve age, age, diabetes, CKD, smoking, anticoagulation, SAVR vs TAVR,
+size, mismatch, reference gradient, gradient change). The regression baseline and the Cox
+comparator use only the priors among the features in use, which under the default fixed list below
+are five: valve age, SAVR vs TAVR, size, reference gradient and gradient change. A change is computed only against a genuine reference examination, never from values that
 share one note.
 
 **The primary and baseline models use a fixed clinical feature list by default**
 (`ml.FIXED_FEATURES`): years since implant, SAVR or TAVR, label size, Trifecta, the reference
 mean gradient and a flag when it is missing, the latest mean gradient, and the change between the
 two. These are the valve-level predictors the SVD literature names and the ones the extract
-actually records. The Trifecta flag is there because of the FDA 2023 safety communication and the
-reported excess of early leaflet tears. The surveillance block is never used, because the number
+actually records. Age, diabetes, CKD, smoking and anticoagulation are left out although the
+literature ranks them highly: the extract never records age or anticoagulation, and it records the
+other three mainly when they are present, so a model trained on them would learn the note-writing
+habit rather than the risk. The Trifecta flag is there because of the FDA 2023 safety communication
+(cited in [`../notebooks/synthetic/parameters.py`](../notebooks/synthetic/parameters.py)) and the
+published excess of early leaflet tears and explants against the Perimount
+([`../docs/research/svd_literature.md`](../docs/research/svd_literature.md) §3.3). The surveillance block is never used, because the number
 and timing of echoes reflect how worried the clinician was, not how the valve is doing.
 
 Automatic selection remains available (`SELECTION["mode"] = "auto"`), and notebook 03 always shows
@@ -106,7 +118,8 @@ rows, near-constant, Spearman correlation above 0.95 (the prior wins), and stabi
 L1-penalised hazard model on 40 random halves of the training patients, kept if chosen in 60% of
 fits). It was not made the default because it picked different features on different synthetic
 draws (body surface area in one, bicuspid anatomy in another). Fixing the list did not change
-discrimination on the real extract (regression baseline 0.72 ± 0.03 either way over five draws),
+discrimination on the real extract (regression baseline 0.72 ± 0.03 either way over five draws, measured before the three-mode
+generator),
 and a fixed list is the one a clinician can check. Features that are entirely empty in a training
 set are dropped automatically.
 
@@ -115,7 +128,9 @@ set are dropped automatically.
 ## 4. Validation Strategy
 
 - **Temporal split:** valves implanted up to 2018 train, later valves test. A patient's rows never
-  cross the split.
+  cross the split. The year is where case mix turns: in the extract 88% of implants from 2019 on are
+  TAVR, so the test set asks whether a model trained mostly on surgical valves transfers to the
+  transcatheter era. The protocol's primary patient-level partition (protocol §5) is not run here.
 - **Tuning:** a small grid (learning rate, leaves, leaf size) scored by 3-fold cross-validation
   grouped by patient, with early stopping inside each fit.
 - **Metrics:** competing-risk time-dependent AUC and Brier score at 2, 5 and 8 years with inverse
@@ -126,7 +141,8 @@ set are dropped automatically.
   synthetic cohort is reshaped to look like it (`TRAIN_LIKE_REAL`,
   [`../notebooks/pipeline/matching.py`](../notebooks/pipeline/matching.py)): year-only dates, no
   age, no recorded deaths, echo counts and missing fields at the rates measured in the extract,
-  reintervention-only events and extract-like follow-up. Four further steps close the gaps a
+  reintervention-only events and extract-like follow-up. 6,000 valves are drawn from a generated
+  pool of 18,000. Four further steps close the gaps a
   statistical comparison of the two datasets found:
   - **Case mix.** A cohort three times the needed size is drawn and resampled (raking weights) to
     the extract's approach by implant era (TAVR is 88% of its implants from 2019 on), its sex ratio
@@ -149,24 +165,25 @@ set are dropped automatically.
   learn, so it is not copied.
 - **Repeated on the real extract.** Each configuration evaluated on the extract is trained on five
   independently drawn cohorts (`AVR_SEED`), and the mean and spread are quoted, not one draw. With
-  10 events one synthetic draw can move the boosted model's AUC from 0.47 to 0.76.
+  10 events one synthetic draw moved the boosted model's AUC anywhere from 0.47 to 0.76 before the
+  three-mode generator, and from 0.56 to 0.69 after it.
 - **Repeated, not single-shot.** `scripts/06_model_stability.py` reruns the whole pipeline on eight
   independently drawn cohorts and reports the spread, because a ranking read off one draw is a
   description of the seed. Its output is [`stability.md`](stability.md), and it is the file to
   quote AUCs from.
 - **Decision curve.** `scripts/08_decision_curve.py` reports net benefit at every candidate
   threshold against scanning everyone and against changing nothing, with death competing; its
-  output is [`decision_curve.md`](decision_curve.md). Calibration curves and Uno's C are still
-  planned and not yet run.
+  output is [`decision_curve.md`](decision_curve.md). On the real extract, notebook 05 adds
+  calibration by risk group, an Uno-style C-index and the same decision curve.
 - **External check:** the real extract, prepared by notebook 02, is scored by every trained model.
 
 **Results on the synthetic cohort (not patients).** Trained and tested on the cohort matched to the
-extract, valve age carries most of the signal: AUC 0.81, 0.78 and 0.88 at 2, 5 and 8 years for the
-valve-age-only model, 0.80, 0.78 and 0.84 for the regression baseline and the Cox comparator,
-0.78, 0.72 and 0.79 for the constrained boosted model, and 0.68, 0.62 and 0.44 for the calendar
-schedule. **Every one of those numbers is a single cohort**, and
+extract (ledger run `final`), valve age carries most of the signal: AUC 0.86, 0.78 and 0.88 at 2, 5
+and 8 years for the valve-age-only model, 0.86, 0.79 and 0.83 for the regression baseline and the
+Cox comparator, 0.85, 0.77 and 0.79 for the constrained boosted model, and 0.70, 0.62 and 0.45 for
+the calendar schedule. **Every one of those numbers is a single cohort**, and
 [`stability.md`](stability.md) measures what that is worth: redrawing the cohort moves an AUC by a
-standard deviation of about 0.023, so differences of that size between two of the models above are
+standard deviation of about 0.027, so differences of that size between two of the models above are
 not evidence of anything. On the ideal rung, where the comparison can be repeated eight times and
 paired within cohorts, every risk model does beat scheduling by valve age at every horizon — but
 that is a claim about the ideal rung, and the matched-cohort ranking here has not been repeated.
@@ -177,8 +194,8 @@ single-run figures that used to be quoted here.
 event, no deaths recorded** — the unit is the valve episode; the other event counts in this
 repository are placed against it in
 [`../data/endpoint_criteria.md`](../data/endpoint_criteria.md)**).** Trained on the ideal cohort,
-the boosted model ranked the real valves worse than chance (5-year AUC 0.29), because it had never
-seen the inputs the extract lacks. Trained on the matched cohort with the fixed feature list, the
+the boosted model ranked the real valves worse than chance (5-year AUC 0.29, in an early run
+made before the ledger existed), because it had never seen the inputs the extract lacks. Trained on the matched cohort with the fixed feature list, the
 mean 5-year AUC over five synthetic draws (± standard deviation) is:
 
 | Model | 5-year AUC | Mean predicted 5-year risk |
@@ -191,11 +208,12 @@ mean 5-year AUC over five synthetic draws (± standard deviation) is:
 The committed notebooks show one of these draws (ledger run `final`): regression baseline 0.72
 (0.55 to 0.89) with a mean predicted risk of 17.3%, boosted model 0.67 (0.46 to 0.89) at 12.8%.
 The observed 5-year incidence is 16.6%, with a patient-bootstrap 95% interval of 7.7% to 27.6%.
-Each single draw carries a bootstrap interval roughly 0.3 wide (for example 0.59 to 0.90 for the
+Each single draw carries a bootstrap interval roughly 0.3 wide (for example 0.55 to 0.89 for the
 regression baseline), so with 10 events no model is shown to rank better than valve age alone.
 The regression baseline's average risk falls inside the observed interval without any fitting to
 real outcomes. The boosted model is less stable than the baseline across draws and never better on
-average, so the regression baseline is the model we would take forward.
+average. It remains the pre-specified primary model of §2, but on the extract the regression
+baseline is the stronger of the two, and it is the one this repository presents.
 
 Two changes moved these numbers, and both were checked over five draws rather than one. Reshaping
 the cohort (the steps above) raised the boosted model's mean AUC from 0.63 to 0.68 and its mean
@@ -240,7 +258,9 @@ of the two guideline calendars — the number a service line is actually planned
 figure a claim about reallocating surveillance cannot be made without. Two things are still outstanding and neither is a computation — clinical agreement on
 the action attached to each tier, and a model recalibrated on the deploying site's own outcomes,
 since the curve is read off absolute risk and ten real events cannot pin the risk level down (§4).
-Recalibration waits until a site has at least 100 events of its own, the minimum Collins et al. (Stat Med 2016) found for a reliable external calibration estimate.
+Recalibration waits until a site has at least 100 events of its own, the minimum Collins et al.
+(Stat Med 2016) found for a reliable external calibration estimate
+([`../docs/research/svd_literature.md`](../docs/research/svd_literature.md) [79]).
 
 ---
 
@@ -252,10 +272,11 @@ below are the substantive ones.
 
 
 **The supplied extract cannot support estimation, and this is measured rather than asserted.**
-Mapped into the study schema, it reaches an examination for 52.1% of patients, averages 1.69
-examinations each, contains **no mortality data at all**, and records 12.0 endpoint rows per 100
-patients, all of them documented reinterventions — because haemodynamic staging needs a reference
-examination the extract does not contain. The recorded figures are in
+Mapped into the study schema, it has an examination for 83.8% of patients, averages 1.62
+examinations each, has more than one gradient for 16.2%, contains **no mortality data at all**, and
+records 8.55 affected patients per 100. Nine of the ten affected valve episodes are documented
+reinterventions and one is a stage-2 deterioration seen on echo, because haemodynamic staging needs
+a reference examination the extract rarely contains. The recorded figures are in
 [`../data/synthetic/results.md`](../data/synthetic/results.md); notebook 02 reproduces the event
 count from the notes.
 

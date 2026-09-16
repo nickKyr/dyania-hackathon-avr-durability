@@ -95,11 +95,15 @@ will not do is fit forty-two candidate features to 1,800 patients and call the r
 The reference examination is the study taken 30 days to 3 months after implant, per VARC-3. Note
 the structure of the gradient arm: a rise *and* an absolute level *and* a corroborating fall in
 area or dimensionless index. **A gradient rise on its own is not deterioration** — it may simply
-be higher flow — and the code enforces exactly this (`test_a_gradient_rise_alone_is_not_deterioration`).
+be higher flow — and the synthetic cohort enforces exactly this
+(`test_a_gradient_rise_alone_is_not_deterioration`). The preprocessing of the supplied extract
+relaxes both conditions (`require_eoa_or_dvi_confirmation=False` and a one-year reference window in
+`notebooks/pipeline/prep.py`), because its dates are years and a second measurement is rare; the
+one echo-detected event on the extract was labelled under that weaker rule.
 
 The endpoint is **interval-censored**: it is recorded at the examination that detects it, and the
-interval back to the last clean examination is carried with it. On the reference cohort that
-interval has a median of 1.0 years and a maximum of 4.25, so a deterioration recorded at one
+interval back to the last clean examination is carried with it. On the synthetic cohort (ideal rung,
+1,800 patients, seed 20260917) that interval has a median of 1.1 years and a maximum of 4.2, so a deterioration recorded at one
 examination may have begun four years earlier. Supplying only the right endpoint, as most
 extracts do, silently converts an interval-censored outcome into an exactly observed one.
 
@@ -112,8 +116,9 @@ each of the tier boundaries currently proposed would buy, in deteriorations caug
 patients after paying for the extra examinations. What it deliberately does not do is pick one:
 the threshold is a statement about how many examinations a clinician will bring forward to catch
 one deterioration, which is a clinical judgement and not a statistical one. It also should not be
-fixed before recalibration, since a decision curve is read off absolute risk and the models
-currently over-predict it.
+fixed before recalibration at the deploying site, since a decision curve is read off absolute risk
+and the direction of miscalibration differs between the synthetic cohort and the extract
+([`../model/approach.md`](../model/approach.md) §4).
 
 ### Outcome Adjudication
 
@@ -182,7 +187,7 @@ The hierarchy is applied in this order, and each level is a separate, switchable
 its contribution can be measured:
 
 1. **Reintervention with a structural indication** — the strongest available evidence, and on the
-   supplied extract the only level that fires at all.
+   supplied extract the level behind nine of its ten events.
 2. **VARC-3 haemodynamic criteria against the patient's own reference examination** — applied
    examination by examination, never to a pooled summary.
 3. **Single-examination fallback**, used only when no reference examination exists: the
@@ -207,7 +212,7 @@ See section 2 and [`sample_size.md`](sample_size.md): **3,580 patients followed 
 by the minimum-sample-size criterion for the primary model rather than by a power calculation,
 because the study estimates risk rather than testing a hypothesis. The same document records a
 finding that changes the analysis plan rather than the recruitment target: across a sixteen-fold
-range of cohort size the models over-predict five-year incidence by 35% to 56% with no trend, so
+range of cohort size the models over-predict five-year incidence by 15% to 34% with no trend, so
 **calibration will not be fixed by recruiting more patients** and an explicit recalibration step
 belongs in the pipeline.
 
@@ -236,7 +241,9 @@ ranks patients correctly but overstates absolute risk will schedule the wrong nu
 echocardiograms. The response to a low event count is a small, regularised model, not a reweighted
 one.
 
-The scheme as implemented is the model workstream's to report, together with the checks it runs.
+The proof of concept implements the temporal split only (implants up to 2018 train, later implants
+test, no patient on both sides) and runs the checks listed in
+[`../model/approach.md`](../model/approach.md) §4.
 
 ### Missing Data
 
@@ -247,8 +254,8 @@ Three mechanisms have to be kept apart, because they call for different handling
 
 | what is missing | mechanism | handling |
 |---|---|---|
-| A **predictor value** in an examination that happened (gradient recorded, DVI not) | close to missing at random, conditional on the examination having been done | native missing-value handling in the boosted model; explicit missingness indicators, of which `ref_missing` is already one; multiple imputation for the regression comparator, with the outcome in the imputation model |
-| An **entire examination** — the patient was not imaged | missing not at random: the surveillance gap depends on the unobserved state | never imputed. The gap enters the model as a feature (`years_since_last_echo`, `n_echo`, `n_echo_recent`) and is displayed beside the prediction, so a low risk driven by a long silence is visible as such |
+| A **predictor value** in an examination that happened (gradient recorded, DVI not) | close to missing at random, conditional on the examination having been done | native missing-value handling in the boosted model; explicit missingness indicators, of which `ref_missing` is already one; multiple imputation for the regression comparator, with the outcome in the imputation model (the proof of concept uses median fill with an indicator) |
+| An **entire examination** — the patient was not imaged | missing not at random: the surveillance gap depends on the unobserved state | never imputed, and kept out of the model: the surveillance features (`years_since_last_echo`, `n_echo`, `n_echo_recent`) measure how worried the clinician was rather than how the valve is doing, so they are excluded ([`../model/approach.md`](../model/approach.md) §3). The gap is displayed beside the prediction, so a low risk driven by a long silence is visible as such |
 | The **outcome** — no examination after the landmark, so no endpoint can be assessed | informative censoring | handled by the survival structure, not by imputation: the patient is censored at last contact and contributes the follow-up they have. Never imputed as event-free |
 
 **No missing outcome is ever imputed**, and no patient is dropped for having an incomplete
@@ -289,7 +296,9 @@ size**, not as a held-out fold:
 - **Registry or manufacturer validation** for the valve-family effects, which are the features
   most at risk of reflecting a local purchasing pattern rather than a device property.
 - **Sample size.** A validation cohort needs enough *events*, not enough patients: the accepted
-  minimum is at least 100 events, and 200 for a precise calibration slope (Riley et al. 2021). At
+  minimum is at least 100 events, and 200 for a precise calibration slope (Collins et al. 2016; the
+calculation for a time-to-event outcome is Riley et al. 2022; references [79] and [61] in
+[`../docs/research/svd_literature.md`](../docs/research/svd_literature.md)). At
   the incidence this study assumes, that is a multi-centre cohort, and it is the reason external
   validation is scoped as its own study rather than an appendix to this one.
 - **What is reported.** Discrimination and calibration in the validation cohort *before* any
@@ -315,8 +324,9 @@ What the design requires, and why:
   positive is one extra scan. A decision curve, or an explicit statement of the operating point,
   is what makes that trade-off visible.
 
-Which of these are computed today, and which remain outstanding, is the model workstream's to
-state in [`../model/approach.md`](../model/approach.md) §4.
+On the supplied extract, notebook 05 computes the competing-risk AUC with bootstrap intervals, an
+Uno-style C-index, the scaled Brier score, calibration in the large and by risk group, and a
+decision curve ([`../model/approach.md`](../model/approach.md) §4).
 
 ### Subgroup Analyses
 
@@ -346,8 +356,8 @@ to represent it:
    saving quoted against one of them is not a saving against the other, and the comparator has to
    be the calendar the site actually follows.
 
-Which comparators are implemented is the model workstream's to report; the workload each policy
-implies, in examinations per 1,000 patient-years, is in
+All three are implemented in notebook 04 (valve age only, Cox on the published risk factors, and
+the calendar schedule), alongside the regression baseline; the workload each policy implies, in examinations per 1,000 patient-years, is in
 [`../model/decision_curve.md`](../model/decision_curve.md).
 
 ---
@@ -424,7 +434,7 @@ place.
 
 | what | why it moves | measured how | trigger |
 |---|---|---|---|
-| **Calibration in the large** — mean predicted risk against observed cumulative incidence at 2 and 5 years | the models measured here over-predict by roughly half ([`../model/stability.md`](../model/stability.md)), and incidence changes as valve technology changes | Aalen–Johansen in a rolling 24-month window, by arm | calibration slope outside 0.8 to 1.25, or observed-to-expected outside 0.75 to 1.33, triggers recalibration |
+| **Calibration in the large** — mean predicted risk against observed cumulative incidence at 2 and 5 years | on the synthetic cohort the models over-predict five-year risk by up to 57% ([`../model/stability.md`](../model/stability.md)), on the extract they under-predict or are about right, and incidence changes as valve technology changes | Aalen–Johansen in a rolling 24-month window, by arm | calibration slope outside 0.8 to 1.25, or observed-to-expected outside 0.75 to 1.33, triggers recalibration |
 | **Case mix** — the distribution of every input feature against the development cohort | a new valve family, a new referral pattern or a new echocardiography laboratory moves the population out from under the model | population stability index per feature, monthly | drift in any feature the model relies on triggers review before it triggers retraining |
 | **Data quality at the input** — field-presence rates from the abstraction layer | extraction silently degrades when note templates change, which looks identical to a change in the patients | presence rate per field per month, compared with the rate at deployment | a fall in any field's presence rate is an extraction incident, not a clinical finding |
 | **Fairness** — calibration and discrimination within each subgroup in §6 | a model can stay well calibrated overall while drifting badly in one group | the same rolling window, stratified | subgroup calibration outside the overall bounds triggers review of that subgroup specifically |

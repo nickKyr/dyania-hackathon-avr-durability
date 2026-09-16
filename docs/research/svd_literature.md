@@ -227,7 +227,7 @@ parameter is a decision for the team, and would require the calibration to be re
 
 | Covariate | Generator value | Published [T4] | Verdict |
 |---|---|---|---|
-| Age, per year | 0.91 | 0.97 (0.96-0.98) | **Disagrees.** The generator uses a meta-analytic estimate of 0.91 (0.89-0.94); 0.97 comes from a different series. The sensitivity analysis already recorded in `parameters.py` swept 0.91, 0.93, 0.95 and 0.97 and moved no calibration anchor by more than 0.8 percentage points, so the published alternative sits inside the range already tested. |
+| Age, per year | 0.91 | 0.97 (0.96-0.98) | **Disagrees.** The generator uses a meta-analytic estimate of 0.91 (0.89-0.94); 0.97 comes from a different series. The sensitivity analysis already recorded in `parameters.py` swept 0.91, 0.93, 0.95 and 0.97 and moved no calibration anchor by more than 0.43 percentage points, so the published alternative sits inside the range already tested. |
 | Active smoking | 2.28 | 2.58 (1.85-3.60) | Agrees — the value used lies inside the published interval. |
 | PPM, moderate | 1.95 | 1.79 (1.11-2.87) | Agrees — inside the interval. |
 | Chronic kidney disease | 1.45 | renal insufficiency 1.1 (1.03-1.16) | **Disagrees.** The generator's value is an explicit ASSUMPTION and is stronger than the only published estimate we hold, which excludes it. Worth revisiting; it is not a targeted calibration parameter. |
@@ -400,6 +400,7 @@ Methods
 76. Vahanian A, Beyersdorf F, Praz F, et al. 2021 ESC/EACTS Guidelines for the management of valvular heart disease. Eur Heart J 2022;43:561-632. doi:10.1093/eurheartj/ehab395. Cited from memory; echo surveillance recommendations not verified in this search.
 77. Statistical primer: sample size considerations for developing and validating clinical prediction models. Eur J Cardiothorac Surg 2025;67:ezaf142 (PMC12106283). Search summary; authors not captured.
 78. Uno H, Cai T, Pencina MJ, D'Agostino RB, Wei LJ. On the C-statistics for evaluating overall adequacy of risk prediction procedures with censored survival data. Stat Med 2011;30:1105-1117. Cited from memory (standard reference).
+79. Collins GS, Ogundimu EO, Altman DG. Sample size considerations for the external validation of a multivariable prognostic model: a resampling study. Stat Med 2016;35:214-226. Cited from memory (standard reference).
 79. Rizopoulos D. JM: an R package for the joint modelling of longitudinal and time-to-event data. J Stat Softw 2010;35(9):1-33. Cited from memory (standard reference).
 
 Sources that could not be opened: JACC publisher pages (403), AHA Circulation full texts (403), PubMed abstract pages (cookie wall; Europe PMC used instead), PMC pages for PMC11247222 and PMC9681687 (reCAPTCHA), ScienceDirect and Wiley full texts (403). Where this affected a number, the entry above says "abstract" or "search summary".
