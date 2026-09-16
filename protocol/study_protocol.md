@@ -211,6 +211,68 @@ one.
 
 The scheme as implemented is the model workstream's to report, together with the checks it runs.
 
+### Missing Data
+
+**Missingness here is not a nuisance to be imputed away; it is the exposure the study is about.**
+A patient with no echocardiogram in the record is not a patient with a missing measurement, they
+are a patient nobody looked at, and the probability of being looked at rises once symptoms appear.
+Three mechanisms have to be kept apart, because they call for different handling:
+
+| what is missing | mechanism | handling |
+|---|---|---|
+| A **predictor value** in an examination that happened (gradient recorded, DVI not) | close to missing at random, conditional on the examination having been done | native missing-value handling in the boosted model; explicit missingness indicators, of which `ref_missing` is already one; multiple imputation for the regression comparator, with the outcome in the imputation model |
+| An **entire examination** — the patient was not imaged | missing not at random: the surveillance gap depends on the unobserved state | never imputed. The gap enters the model as a feature (`years_since_last_echo`, `n_echo`, `n_echo_recent`) and is displayed beside the prediction, so a low risk driven by a long silence is visible as such |
+| The **outcome** — no examination after the landmark, so no endpoint can be assessed | informative censoring | handled by the survival structure, not by imputation: the patient is censored at last contact and contributes the follow-up they have. Never imputed as event-free |
+
+**No missing outcome is ever imputed**, and no patient is dropped for having an incomplete
+predictor vector: a complete-case analysis here would select for patients under close surveillance,
+which is the exact selection the study exists to characterise.
+
+Three analyses are specified rather than one, because the choice of handling can move the answer:
+the primary analysis (indicators plus native handling), a multiple-imputation sensitivity analysis
+with the outcome in the imputation model, and a complete-case comparison whose only purpose is to
+show how much the selection costs. Where they disagree materially, the disagreement is reported
+rather than resolved by choosing the most favourable.
+
+For missingness not at random, a **tipping-point analysis** is specified: unobserved examinations
+are assumed to carry systematically worse haemodynamics than observed ones, by a delta that is
+increased until the conclusion changes, and the delta at which it changes is reported. This
+replaces an untestable assumption with a statement of how wrong it would have to be to matter.
+
+At deployment the same question arises per patient, and the answer must be fixed in advance: what
+the model does when the reference examination is absent. It scores the patient with the
+missingness indicator set, and displays the surveillance gap beside the risk, because refusing to
+score the patient nobody has imaged would withhold the output precisely where it is most needed
+(see [`../model/approach.md`](../model/approach.md) §6).
+
+### External Validation
+
+Everything in this repository is internal validation: a temporal split by implant era, repeated
+across cohorts, with a decision curve on top. That establishes that the pipeline works; it does
+not establish that a model fitted at one site transports to another, and the two are routinely
+confused.
+
+The protocol therefore specifies external validation as a **separate study with its own sample
+size**, not as a held-out fold:
+
+- **Geographic validation** in at least one centre that contributed no training data, with its own
+  echocardiography laboratory and its own reporting conventions. Measurement convention is the
+  main threat: a laboratory that reports gradients systematically 2 mmHg higher shifts every
+  prediction, and nothing in an internal split can detect that.
+- **Registry or manufacturer validation** for the valve-family effects, which are the features
+  most at risk of reflecting a local purchasing pattern rather than a device property.
+- **Sample size.** A validation cohort needs enough *events*, not enough patients: the accepted
+  minimum is at least 100 events, and 200 for a precise calibration slope (Riley et al. 2021). At
+  the incidence this study assumes, that is a multi-centre cohort, and it is the reason external
+  validation is scoped as its own study rather than an appendix to this one.
+- **What is reported.** Discrimination and calibration in the validation cohort *before* any
+  adjustment, then the recalibrated model, then a case-mix comparison showing how the validation
+  population differs from the development one. A validation that reports only the recalibrated
+  numbers hides the transportability failure it was run to detect.
+
+Until that study runs, every performance figure in this repository is to be read as internal, on a
+synthetic cohort, and is labelled as such wherever it appears.
+
 ### Evaluation Metrics
 
 What the design requires, and why:
@@ -323,3 +385,45 @@ model beats both scanning everyone and changing nothing, and what each candidate
 What remains unfixed is genuinely clinical: which operating point inside that range to take, the
 action attached to each risk tier, and how the surveillance gap is displayed beside the risk.
 None of those is encoded in code today, and none should be before recalibration.
+
+### Post-Deployment Monitoring
+
+A prediction model is not a result that is published once; it is a component that runs on new
+patients every week and degrades quietly. Monitoring is therefore specified as part of the
+protocol rather than left to implementation, and a model goes live only with the monitoring in
+place.
+
+**What is monitored, and what triggers action:**
+
+| what | why it moves | measured how | trigger |
+|---|---|---|---|
+| **Calibration in the large** — mean predicted risk against observed cumulative incidence at 2 and 5 years | the models measured here over-predict by roughly half ([`../model/stability.md`](../model/stability.md)), and incidence changes as valve technology changes | Aalen–Johansen in a rolling 24-month window, by arm | calibration slope outside 0.8 to 1.25, or observed-to-expected outside 0.75 to 1.33, triggers recalibration |
+| **Case mix** — the distribution of every input feature against the development cohort | a new valve family, a new referral pattern or a new echocardiography laboratory moves the population out from under the model | population stability index per feature, monthly | drift in any feature the model relies on triggers review before it triggers retraining |
+| **Data quality at the input** — field-presence rates from the abstraction layer | extraction silently degrades when note templates change, which looks identical to a change in the patients | presence rate per field per month, compared with the rate at deployment | a fall in any field's presence rate is an extraction incident, not a clinical finding |
+| **Fairness** — calibration and discrimination within each subgroup in §6 | a model can stay well calibrated overall while drifting badly in one group | the same rolling window, stratified | subgroup calibration outside the overall bounds triggers review of that subgroup specifically |
+| **The action, not just the prediction** — how many examinations each tier actually generates | a schedule that nobody follows is not the schedule that was evaluated | scheduled versus performed examinations per tier | sustained divergence means the tiers, not the model, need revisiting |
+
+**Recalibration before retraining.** The expected failure is calibration drift, and the response to
+it is to update the baseline risk while leaving the coefficients alone — the intervention with the
+smallest surface. Full retraining is reserved for case-mix change, and any retrained model
+re-enters the evaluation of §5 rather than being swapped in.
+
+**Silent period first.** The model runs alongside the existing schedule without changing it for a
+pre-specified period, long enough to compare the schedule it would have produced against the one
+that was followed. Nothing about the model's development answers the question that period answers:
+whether a clinic acts on the output the way the design assumed.
+
+**Human in the loop, and an off switch.** Every changed interval is a clinician's decision, taken
+with the risk, the tier and the surveillance gap in view; the model schedules nothing by itself.
+A named clinical owner can suspend the model, and suspension returns the service to the guideline
+calendar — which is why the guideline calendar stays implemented as a comparator rather than being
+replaced.
+
+**Versioning and audit.** Every prediction is stored with the model version, the input vector and
+the code revision that produced it, so any past recommendation can be reconstructed exactly. This
+is also what makes an adverse event reviewable: a valve that failed between studies must be
+answerable with what the model saw and when.
+
+**Where this runs.** On-premises, behind the hospital firewall, on the same footing as the
+abstraction layer (§4). Monitoring statistics are aggregates and may leave the site; notes,
+predictions and patient-level inputs do not.
