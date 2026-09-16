@@ -136,6 +136,7 @@ def fit_cox(time: np.ndarray, event: np.ndarray, x: pd.DataFrame) -> CoxFit:
         i = j
 
     def objective(beta: np.ndarray) -> tuple[float, np.ndarray]:
+        """Negative log partial likelihood and its gradient at ``beta``."""
         value, gradient, _ = _partial_likelihood(beta, values, event, unique_index)
         return value, gradient
 

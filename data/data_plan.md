@@ -162,7 +162,7 @@ The cohort is built as a causal chain, in this order:
 3. **A surveillance process** — guideline echocardiographic visits, extra studies triggered by
    symptoms once deterioration has begun, and informative dropout.
 4. **Haemodynamics at each visit** — drifting gently before onset, accelerating after it, with
-   measurement error representing inter-observer and beat-to-beat variability.
+   proportional measurement error representing inter-observer and beat-to-beat variability.
 5. **Observed events** — established by applying the VARC-3 criteria to each examination against
    that patient's own reference examination.
 
@@ -185,13 +185,13 @@ sources, two endpoints and four time horizons.
 
 | quantity | subgroup | horizon | published | cohort | within band |
 |---|---|---|---|---|---|
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 20.3% | yes (targeted) |
-| moderate or severe SVD | TAVR | 10 y | 15.4% | 15.6% | yes (targeted) |
-| severe SVD | SAVR | 10 y | 10.0% | 9.1% | yes |
-| severe SVD | TAVR | 10 y | 1.5% | 7.3% | **no** |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 1.0% | yes |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 3.8% | yes |
-| severe SVD | TAVR | 7.8 y | 5.9% | 4.7% | yes |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 19.8% | yes (targeted) |
+| moderate or severe SVD | TAVR | 10 y | 15.4% | 14.5% | yes (targeted) |
+| severe SVD | SAVR | 10 y | 10.0% | 10.3% | yes |
+| severe SVD | TAVR | 10 y | 1.5% | 7.4% | **no** |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 1.5% | yes |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 4.3% | yes |
+| severe SVD | TAVR | 7.8 y | 5.9% | 5.4% | yes |
 
 Sources: NOTION ten-year echocardiographic follow-up; PARTNER 3 at five and seven years; UK TAVI
 registry at a median of 7.8 years. Incidence is reported as an Aalen–Johansen cumulative

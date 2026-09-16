@@ -348,7 +348,7 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
         for k, day in enumerate(days):
             years = day / DAYS_PER_YEAR
             truth = _gradient_at(rng, echo_params, baseline_gradient[i], drift[i], progression[i], years, onset)
-            measured = float(np.clip(truth + rng.normal(0.0, echo_params.measurement_sd_mmhg), 1.0, 119.0))
+            measured = float(np.clip(truth * rng.lognormal(0.0, echo_params.measurement_cv_gradient), 1.0, 119.0))
 
             if years > onset:
                 ar_index = _worsens_by_one_grade(rng, ar_index, echo_params.ar_progression_rate_per_year, years - previous_years)
@@ -356,9 +356,17 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
 
             # Area and dimensionless index fall as the gradient rises: for a fixed
             # stroke volume, gradient varies roughly with the inverse square of area.
-            ratio = float(np.sqrt(max(baseline_gradient[i], 1e-6) / max(measured, 1e-6)))
-            eoa_here = float(np.clip(patients["eoa_cm2"].iat[i] * ratio, 0.15, 3.4))
-            dvi_here = float(np.clip(dvi_baseline[i] * ratio, 0.06, 1.1))
+            # The ratio uses the TRUE gradient, and each quantity then carries its
+            # own independent measurement error, so that the reference examination
+            # reproduces the patient's recorded orifice area rather than a value
+            # inflated by the gradient's noise.
+            ratio = float(np.sqrt(max(baseline_gradient[i], 1e-6) / max(truth, 1e-6)))
+            eoa_here = float(
+                np.clip(patients["eoa_cm2"].iat[i] * ratio * rng.lognormal(0.0, echo_params.measurement_cv_eoa), 0.15, 3.4)
+            )
+            dvi_here = float(
+                np.clip(dvi_baseline[i] * ratio * rng.lognormal(0.0, echo_params.measurement_cv_dvi), 0.06, 1.1)
+            )
             lvef_here = float(
                 np.clip(
                     lvef_baseline[i] - (echo_params.lvef_decline_after_onset_per_year * max(years - onset, 0.0)),

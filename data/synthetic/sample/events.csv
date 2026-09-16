@@ -3,8 +3,8 @@ SYN-00003,death,1909,registry,simulated,day
 SYN-00004,death,2043,registry,simulated,day
 SYN-00007,death,1148,registry,simulated,day
 SYN-00008,death,2043,registry,simulated,day
-SYN-00009,svd_stage2,2244,echo,simulated,day
-SYN-00010,svd_stage2,2564,echo,simulated,day
+SYN-00009,svd_stage2,2076,echo,simulated,day
+SYN-00010,svd_stage2,2594,echo,simulated,day
 SYN-00012,death,241,registry,simulated,day
 SYN-00013,death,2683,registry,simulated,day
 SYN-00014,death,386,registry,simulated,day
@@ -17,7 +17,7 @@ SYN-00024,death,1573,registry,simulated,day
 SYN-00025,death,1215,registry,simulated,day
 SYN-00026,death,333,registry,simulated,day
 SYN-00029,death,1976,registry,simulated,day
-SYN-00030,svd_stage2,1638,echo,simulated,day
+SYN-00030,svd_stage2,1814,echo,simulated,day
 SYN-00030,death,1890,registry,simulated,day
 SYN-00032,death,2568,registry,simulated,day
 SYN-00035,death,2482,registry,simulated,day
@@ -30,5 +30,4 @@ SYN-00049,death,466,registry,simulated,day
 SYN-00050,death,185,registry,simulated,day
 SYN-00051,death,2208,registry,simulated,day
 SYN-00053,death,2021,registry,simulated,day
-SYN-00055,svd_stage2,3598,echo,simulated,day
 SYN-00056,death,1983,registry,simulated,day

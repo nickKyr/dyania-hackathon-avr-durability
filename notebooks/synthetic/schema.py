@@ -120,9 +120,15 @@ class Table:
 
     @property
     def column_names(self) -> tuple[str, ...]:
+        """Names of every column, in declaration order."""
         return tuple(column.name for column in self.columns)
 
     def column(self, name: str) -> Column:
+        """Return the named column.
+
+        Raises:
+            KeyError: If the table has no such column.
+        """
         for column in self.columns:
             if column.name == name:
                 return column

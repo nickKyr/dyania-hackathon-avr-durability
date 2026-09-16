@@ -167,8 +167,8 @@ class HazardParameters:
     the VARC-3 threshold, and that crossing is governed by the progression model in
     :class:`EchoParameters`, not by this shape."""
 
-    svd_scale_savr_years: float = 35.109375
-    svd_scale_tavr_years: float = 16.546875
+    svd_scale_savr_years: float = 35.511474609375
+    svd_scale_tavr_years: float = 16.540283203125
     """SOLVED by bisection, not assumed: the values reproducing the two targeted
     NOTION anchors on a 30,000-patient cohort at seed 20260917. Re-derive with
     :func:`synthetic.calibration.solve_scales` if any upstream parameter changes.
@@ -251,10 +251,25 @@ class EchoParameters:
     """ASSUMPTION. Post-onset acceleration, lognormal so that a minority of
     patients deteriorate rapidly -- the clinically important tail."""
 
-    measurement_sd_mmhg: float = 1.6
-    """Inter-observer and beat-to-beat variability of the mean gradient. Present
-    because a surveillance model that ignores measurement error will declare
-    deterioration on noise, and the protocol has to confront that."""
+    measurement_cv_gradient: float = 0.10
+    measurement_cv_eoa: float = 0.12
+    measurement_cv_dvi: float = 0.10
+    """Inter-observer and beat-to-beat variability, as coefficients of variation.
+
+    Present because a surveillance model that ignores measurement error will
+    declare deterioration on noise, and the protocol has to confront that.
+
+    The error is **proportional, not additive**. An additive error of a fixed
+    number of mmHg is indefensible at the low end: a large supra-annular valve
+    with a true mean gradient of 3 mmHg would be measured at 1 mmHg or less, which
+    no echocardiographer reports, and it would make the VARC-3 criterion of a
+    10 mmHg rise from an artificially low reference far too easy to satisfy.
+    Echocardiographic measurement error is empirically proportional.
+
+    Each quantity is measured with its own independent error, rather than area and
+    dimensionless index being derived from the already-noisy gradient. Deriving
+    them would count the same measurement error twice and would let the reference
+    examination disagree with the patient's own recorded orifice area."""
 
     peak_to_mean_low: float = 1.75
     peak_to_mean_high: float = 2.25
