@@ -163,26 +163,50 @@ PATIENTS: Final[Table] = _table(
     columns=(
         Column("patient_id", "str", "Synthetic identifier, stable for a given seed."),
         Column("implant_year", "int", "Calendar year of the index implant.", minimum=1990, maximum=2040),
+        # Everything below is nullable, and that is the point of the schema rather
+        # than a weakness in it. This table describes the cohort the protocol asks a
+        # site to supply; a real extract is a SPARSE CASE of it. The supplied extract
+        # has no demographics table, no implant registry and no echo table, so it can
+        # populate only some of these columns -- and the gap between what the schema
+        # asks for and what an extract delivers is precisely the quantity the
+        # degradation ladder measures. Forbidding nulls here would have forced the
+        # real data into a different shape and made the comparison impossible.
+        #
+        # A synthetic cohort at the `ideal` rung populates all of them, and a test
+        # asserts it does.
         Column(
             "age_at_implant",
             "float",
-            "Age in years at the index implant. Nullable because the 'no_age' rung of "
-            "the degradation ladder removes it, mirroring the redaction in the extract.",
+            "Age in years at the index implant. Absent from the supplied extract, "
+            "where it is redacted as a token in 194 of 215 notes.",
             nullable=True,
             minimum=18.0,
             maximum=105.0,
         ),
-        Column("sex", "str", "Recorded sex.", allowed=("female", "male")),
-        Column("bsa_m2", "float", "Body surface area in m^2.", minimum=1.0, maximum=3.0),
-        Column("approach", "str", "Index procedure type.", allowed=("SAVR", "TAVR")),
-        Column("valve_model", "str", "Commercial model of the implanted bioprosthesis."),
-        Column("valve_size_mm", "int", "Label size in mm.", minimum=17, maximum=34),
-        Column("eoa_cm2", "float", "Effective orifice area at the reference echo, cm^2.", minimum=0.3, maximum=3.5),
+        Column(
+            "sex",
+            "str",
+            "Recorded sex. In the supplied extract this is inferred from pronouns, "
+            "so it is a weak field there and absent for patients whose notes use none.",
+            nullable=True,
+            allowed=("female", "male"),
+        ),
+        Column("bsa_m2", "float", "Body surface area in m^2.", nullable=True, minimum=1.0, maximum=3.0),
+        Column("approach", "str", "Index procedure type.", nullable=True, allowed=("SAVR", "TAVR")),
+        Column("valve_model", "str", "Commercial model of the implanted bioprosthesis.", nullable=True),
+        Column("valve_size_mm", "int", "Label size in mm.", nullable=True, minimum=17, maximum=34),
+        Column(
+            "eoa_cm2",
+            "float",
+            "Effective orifice area at the reference echo, cm^2.",
+            nullable=True, minimum=0.3, maximum=3.5,
+        ),
         Column(
             "eoa_index_cm2_m2",
             "float",
             "Effective orifice area indexed to body surface area, cm^2/m^2. The "
             "quantity patient-prosthesis mismatch is defined on.",
+            nullable=True,
             minimum=0.2,
             maximum=2.5,
         ),
@@ -191,12 +215,16 @@ PATIENTS: Final[Table] = _table(
             "str",
             "Patient-prosthesis mismatch at the VARC-3 cut-offs: moderate at an indexed "
             "EOA of 0.85 or below, severe at 0.65 or below.",
+            nullable=True,
             allowed=("none", "moderate", "severe"),
         ),
-        Column("diabetes", "bool", "Diabetes mellitus at implant."),
-        Column("ckd", "bool", "Chronic kidney disease at implant."),
-        Column("smoking", "bool", "Current or recent smoking at implant."),
-        Column("bicuspid", "bool", "Bicuspid native aortic valve."),
+        # A comorbidity absent from a note is UNKNOWN, not absent. Recording it as
+        # False would turn missing documentation into a negative finding, which is
+        # how chart review manufactures spurious associations.
+        Column("diabetes", "bool", "Diabetes mellitus at implant.", nullable=True),
+        Column("ckd", "bool", "Chronic kidney disease at implant.", nullable=True),
+        Column("smoking", "bool", "Current or recent smoking at implant.", nullable=True),
+        Column("bicuspid", "bool", "Bicuspid native aortic valve.", nullable=True),
     ),
 )
 
@@ -221,17 +249,18 @@ ECHOS: Final[Table] = _table(
             "implant, against which VARC-3 haemodynamic deterioration is defined. "
             "Without it, only the absolute-threshold arm of the definition is usable.",
         ),
-        Column("mean_gradient_mmhg", "float", "Mean transprosthetic gradient.", minimum=0.0, maximum=120.0),
-        Column("peak_gradient_mmhg", "float", "Peak transprosthetic gradient.", minimum=0.0, maximum=200.0),
-        Column("dvi", "float", "Dimensionless valve index.", minimum=0.05, maximum=1.2),
-        Column("eoa_cm2", "float", "Effective orifice area by continuity, cm^2.", minimum=0.1, maximum=3.5),
+        Column("mean_gradient_mmhg", "float", "Mean transprosthetic gradient.", nullable=True, minimum=0.0, maximum=120.0),
+        Column("peak_gradient_mmhg", "float", "Peak transprosthetic gradient.", nullable=True, minimum=0.0, maximum=200.0),
+        Column("dvi", "float", "Dimensionless valve index.", nullable=True, minimum=0.05, maximum=1.2),
+        Column("eoa_cm2", "float", "Effective orifice area by continuity, cm^2.", nullable=True, minimum=0.1, maximum=3.5),
         Column(
             "ar_grade",
             "str",
             "Intraprosthetic aortic regurgitation grade.",
+            nullable=True,
             allowed=("none", "trace", "mild", "moderate", "severe"),
         ),
-        Column("lvef_pct", "float", "Left ventricular ejection fraction, percent.", minimum=10.0, maximum=80.0),
+        Column("lvef_pct", "float", "Left ventricular ejection fraction, percent.", nullable=True, minimum=10.0, maximum=80.0),
     ),
 )
 
@@ -313,6 +342,12 @@ TABLES: Final[dict[str, Table]] = {
 TABLE_NAMES: Final[tuple[str, ...]] = tuple(TABLES)
 
 
+_MEASUREMENTS: Final[frozenset[str]] = frozenset(
+    {"mean_gradient_mmhg", "peak_gradient_mmhg", "dvi", "eoa_cm2", "ar_grade", "lvef_pct"}
+)
+"""Parameters an examination may report. At least one must be present per row."""
+
+
 def _kind_matches(series: pd.Series, kind: str) -> bool:
     """Return whether a series is compatible with a declared column kind.
 
@@ -377,6 +412,15 @@ def validate(frame: pd.DataFrame, table: str) -> None:
             problems.append(f"{column.name}: {int((values < column.minimum).sum())} values below the minimum {column.minimum}")
         if column.maximum is not None and pdt.is_numeric_dtype(values) and (values > column.maximum).any():
             problems.append(f"{column.name}: {int((values > column.maximum).sum())} values above the maximum {column.maximum}")
+
+    if table == "echos" and set(_MEASUREMENTS) <= present:
+        empty = frame[list(_MEASUREMENTS)].isna().all(axis=1).sum()
+        if empty:
+            problems.append(
+                f"{int(empty)} examinations report none of {sorted(_MEASUREMENTS)}. "
+                "An examination from which nothing was measured is not an examination; "
+                "it is a row that will silently inflate any count of follow-up imaging."
+            )
 
     if set(spec.key) <= present:
         duplicated = int(frame.duplicated(subset=list(spec.key)).sum())

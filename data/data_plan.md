@@ -316,24 +316,80 @@ was computed on an unrounded indexed area while the rounded value was published,
 patient's grade contradicted the number printed beside it; and a reintervention could be recorded
 after a patient had been lost to follow-up, giving the cohort ascertainment nobody had.
 
-### The degradation ladder
+### The degradation ladder, and why its last rung is not simulated
 
-The same cohort is emitted five times, each rung removing one property of the data while leaving
-the patients, their biology and their events untouched. The truth is identical on every rung;
-only what an analyst can see of it changes. One unchanged modelling pipeline run across the rungs
-therefore measures exactly one thing: what each defect costs.
+The same cohort is emitted five times, each rung removing one property of the data
+while leaving the patients, their biology and their events untouched. The truth is
+identical on every rung; only what an analyst can see of it changes. One unchanged
+modelling pipeline run across the rungs therefore measures exactly one thing: what each
+defect costs.
 
-| rung | defect added | mirrors |
+**A sixth rung is the supplied extract itself**, mapped into this same schema by
+`notebooks/cohort/to_schema.py`. That is what makes the ladder an argument rather than an
+assertion: a panel reading "our last rung simulates how poor the data are" is being asked
+to take the simulation on trust; a panel reading "our last rung *is* the data" is not.
+
+| rung | defect added | simulated? |
 |---|---|---|
-| `ideal` | none | the data the protocol asks a site to supply |
-| `no_age` | age at implant removed | `[AGE]` redacted in 194 of 215 notes |
-| `year_resolution` | all timing collapsed to the calendar year | date shifting and truncation in the extract |
-| `single_echo` | one examination per patient, no reference study | one patient in the extract has values in more than one year |
-| `as_supplied` | haemodynamics kept for only 27% of patients | the measured yield of chart abstraction: 32 of 117 |
+| `ideal` | none — the data the protocol asks a site to supply | yes |
+| `no_age` | age at implant removed | yes |
+| `year_resolution` | all timing collapsed to the calendar year | yes |
+| `single_echo` | one examination per patient, no reference study | yes |
+| `as_supplied` | one encounter with its quoted priors, examinations for only the 52% abstraction reaches, no device identity, **no mortality** | yes |
+| `as_received` | nothing added — this *is* the supplied extract | **no** |
 
-The rungs are cumulative. This converts a statement no panel can act on — "the data were poor" —
-into a ranked, quantified account of which defect costs most, which is the argument a site needs
-before it will fund dated, serial, linkable echocardiography.
+The synthetic rungs are cumulative. Every one of them can be reproduced by a reviewer with
+no access to the private extract, because `synthetic` never imports `cohort`; only the last
+rung needs the data.
+
+### What the comparison found
+
+Building the real rung immediately exposed four ways in which our model of the data's
+poverty had been wrong. Three were corrected; the fourth is a finding and was left alone.
+
+| property | simulated rung, before | corrected | the extract |
+|---|---|---|---|
+| patients with any examination | 27% | 52% | 52% |
+| examinations per patient | 1.00 | 1.57 | 1.69 |
+| patients with more than one gradient | 0% | 24% | 18% |
+| **mortality observed** | **yes** | **no** | **no** |
+| events per 100 patients | 20.5 | 24.8 | **12.0** |
+
+The mortality correction matters most. The extract contains **no death data of any kind** —
+no table, no date, no linkage — so the competing risk is entirely unobserved. That is the
+single most consequential absence in it and the easiest to overlook, because nothing in the
+data announces it: a patient whose notes simply stop looks identical to a patient who is
+well. A cumulative incidence computed where death is invisible is not comparable with one
+computed where it is known, and our simulation had been quietly retaining deaths the real
+data could never supply.
+
+The examination-count correction matters for a subtler reason. Modelling the extract as
+*one examination per patient* was too harsh: a clinical note routinely quotes prior studies
+alongside the current one, so patients do have several gradients. What the extract destroys
+is not the number of measurements but their **order and their dates** — the quoted priors
+carry no date of their own. A patient can have three gradients and no trajectory.
+
+**The event-rate gap is not corrected, because it is a result.** The extract documents 12
+events per 100 patients where a comparable cohort under proper follow-up shows about 25.
+Roughly half the events are invisible: they are echocardiographic deteriorations that were
+never adjudicated, in patients who were never imaged again. This is the cost of incomplete
+ascertainment, measured rather than asserted, and it is the clearest single argument in this
+document for why the abstraction pipeline the protocol proposes is worth building.
+
+### Real and synthetic are kept apart
+
+The two cohorts share a schema; they are never concatenated into one table. Merging them
+would be indefensible on three counts. It would add nothing — 32 assessable labels against
+1,800 synthetic patients is 0.3% of a training set. It would destroy the one claim this
+submission rests on, because no number in it could then be attributed cleanly: the answer to
+"which of these came from patients?" would be "they are mixed", which is the worst available
+answer. And the real rows carry verbatim note text, which must not travel with anything
+else.
+
+Kept apart, each does the job it can do. The synthetic cohort is where the pipeline is
+exercised, because it is the only cohort that has serial dated examinations, known event
+times and age. The real cohort is where the pipeline's *inputs* are measured, and it anchors
+the bottom of the ladder in something nobody has to take on trust.
 
 ### Limitations
 

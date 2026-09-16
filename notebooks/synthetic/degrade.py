@@ -79,14 +79,75 @@ def _single_echo(tables: _Tables, rng: np.random.Generator) -> _Tables:
     return tables | {"echos": kept.reset_index(drop=True), "followup": followup}
 
 
-def _extraction_yield(tables: _Tables, rng: np.random.Generator, retained: float = 0.27) -> _Tables:
+def _one_encounter(tables: _Tables, rng: np.random.Generator, quoted_priors_mean: float = 0.9) -> _Tables:
+    """Keep one encounter, plus the earlier studies that encounter quotes.
+
+    A gentler and more faithful defect than keeping exactly one examination. The
+    supplied extract averages 1.69 examinations per patient who has any, because a
+    clinical note routinely quotes prior studies alongside the current one -- "the
+    mean gradient is 25 mmHg, compared with 18 mmHg previously".
+
+    What is destroyed is therefore not the *number* of measurements but their
+    **order and their dates**. The quoted priors carry no date of their own, so they
+    all collapse onto the service year of the note that mentions them: a patient can
+    have three gradients and no trajectory. Modelling this as a single examination,
+    as an earlier version did, understated what the extract contains and overstated
+    how cleanly it fails.
+
+    ``quoted_priors_mean`` is the mean number of earlier studies a note repeats,
+    chosen so that the simulated rung reproduces the 1.69 measured in the extract.
+    """
+    echos = tables["echos"].sort_values(["patient_id", "days_from_implant"])
+    kept: list[pd.DataFrame] = []
+    for _, group in echos.groupby("patient_id", sort=False):
+        index = rng.integers(0, len(group))
+        encounter = group.iloc[index]
+        earlier = group.iloc[:index]
+        quoted = min(int(rng.poisson(quoted_priors_mean)), len(earlier))
+        block = pd.concat([earlier.tail(quoted), group.iloc[[index]]]).copy()
+        # Everything the note mentions is attributed to the note's own service year.
+        block["days_from_implant"] = int(encounter["days_from_implant"])
+        block["is_reference"] = False
+        kept.append(block)
+
+    echos = pd.concat(kept).reset_index(drop=True) if kept else echos.iloc[:0]
+    followup = tables["followup"].copy()
+    counts = echos.groupby("patient_id").size()
+    followup["n_echos"] = followup["patient_id"].map(counts).fillna(0).astype(int)
+    return tables | {"echos": echos, "followup": followup}
+
+
+def _no_mortality(tables: _Tables, rng: np.random.Generator) -> _Tables:
+    """Remove every death.
+
+    The supplied extract contains no mortality data of any kind: no death table, no
+    date of death, no linkage. The competing risk is therefore entirely unobserved,
+    and this is the single most consequential absence in it -- more damaging than
+    the missing age, and far easier to overlook, because nothing in the data
+    announces it. A cumulative incidence computed where death is invisible is not
+    comparable with one computed where it is known, and a model fitted without it
+    will mistake patients who died for patients who were fine.
+    """
+    events = tables["events"]
+    events = events[events["event_type"] != "death"].reset_index(drop=True)
+    followup = tables["followup"].copy()
+    followup["censoring_reason"] = followup["censoring_reason"].replace("death", "administrative")
+    return tables | {"events": events, "followup": followup}
+
+
+def _extraction_yield(tables: _Tables, rng: np.random.Generator, retained: float = 0.521) -> _Tables:
     """Retain haemodynamic data for only the fraction of patients abstraction yields.
 
-    Mirrors the measured yield of the extraction pipeline on the real notes: 32 of
-    117 patients, 27%, receive an assessable label; 69 have no prosthetic echo value
-    at all. Events established by reintervention survive, because operative reports
-    exist even where echocardiographic values do not -- which is exactly the ground
-    truth hierarchy the protocol relies on.
+    The retained fraction is **measured, not assumed**: mapping the supplied extract
+    into this schema yields post-operative prosthetic examinations for 61 of its 117
+    patients, 52.1%. A stricter figure exists for a different question -- only 32 of
+    117 receive a label assessable against the endpoint criteria, 27% -- but the
+    quantity this rung models is what reaches the analyst, which is the examinations.
+
+    Events established by reintervention survive, because operative reports exist
+    even where echocardiographic values do not. That is exactly the ground-truth
+    hierarchy the protocol relies on, and it is why the real cohort still carries 14
+    events with no usable haemodynamics behind most of them.
     """
     ids = tables["patients"]["patient_id"].to_numpy()
     keep = set(rng.choice(ids, size=int(round(retained * len(ids))), replace=False))
@@ -103,11 +164,29 @@ def _extraction_yield(tables: _Tables, rng: np.random.Generator, retained: float
     return tables | {"echos": echos, "events": events, "followup": followup}
 
 
+def _drop_implant_detail(tables: _Tables, rng: np.random.Generator) -> _Tables:
+    """Remove the device identity and the native valve morphology.
+
+    Mirrors the supplied extract, which has no implant registry: valve model and
+    label size exist only inside operative-report free text and did not survive the
+    consolidation, and bicuspid morphology is nowhere recorded in structured form.
+    Both are covariates the durability literature treats as central.
+    """
+    patients = tables["patients"].copy()
+    patients["valve_model"] = pd.NA
+    patients["valve_size_mm"] = np.nan
+    patients["bicuspid"] = pd.NA
+    return tables | {"patients": patients}
+
+
 _DEFECTS: Final[dict[str, Callable[[_Tables, np.random.Generator], _Tables]]] = {
     "drop_age": _drop_age,
     "round_to_year": _round_to_year,
     "single_echo": _single_echo,
     "extraction_yield": _extraction_yield,
+    "drop_implant_detail": _drop_implant_detail,
+    "one_encounter": _one_encounter,
+    "no_mortality": _no_mortality,
 }
 
 PRESETS: Final[dict[str, tuple[str, ...]]] = {
@@ -115,16 +194,27 @@ PRESETS: Final[dict[str, tuple[str, ...]]] = {
     "no_age": ("drop_age",),
     "year_resolution": ("drop_age", "round_to_year"),
     "single_echo": ("drop_age", "round_to_year", "single_echo"),
-    "as_supplied": ("drop_age", "round_to_year", "single_echo", "extraction_yield"),
+    "as_supplied": (
+        "drop_age", "round_to_year", "one_encounter", "extraction_yield",
+        "drop_implant_detail", "no_mortality",
+    ),
 }
-"""The rungs, in order. Cumulative: each contains every defect above it."""
+"""The rungs, in order. Cumulative: each contains every defect above it.
+
+These five are *simulations* of data poverty. The ladder has a sixth rung that is
+not simulated at all -- the supplied extract itself, mapped into this schema by
+``cohort.to_schema``. Comparing the fifth rung with the sixth answers a question
+the simulation cannot answer about itself: whether our model of how poor the data
+are was accurate. See ``cohort.ladder``.
+"""
 
 PRESET_DESCRIPTIONS: Final[dict[str, str]] = {
     "ideal": "The data the protocol asks a site to supply: dated serial echocardiography with demographics.",
     "no_age": "Age at implant redacted, as in the supplied notes.",
     "year_resolution": "All timing collapsed to the calendar year by date shifting.",
     "single_echo": "One examination per patient and no reference study, so VARC-3 rise criteria cannot be applied.",
-    "as_supplied": "Haemodynamic data for only the 27% of patients chart abstraction yields a label for.",
+    "as_supplied": "Simulating the supplied extract: one encounter per patient, examinations for "
+                   "only the 52% abstraction reaches, no device identity, and no mortality at all.",
 }
 
 
