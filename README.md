@@ -137,6 +137,11 @@ uv add pandas
 ```
 
 5. For removing an unnecessary package from venv, i.e. removing pandas:
-```pandas
+```bash
 uv remove pandas
+```
+
+6. Run python script:
+```
+uv run -m data.build_landmark_table
 ```

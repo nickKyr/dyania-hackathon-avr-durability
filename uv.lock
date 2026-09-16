@@ -9,6 +9,7 @@ resolution-markers = [
     "python_full_version < '3.14' and sys_platform == 'emscripten'",
     "python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
+<<<<<<< Updated upstream
 
 [[package]]
 name = "anyio"
@@ -390,6 +391,8 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/f0/a7/920baf467bfd9bf689f3b318340f37aee4572a71f162bd8db51da55ba4fa/charset_normalizer-3.5.1-cp37-abi3-win_arm64.whl", hash = "sha256:87e4f41d375c0b9be2fb5251aee4b8a689169e134535aed81bf085c3b647451e", size = 287318, upload-time = "2026-08-15T08:20:15.551Z" },
     { url = "https://files.pythonhosted.org/packages/cc/61/d01fc49b8dea277640b55a9e15960dbca9fdc8c9fde18e572d39c59f4019/charset_normalizer-3.5.1-py3-none-any.whl", hash = "sha256:6df0ec430f9a831772c23ca5a224cba36517a58a84bb32c32bb59a9fa67c47f6", size = 68658, upload-time = "2026-08-15T08:20:43.306Z" },
 ]
+=======
+>>>>>>> Stashed changes
 
 [[package]]
 name = "cloudpickle"
@@ -546,6 +549,7 @@ name = "dyania-hackathon-avr-durability"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+<<<<<<< Updated upstream
     { name = "ipykernel" },
     { name = "jupyter" },
     { name = "markdown" },
@@ -555,11 +559,16 @@ dependencies = [
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "pyarrow" },
+=======
+    { name = "openpyxl" },
+    { name = "pandas" },
+>>>>>>> Stashed changes
     { name = "scikit-learn" },
 ]
 
 [package.metadata]
 requires-dist = [
+<<<<<<< Updated upstream
     { name = "ipykernel", specifier = ">=7.3.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "markdown", specifier = ">=3.10.3" },
@@ -569,6 +578,10 @@ requires-dist = [
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "pyarrow", specifier = ">=25.0.1" },
+=======
+    { name = "openpyxl", specifier = ">=3.1.5" },
+    { name = "pandas", specifier = ">=3.0.5" },
+>>>>>>> Stashed changes
     { name = "scikit-learn", specifier = ">=1.9.1" },
 ]
 
@@ -580,6 +593,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/d3/38/af70d7ab1ae9d4da4
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl", hash = "sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa", size = 18059, upload-time = "2024-10-25T17:25:39.051Z" },
 ]
+<<<<<<< Updated upstream
 
 [[package]]
 name = "executing"
@@ -819,6 +833,8 @@ sdist = { url = "https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c
 wheels = [
     { url = "https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67", size = 134899, upload-time = "2025-03-05T20:05:00.369Z" },
 ]
+=======
+>>>>>>> Stashed changes
 
 [[package]]
 name = "joblib"
@@ -1563,6 +1579,7 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "packaging"
 version = "26.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1572,6 +1589,8 @@ wheels = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "pandas"
 version = "3.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -1618,6 +1637,7 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "pandocfilters"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1858,6 +1878,8 @@ wheels = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -1870,6 +1892,7 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "python-json-logger"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2149,6 +2172,8 @@ wheels = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "scikit-learn"
 version = "1.9.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2271,6 +2296,7 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "send2trash"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2280,6 +2306,8 @@ wheels = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "six"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2289,6 +2317,7 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "soupsieve"
 version = "2.9.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2326,6 +2355,8 @@ wheels = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "threadpoolctl"
 version = "3.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2335,6 +2366,7 @@ wheels = [
 ]
 
 [[package]]
+<<<<<<< Updated upstream
 name = "tinycss2"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2382,6 +2414,8 @@ wheels = [
 ]
 
 [[package]]
+=======
+>>>>>>> Stashed changes
 name = "tzdata"
 version = "2026.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2389,6 +2423,7 @@ sdist = { url = "https://files.pythonhosted.org/packages/e4/31/3d74fa778a63b98b7
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f9/bc/8737e8d54cf51106118039b83f485a4783112fab49ea9d044b234978a46e/tzdata-2026.4-py2.py3-none-any.whl", hash = "sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81", size = 347494, upload-time = "2026-09-12T12:56:01.67Z" },
 ]
+<<<<<<< Updated upstream
 
 [[package]]
 name = "uri-template"
@@ -2452,3 +2487,5 @@ sdist = { url = "https://files.pythonhosted.org/packages/bf/60/bc7a980fc78837d6e
 wheels = [
     { url = "https://files.pythonhosted.org/packages/34/95/40e17e20046b7bc820d29d09ae84ec157ec8dd6e6f6cd722626292c31b2e/widgetsnbextension-4.0.16-py3-none-any.whl", hash = "sha256:a31a8774885b96fe825462f5d6496166f0c7cae111195b6465c801d230eb5a4e", size = 2225148, upload-time = "2026-08-18T08:52:53.736Z" },
 ]
+=======
+>>>>>>> Stashed changes
