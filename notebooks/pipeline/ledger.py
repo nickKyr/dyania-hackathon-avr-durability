@@ -111,7 +111,7 @@ def table(horizon=5):
             dirty=e["git"].get("uncommitted_changes", False), config=e.get("config_hash", ""), note=e.get("note", ""),
             patients=data.get("n_patients"), like_real=data.get("train_like_real"),
             follow_up=match.get("follow_up_window") if data.get("train_like_real") else "",
-            selection=sel.get("enabled"), dropped_blocks=",".join(sel.get("drop_blocks", []) or []),
+            selection=sel.get("enabled"), selection_mode=sel.get("mode", "auto"), dropped_blocks=",".join(sel.get("drop_blocks", []) or []),
             n_features=len(data.get("features_used", []) or []), train_events=data.get("train_events"),
             tuned=train.get("best_params"), real_events=e["real_extract"].get("valves_with_event"),
             observed=e["real_extract"].get("observed", {}).get(str(horizon)),
@@ -149,7 +149,8 @@ def write_markdown(horizon=5):
         r0 = g.iloc[0]
         by = g.set_index("model")
         training = f"{r0.patients or ''} patients" + (f", like real ({r0.follow_up})" if r0.like_real else ", ideal")
-        feats = f"{r0.n_features}" + (" selected" if r0.selection else " all") + (f", minus {r0.dropped_blocks}" if r0.dropped_blocks else "")
+        kind = (" fixed list" if r0.selection_mode == "fixed" else " selected") if r0.selection else " all"
+        feats = f"{r0.n_features}{kind}" + (f", minus {r0.dropped_blocks}" if r0.dropped_blocks and r0.selection_mode != "fixed" else "")
         commit = f"{r0.commit}{'+' if r0.dirty else ''}"
         cells = [time, run, commit, r0.config, r0.note or "", training, feats, str(r0.real_events), _fmt(r0.observed, pct=True)]
         for m in HEADLINE_MODELS:
