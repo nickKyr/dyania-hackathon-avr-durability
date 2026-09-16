@@ -213,6 +213,53 @@ def solve_scales(
     return middle["SAVR"], middle["TAVR"]
 
 
+def calibration_across_seeds(
+    seeds: tuple[int, ...] = (20260917, 1, 2, 3, 4, 5, 6, 7),
+    *,
+    n_patients: int = 1800,
+    params: Parameters | None = None,
+) -> pd.DataFrame:
+    """Repeat the calibration over several seeds and report the spread.
+
+    A calibration table from a single cohort confounds two things: whether the
+    generating process is right, and whether that particular draw was lucky. At
+    1,800 patients the Monte Carlo standard error of a 20% incidence is around one
+    percentage point, which is the size of the differences being judged. Reporting
+    a mean and a standard deviation across seeds separates the two, and the count
+    of seeds inside the band shows whether a verdict is stable or borderline.
+
+    Args:
+        seeds: Seeds to draw cohorts with.
+        n_patients: Size of each cohort.
+        params: Parameter set; defaults to the calibrated one.
+
+    Returns:
+        One row per anchor, with the published value, the mean and standard
+        deviation across seeds, the range, and how many seeds fell inside the band.
+    """
+    from . import generate
+
+    per_seed = [
+        calibration_report(generate("ideal", seed=seed, n_patients=n_patients, params=params))
+        for seed in seeds
+    ]
+    key = ["quantity", "subgroup", "horizon_years", "published", "targeted"]
+    values = pd.concat([frame.set_index(key)["cohort"] for frame in per_seed], axis=1)
+    inside = pd.concat([frame.set_index(key)["within_band"] for frame in per_seed], axis=1)
+    summary = pd.DataFrame(
+        {
+            "cohort_mean": values.mean(axis=1).round(4),
+            "cohort_sd": values.std(axis=1).round(4),
+            "cohort_min": values.min(axis=1).round(4),
+            "cohort_max": values.max(axis=1).round(4),
+            "seeds_within_band": inside.sum(axis=1).astype(int),
+            "seeds": len(seeds),
+        }
+    ).reset_index()
+    summary["difference"] = (summary["cohort_mean"] - summary["published"]).round(4)
+    return summary
+
+
 def calibration_report(cohort: dict[str, pd.DataFrame]) -> pd.DataFrame:
     """Compare a cohort against every published anchor.
 

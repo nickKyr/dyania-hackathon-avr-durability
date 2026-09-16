@@ -160,11 +160,21 @@ The cohort is built as a causal chain, in this order:
    effects, and an independent Weibull time to death. Onset is a biological event that nobody
    observes.
 3. **A surveillance process** — guideline echocardiographic visits, extra studies triggered by
-   symptoms once deterioration has begun, and informative dropout.
+   symptoms once deterioration has begun, and informative dropout. The dropout hazard rises at
+   latent onset, not merely with age: a dropout process driven only by measured covariates would
+   be non-informative given those covariates, an analysis adjusting for them would be unbiased,
+   and the protocol's concern about loss to follow-up would be a concern about nothing.
 4. **Haemodynamics at each visit** — drifting gently before onset, accelerating after it, with
    proportional measurement error representing inter-observer and beat-to-beat variability.
 5. **Observed events** — established by applying the VARC-3 criteria to each examination against
    that patient's own reference examination.
+
+Each event carries both ends of its censoring interval: `interval_start_days`, the last
+examination at which the event had not yet occurred, and `days_from_implant`, the examination that
+detected it. On this cohort those intervals have a median width of one year and a maximum of 4.25
+years, so a deterioration recorded at an examination may have begun four years earlier. Supplying
+only the right endpoint, as most extracts do, silently converts an interval-censored outcome into
+an exactly observed one.
 
 Step 5 is what makes the cohort honest. An event is recorded at the examination that *detects*
 it, never at the latent onset, so the outcome is interval-censored exactly as it is in a real
@@ -183,15 +193,21 @@ against the NOTION ten-year moderate-or-severe figures, and four shape parameter
 small grid. Those six reproduce **six of seven** published quantities, across three independent
 sources, two endpoints and four time horizons.
 
-| quantity | subgroup | horizon | published | cohort | within band |
+| quantity | subgroup | horizon | published | cohort, mean ± sd over 8 seeds | inside band |
 |---|---|---|---|---|---|
-| moderate or severe SVD | SAVR | 10 y | 20.8% | 19.8% | yes (targeted) |
-| moderate or severe SVD | TAVR | 10 y | 15.4% | 14.5% | yes (targeted) |
-| severe SVD | SAVR | 10 y | 10.0% | 10.3% | yes |
-| severe SVD | TAVR | 10 y | 1.5% | 7.4% | **no** |
-| bioprosthetic valve failure | all | 5 y | 3.6% | 1.5% | yes |
-| bioprosthetic valve failure | all | 7 y | 7.2% | 4.3% | yes |
-| severe SVD | TAVR | 7.8 y | 5.9% | 5.4% | yes |
+| moderate or severe SVD | SAVR | 10 y | 20.8% | 19.9% ± 0.3 | 8 of 8 (targeted) |
+| moderate or severe SVD | TAVR | 10 y | 15.4% | 14.8% ± 1.4 | 8 of 8 (targeted) |
+| severe SVD | SAVR | 10 y | 10.0% | 10.5% ± 0.8 | 8 of 8 |
+| severe SVD | TAVR | 10 y | 1.5% | 8.1% ± 1.3 | **0 of 8** |
+| bioprosthetic valve failure | all | 5 y | 3.6% | 1.0% ± 0.3 | 8 of 8 |
+| bioprosthetic valve failure | all | 7 y | 7.2% | 4.1% ± 0.4 | 8 of 8 |
+| severe SVD | TAVR | 7.8 y | 5.9% | 4.5% ± 0.9 | 8 of 8 |
+
+Results are reported as a mean and standard deviation across eight seeds rather than from one
+cohort. At 1,800 patients the Monte Carlo standard error of a 20% incidence is around one
+percentage point, which is the size of the differences being judged; a single-seed table cannot
+distinguish a correct generating process from a lucky draw. Six anchors fall inside their band
+for **every** seed and one fails for every seed, so no verdict here is borderline.
 
 Sources: NOTION ten-year echocardiographic follow-up; PARTNER 3 at five and seven years; UK TAVI
 registry at a median of 7.8 years. Incidence is reported as an Aalen–Johansen cumulative

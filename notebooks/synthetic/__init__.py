@@ -30,7 +30,13 @@ from dataclasses import replace
 
 import pandas as pd
 
-from .calibration import calibration_report, cumulative_incidence, endpoint_times, solve_scales
+from .calibration import (
+    calibration_across_seeds,
+    calibration_report,
+    cumulative_incidence,
+    endpoint_times,
+    solve_scales,
+)
 from .degrade import PRESET_DESCRIPTIONS, PRESETS, apply_preset
 from .generator import VARC3_STAGE2, VARC3_STAGE3, build_cohort
 from .parameters import ANCHORS, DEFAULT, Parameters
@@ -50,6 +56,7 @@ __all__ = [
     "VARC3_STAGE3",
     "build_cohort",
     "apply_preset",
+    "calibration_across_seeds",
     "calibration_report",
     "cumulative_incidence",
     "endpoint_times",

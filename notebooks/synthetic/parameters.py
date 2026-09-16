@@ -167,8 +167,8 @@ class HazardParameters:
     the VARC-3 threshold, and that crossing is governed by the progression model in
     :class:`EchoParameters`, not by this shape."""
 
-    svd_scale_savr_years: float = 35.511474609375
-    svd_scale_tavr_years: float = 16.540283203125
+    svd_scale_savr_years: float = 34.16015625
+    svd_scale_tavr_years: float = 15.38671875
     """SOLVED by bisection, not assumed: the values reproducing the two targeted
     NOTION anchors on a 30,000-patient cohort at seed 20260917. Re-derive with
     :func:`synthetic.calibration.solve_scales` if any upstream parameter changes.
@@ -314,8 +314,20 @@ class VisitParameters:
 
     dropout_rate_per_year: float = 0.035
     dropout_hr_per_year_age: float = 1.04
-    """Loss to follow-up, rising with age. Informative by construction: patients
-    who stop attending are not a random sample of those still at risk."""
+    dropout_hr_after_onset: float = 1.8
+    """Loss to follow-up, rising with age and again once deterioration has begun.
+
+    The dependence on **latent onset** is what makes this censoring genuinely
+    informative, and it is deliberate. A dropout hazard that depended only on age
+    would be non-informative given the covariates, because age is measured: an
+    analysis adjusting for age would be unbiased and the protocol's concern about
+    loss to follow-up would be a concern about nothing. Here the hazard rises with
+    a state nobody observes, so patients who stop attending are sicker than those
+    who remain **even after adjustment**, which is the situation real surveillance
+    cohorts are in and the one the analysis has to survive.
+
+    The direction is the conservative one: frailty and transfer of care remove
+    deteriorating patients from view, so naive estimates understate deterioration."""
 
     horizon_years: float = 10.0
     """Administrative censoring horizon."""

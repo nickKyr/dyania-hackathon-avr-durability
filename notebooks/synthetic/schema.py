@@ -259,6 +259,20 @@ EVENTS: Final[Table] = _table(
             maximum=20_000,
         ),
         Column(
+            "interval_start_days",
+            "int",
+            "Day of the last observation at which the event had NOT yet occurred, so "
+            "the event lies in the half-open interval (interval_start_days, "
+            "days_from_implant]. For an echocardiographic event this is the previous "
+            "examination, which may be years earlier; for a reintervention or a death "
+            "it equals days_from_implant, because those are observed exactly. Supplied "
+            "so that an interval-censored analysis is possible: an analysis using only "
+            "the right endpoint treats a deterioration found after a three-year gap as "
+            "though it happened on the day it was found.",
+            minimum=0,
+            maximum=20_000,
+        ),
+        Column(
             "ascertainment",
             "str",
             "How the event was established. The ground-truth hierarchy of the protocol: "

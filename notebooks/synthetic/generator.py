@@ -320,12 +320,19 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
     lvef_baseline = rng.normal(echo_params.lvef_mean, echo_params.lvef_sd, len(patients)).clip(25.0, 75.0)
     dvi_baseline = rng.normal(echo_params.dvi_reference, echo_params.dvi_sd, len(patients)).clip(0.25, 0.75)
 
-    dropout_years = rng.exponential(
-        1.0
-        / (
-            visit.dropout_rate_per_year
-            * np.power(visit.dropout_hr_per_year_age, patients["age_at_implant"].to_numpy() - params.hazard.age_centre)
-        )
+    # Dropout with a piecewise-constant hazard that rises at latent onset. Inverting
+    # the cumulative hazard of a two-piece exponential: draw a unit exponential and
+    # spend it at the pre-onset rate first, then at the higher post-onset rate.
+    base_rate = visit.dropout_rate_per_year * np.power(
+        visit.dropout_hr_per_year_age, patients["age_at_implant"].to_numpy() - params.hazard.age_centre
+    )
+    post_rate = base_rate * visit.dropout_hr_after_onset
+    budget = rng.exponential(1.0, len(patients))
+    spent_before_onset = base_rate * onset_years
+    dropout_years = np.where(
+        budget <= spent_before_onset,
+        budget / base_rate,
+        onset_years + (budget - spent_before_onset) / post_rate,
     )
 
     echo_rows: list[dict] = []
@@ -342,6 +349,8 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
         reference: dict[str, float] | None = None
         stage2_day: float | None = None
         stage3_day: float | None = None
+        stage2_previous: float = 0.0
+        stage3_previous: float = 0.0
         ar_index = 0
         previous_years = 0.0
 
@@ -402,23 +411,23 @@ def build_cohort(params: Parameters = DEFAULT, *, seed: int = 20260917) -> dict[
 
             args = (measured, reference["gradient"], eoa_here, reference["eoa"], dvi_here, reference["dvi"], float(ar_index), reference["ar"])
             if stage2_day is None and _meets_stage(*args, severe=False):
-                stage2_day = day
+                stage2_day, stage2_previous = day, days[k - 1]
             if stage3_day is None and _meets_stage(*args, severe=True):
-                stage3_day = day
+                stage3_day, stage3_previous = day, days[k - 1]
 
         n_echos = len(days)
         if stage2_day is not None:
-            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage2", "days_from_implant": int(round(stage2_day)), "ascertainment": "echo"})
+            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage2", "days_from_implant": int(round(stage2_day)), "interval_start_days": int(round(stage2_previous)), "ascertainment": "echo"})
         if stage3_day is not None:
-            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage3", "days_from_implant": int(round(stage3_day)), "ascertainment": "echo"})
+            event_rows.append({"patient_id": patient_id, "event_type": "svd_stage3", "days_from_implant": int(round(stage3_day)), "interval_start_days": int(round(stage3_previous)), "ascertainment": "echo"})
             if rng.random() < visit.reintervention_probability:
                 delay = rng.exponential(visit.reintervention_delay_days_mean)
                 treated = stage3_day + delay
                 if treated <= min(death, visit.horizon_years) * DAYS_PER_YEAR:
-                    event_rows.append({"patient_id": patient_id, "event_type": "bvf_reintervention", "days_from_implant": int(round(treated)), "ascertainment": "reintervention"})
+                    event_rows.append({"patient_id": patient_id, "event_type": "bvf_reintervention", "days_from_implant": int(round(treated)), "interval_start_days": int(round(treated)), "ascertainment": "reintervention"})
 
         if death <= visit.horizon_years:
-            event_rows.append({"patient_id": patient_id, "event_type": "death", "days_from_implant": int(round(death * DAYS_PER_YEAR)), "ascertainment": "registry"})
+            event_rows.append({"patient_id": patient_id, "event_type": "death", "days_from_implant": int(round(death * DAYS_PER_YEAR)), "interval_start_days": int(round(death * DAYS_PER_YEAR)), "ascertainment": "registry"})
 
         if death <= min(dropout, visit.horizon_years):
             reason, last = "death", death

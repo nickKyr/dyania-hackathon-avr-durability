@@ -14,7 +14,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import DEFAULT, PRESET_DESCRIPTIONS, PRESETS, calibration_report, generate
+from .parameters import ANCHORS
+from . import DEFAULT, PRESET_DESCRIPTIONS, PRESETS, calibration_across_seeds, generate
 
 
 def _write(tables: dict[str, pd.DataFrame], destination: Path) -> None:
@@ -55,13 +56,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n=== {preset} ===\n    {PRESET_DESCRIPTIONS[preset]}\n    {_summarise(tables)}")
 
         if preset == "ideal" and not args.no_calibration and args.sample is None:
-            report = calibration_report(tables)
-            print("\n    Calibration against published anchors "
-                  f"({int(report['within_band'].sum())} of {len(report)} within band):\n")
-            print(report.drop(columns=["source"]).to_string(index=False))
+            report = calibration_across_seeds(n_patients=args.n_patients or DEFAULT.cohort.n_patients)
+            stable = int((report["seeds_within_band"] == report["seeds"]).sum())
+            print(f"\n    Calibration against published anchors, across {int(report['seeds'].iloc[0])} seeds "
+                  f"({stable} of {len(report)} inside the band for every seed):\n")
+            print(report.to_string(index=False))
             print("\n    Sources:")
-            for _, row in report.drop_duplicates("source").iterrows():
-                print(f"      - {row['source']}")
+            for source in dict.fromkeys(a.source for a in ANCHORS):
+                print(f"      - {source}")
 
         if args.out is not None:
             destination = args.out / preset if args.ladder else args.out
