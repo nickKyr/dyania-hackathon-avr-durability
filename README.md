@@ -41,10 +41,16 @@ questions and are evaluated differently.
 
 **No model is fitted on the supplied extract, and that is a finding rather than a shortfall.**
 Mapped into the study schema, the extract reaches an examination for 52.1% of patients, averages
-1.69 examinations each, carries **no mortality data at all**, and yields 12.0 events per 100
-patients — all of them documented reinterventions, because haemodynamic staging needs a reference
-examination the extract does not contain. Those figures are printed, alongside the synthetic
-rungs they are compared against, in [`data/synthetic/results.md`](data/synthetic/results.md).
+1.69 examinations each, carries **no mortality data at all**, and records 12.0 endpoint rows per
+100 patients — all of them documented reinterventions, because haemodynamic staging needs a
+reference examination the extract does not contain. Those figures are printed, alongside the
+synthetic rungs they are compared against, in
+[`data/synthetic/results.md`](data/synthetic/results.md).
+
+Simulating that same poverty on a cohort whose truth we know puts a number on what it costs:
+extract-quality surveillance loses **34% of the patients who deteriorate and 42% of the endpoint
+rows** they would have generated. Losing follow-up rarely erases a patient entirely; it erases the
+later stages of their course, which is exactly what a durability model learns from.
 
 The pipeline is therefore exercised on a **literature-calibrated synthetic cohort**, and the same
 unchanged pipeline is run across a **degradation ladder** — the same patients with their data
@@ -59,7 +65,7 @@ into a ranked, quantified statement of which defect costs how much.
 | **Events are recorded when *detected*, not when they begin** | The generator emits both ends of the censoring interval (`interval_start_days`, `days_from_implant`). A generator that emitted latent onset times would produce a dataset on which any model looks better than it could ever be in clinic. Enforced by `test_the_censoring_interval_brackets_the_event`. |
 | **A mechanistic generator, not a learned one (no CTGAN/synthpop)** | A generative model learns the joint distribution of data you already hold. What is needed here is structure the extract does **not** hold: a trajectory cannot be learned from a dataset containing one trajectory. |
 | **One tolerance rule, fixed before any cohort was generated** | Bands are 2 percentage points or a quarter of the published value, whichever is larger, applied uniformly. A per-anchor tolerance chosen by hand is not a standard, it is a description of the result. Enforced by `test_every_anchor_uses_the_stated_tolerance_rule`. |
-| **Calibration is not correctness, so correctness is tested separately** | Nine parameters were fitted against the anchors, which is close to saturated. Correctness is established by injecting known hazard ratios and recovering them with an independently implemented Cox fit: the 95% interval covered the injected value in **20 of 21 fits**, mean log bias **+0.0005** ([`synthetic/validation.py`](notebooks/synthetic/validation.py)). The injected effects are themselves cross-checked against published predictor estimates in [`docs/research/svd_literature.md`](docs/research/svd_literature.md) §3.6 — agreements and disagreements alike. |
+| **Calibration is not correctness, so correctness is tested separately** | Nine parameters were fitted against the anchors, which is close to saturated. Correctness is established by injecting known hazard ratios and recovering them with an independently implemented Cox fit, one per failure mode: the 95% interval covered the injected value in **70 of 75 fits (93.3%)**, mean log bias **−0.0030** ([`synthetic/validation.py`](notebooks/synthetic/validation.py)). The injected effects are themselves cross-checked against published predictor estimates in [`docs/research/svd_literature.md`](docs/research/svd_literature.md) §3.6 — agreements and disagreements alike. |
 | **No gradient change, slope or "first versus latest" from the supplied extract** | Most patients with more than one prosthetic mean gradient have every value inside a single note with the examination dates redacted, so the values have no recoverable order. A derived trajectory there would be fabricated. |
 | **The last rung of the ladder is the extract itself, not a simulation of it** | The panel is not asked to take the simulation on trust: where the simulated bottom rung and the real one agree, the intermediate rungs can be believed. |
 | **One route for real and synthetic data** | The synthetic cohort is converted into the tables `02_preprocessing.ipynb` writes for the extract, so both go through identical label, feature and model code. On every ladder rung the conversion reproduces the generator's own tables row for row. |
@@ -69,10 +75,19 @@ into a ranked, quantified statement of which defect costs how much.
 
 ```bash
 uv sync
-uv run python -m pytest notebooks/synthetic/tests -q     # synthetic cohort tests
-uv run python scripts/01_extract_rules.py                # then 02 and 03, see scripts/README.md
+uv run python -m pytest notebooks/synthetic/tests -q     # 54 tests on the synthetic cohort
+uv run python scripts/05_report_synthetic.py             # regenerates data/synthetic/results.md
+uv run python scripts/06_model_stability.py              # regenerates model/stability.md
+uv run python scripts/07_sample_size.py                  # regenerates protocol/sample_size.md
+uv run python scripts/08_decision_curve.py               # regenerates model/decision_curve.md
+uv run python scripts/01_extract_rules.py                # needs the extract; then 02 and 03
 uv run jupyter lab                                        # notebooks 01 to 04, in order
 ```
+
+The first five need no private data: everything they report is generated from a fixed seed and can
+be reproduced on any clone. Each one writes the date and the commit it ran against into the
+document it produces, so a number that has drifted away from the code is visible rather than
+silent.
 
 - `02_preprocessing.ipynb` turns the extract into valves, echo timelines, events and follow-up.
 - `03_data_preparation.ipynb` builds labels, landmarks and features for the synthetic cohort
@@ -88,68 +103,19 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 
 ---
 
-## Getting Started
-
-> ⚠️ **Do not upload real patient data or clinical notes to this repository.** Any data you use must be de-identified, synthetic, or otherwise cleared for public sharing — this repo (and your fork) may be publicly visible.
-
-### 1. Fork this repository
-
-Go to **[https://github.com/dyaniahealth/dyania-hackathon-avr-durability](https://github.com/dyaniahealth/dyania-hackathon-avr-durability)** and click **Fork** (top-right) to create a copy under your own GitHub account.
-
-### 2. Clone your fork
-
-```bash
-git clone https://github.com/<your-username>/dyania-hackathon-avr-durability.git
-cd dyania-hackathon-avr-durability
-```
-
-### 3. Create your team branch
-
-Branch names must follow this format: `team/<your-team-name>` (lowercase, hyphens for spaces).
-
-```bash
-git checkout -b team/your-team-name
-```
-
-Examples: `team/panathinea`, `team/valve-guardians`, `team/svd-sentinels`
-
-### 4. Work on your branch
-
-Edit the template files inside `protocol/`, `model/`, `data/`, and `presentation/`. Every `> *Fill in:*` block is a placeholder — replace it with your team's content.
-
-```bash
-# Stage and commit as you go
-git add .
-git commit -m "your message"
-```
-
-### 5. Submit — open a Pull Request before the deadline
-
-Push your branch to your fork and open a Pull Request to the original repository:
-
-```bash
-git push origin team/your-team-name
-```
-
-Then go to your fork on GitHub and click **"Compare & pull request"**.
-Set the base repository to `dyania-health/dyania-hackathon-avr-durability` and the base branch to `main`.
-Title your PR: `Team submission: <your-team-name>`
-
-> **Deadline: September 17, 2026 — before the presentation session.**
-> Only the last commit pushed before the deadline will be evaluated.
-> Make sure your PR is open — **do not** merge it.
-
----
-
 ## Repository Structure
 
 ```
 .
 ├── README.md                        # This file — team overview and key decisions
+├── CONTRIBUTING.md                  # Setup, data handling, how to regenerate the evidence
 ├── protocol/
-│   └── study_protocol.md            # Full study design (main deliverable)
+│   ├── study_protocol.md            # Full study design (main deliverable)
+│   └── sample_size.md               # Generated: how large the real study has to be
 ├── model/
 │   ├── approach.md                  # Modelling methodology and validation strategy
+│   ├── stability.md                 # Generated: which model differences survive re-drawing the cohort
+│   ├── decision_curve.md            # Generated: at which thresholds acting on the model pays
 │   └── modeling_brief.md            # Internal work assignment for the model layer
 ├── data/
 │   ├── data_plan.md                 # Data sources, preprocessing, availability
@@ -158,7 +124,7 @@ Title your PR: `Team submission: <your-team-name>`
 │   ├── open_questions.md            # Decisions still open, with their owners
 │   └── synthetic/                   # Generated results and a schema sample
 ├── docs/                            # Per-source data review (labs, meds, notes, quality)
-├── scripts/                         # 01–04: extracts → structured tables
+├── scripts/                         # 01–04 extracts → tables; 05–07 regenerate published evidence
 ├── notebooks/
 │   ├── 01_raw_data_overview.ipynb   # What the three extracts contain
 │   ├── 02_preprocessing.ipynb       # Cleaning and abstraction
@@ -176,42 +142,12 @@ Title your PR: `Team submission: <your-team-name>`
 
 ## Submission Checklist
 
-- [ ] `README.md` — team overview, problem framing, key design decisions
-- [ ] `protocol/study_protocol.md` — complete study protocol
-- [ ] `model/approach.md` — modelling methodology
-- [ ] `data/data_plan.md` — data plan
-- [ ] `presentation/slides.pdf` — slide deck
-- [ ] `notebooks/` — proof-of-concept (optional, evaluated positively if present)
+- [x] `README.md` — team overview, problem framing, key design decisions *(team members still to be listed)*
+- [x] `protocol/study_protocol.md` — complete study protocol *(open decisions are named with their owner)*
+- [x] `model/approach.md` — modelling methodology
+- [x] `data/data_plan.md` — data plan
+- [ ] `presentation/slides.pdf` — slide deck *(outline only, in `presentation/slides.md`)*
+- [x] `notebooks/` — proof-of-concept, four notebooks end to end
 
-
-## uv package manager
-
-1. Install uv on macOS/Linux:
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-now you should be able to see the version of uv:
-```bash
-uv --version
-```
-
-2. Go to repository and then, initialize the project with uv:
-```bash
-uv init
-```
-
-3. After git pull, synchronize environment:
-```bash
-uv sync
-```
-
-4. Add dependencies in .venv instead of installing them on the machine, i.e. for pandas:
-```bash
-uv add pandas
-```
-
-5. For removing an unnecessary package from venv, i.e. removing pandas:
-```bash
-uv remove pandas
-```
+Setup, data-handling rules and the submission mechanics are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).

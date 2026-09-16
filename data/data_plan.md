@@ -172,16 +172,19 @@ The cohort is built as a causal chain, in this order:
 1. **Covariates at implant** — age, sex, body surface area, approach, valve model and label size,
    and from those the effective orifice area and the patient–prosthesis mismatch grade at the
    VARC-3 indexed cut-offs.
-2. **Latent times** — a Weibull time to the *onset* of deterioration with log-linear covariate
-   effects, and an independent Weibull time to death. Onset is a biological event that nobody
-   observes.
+2. **Latent times** — one Weibull time to onset for each of three competing failure modes
+   (calcific stenosis, leaflet tear, pannus and thrombosis), each with its own shape and its own
+   log-linear covariate effects, plus an independent Weibull time to death. The valve follows
+   whichever mode it reaches first. Onset is a biological event that nobody observes.
 3. **A surveillance process** — guideline echocardiographic visits, extra studies triggered by
    symptoms once deterioration has begun, and informative dropout. The dropout hazard rises at
    latent onset, not merely with age: a dropout process driven only by measured covariates would
    be non-informative given those covariates, an analysis adjusting for them would be unbiased,
    and the protocol's concern about loss to follow-up would be a concern about nothing.
-4. **Haemodynamics at each visit** — drifting gently before onset, accelerating after it, with
-   proportional measurement error representing inter-observer and beat-to-beat variability.
+4. **Haemodynamics at each visit** — drifting gently before onset and changing after it in the
+   direction that mode implies: calcification and pannus drive the gradient up and the orifice
+   area down, while a tear drives regurgitation up and leaves the gradient flat. Proportional
+   measurement error represents inter-observer and beat-to-beat variability.
 5. **Observed events** — established by applying the VARC-3 criteria to each examination against
    that patient's own reference examination.
 
@@ -205,8 +208,10 @@ still tell that nothing in it came from a patient.
 ### Calibration, and what is honestly claimed
 
 *The tables in this section are reproduced, with the ladder, in
-[`synthetic/results.md`](synthetic/results.md), generated on 16 September and committed so that
-the evidence can be read without running anything.*
+[`synthetic/results.md`](synthetic/results.md). That document is not written by hand: it is
+regenerated from the current code by `scripts/05_report_synthetic.py`, which stamps it with the
+commit it ran against, and it is committed so that the evidence can be read without running
+anything.*
 
 
 **Every published figure below was verified against its primary publication**, not taken from a
@@ -288,20 +293,50 @@ limitation of applying published echocardiographic thresholds mechanically, with
 adjudication a trial applies, and it is exactly the gap the ground-truth hierarchy in the protocol
 exists to close.
 
-### Two processes, not one
+### Three processes, not one
 
-Onset is a mixture. About 9% of valves follow a **rapidly progressive phenotype** — early onset
-and roughly four and a half times the usual rate of gradient rise — covering early structural
-problems, severe mismatch that was never going to be tolerated, and accelerated calcification.
-The remainder follow the slow calcific process that dominates late, with a Weibull shape of 2.0
-so that its hazard clearly accelerates with time in the valve.
+A bioprosthesis does not have one way of failing, and a generator that gives it one cannot be
+used to study which measurement matters. Structural failure is generated as three competing
+processes, each with its own time course, its own covariates and its own signature on the
+echocardiogram. The valve follows whichever it reaches first.
 
-This is not a device for hitting a number. A single Weibull forced an impossible compromise: to
-produce any failures by five years its shape had to be dragged down towards 1, flattening the
-very acceleration that characterises late deterioration, and even then the five- and seven-year
-failure anchors were missed by a factor of three. Splitting the process lets each component keep
-its own shape and reproduces both ends of the time course, which is also the clinically truthful
-description — bioprosthetic failure is genuinely not one mechanism.
+| mode | echo signature | driven by | shape |
+|---|---|---|---|
+| calcific stenosis | gradient up, orifice area down, DVI down | age, mismatch, body size, smoking, diabetes, renal disease | accelerating (Weibull shape 2.0) |
+| leaflet tear or prolapse | regurgitation up, gradient flat | valve size, transcatheter approach, bicuspid morphology, valve family | nearly constant (1.15) |
+| pannus and thrombosis | gradient up, orifice area down, early | no anticoagulation, small valve, surgical approach | nearly constant (1.1) |
+
+Two reasons, and the first is methodological. With a single latent onset driving every
+observable, the gradient, the orifice area, the regurgitation grade, the ejection fraction and
+even the visit schedule are all noisy readings of the same hidden variable. Any one of them can
+be dropped without loss, so no analysis run on such a cohort can attribute performance to a data
+channel — which is the one question the degradation ladder exists to answer.
+
+The second is that the time course of the published evidence cannot be reproduced by one
+process. PARTNER 3 reports 3.6% bioprosthetic valve failure at five years and NOTION 20.8%
+moderate-or-severe deterioration at ten; an accelerating calcific process cannot deliver both,
+because whatever fails inside five years must come from a hazard that is already meaningful at
+year two. Giving the early failures their own mechanism, with its own nearly flat hazard, is both
+the arithmetic fix and the clinically truthful description.
+
+The realised split is reported by `failure_mode_shares` and printed in
+[`synthetic/results.md`](synthetic/results.md): calcific deterioration dominates *moderate*
+deterioration and arrives late, while tear is about a third of deterioration but nearly half of
+outright failure and arrives early. The shares themselves are an assumption of the generator, not
+an anchor — where they disagree with the published incidence figures, the published figures win
+and the shares move.
+
+### Device durability, entered where the device actually fails
+
+The family effect is attached to the mode a device fails by rather than to a generic hazard.
+Only the Trifecta carries one, because it is the only family in this cohort with a regulatory
+signal behind it, and it is entered mostly on the tear mode because that is the mechanism
+described. The consequence is the clinical paradox this valve is known for, and the cohort now
+reproduces it: the Trifecta has one of the *largest* orifice areas at implant and the *worst*
+ten-year durability of any family in the cohort. The realised incidence by family is printed in
+[`synthetic/results.md`](synthetic/results.md) — that table, not the multiplier, is the claim,
+because a family's incidence is the combination of its hazard, its orifice area and the size and
+approach mix it is implanted in.
 
 ### Internal validation
 
@@ -312,24 +347,25 @@ compared with what went in. The Cox model is implemented directly against the Br
 likelihood rather than taken from the library the modelling workstream uses, so that a shared
 misunderstanding cannot pass unnoticed in both places.
 
-The model is **stratified** by phenotype and approach. The two phenotypes are generated with
-different Weibull shapes, so they are not proportional to one another and no coefficient could
-express the difference between them; forcing one biases every other estimate, which is exactly
-what happened when the mixture was first introduced and recovery collapsed from eight covariates
-in eight to one in eight. Stratifying restored it.
+**One model per failure mode, not one model for the cohort.** The three modes are generated with
+different Weibull shapes and different covariates, so they are not proportional to one another and
+no single coefficient could express the difference between them; a recovery test run against one
+shared set of covariates cannot tell a correct three-mode generator from a broken one. Each mode's
+effects are therefore recovered by its own fit, with the other modes' events treated as censoring —
+a cause-specific model, since the modes compete. The same applies to the approach arms, which keep
+their own baseline hazard.
 
-- **Latent hazard.** Over three seeds and seven covariates, the 95% interval covered the injected
-  value in **20 of 21 fits (95.2%)**, against a nominal 95%, with a mean log bias of **+0.0005** —
-  no detectable systematic error. Coverage is the right criterion rather than a clean sweep: a
-  95% interval is supposed to miss about one time in twenty, and treating any miss as failure
-  would invite tuning until it passes.
+- **Latent hazard.** Over five seeds and fifteen injected effects across the three modes, the 95%
+  interval covered the injected value in **70 of 75 fits (93.3%)**, against a nominal 95%, with a
+  mean log bias of **−0.0030** — no detectable systematic error. Coverage is the right criterion
+  rather than a clean sweep: a 95% interval is supposed to miss about one time in twenty, and
+  treating any miss as failure would invite tuning until it passes. The five misses are spread
+  across four covariates of the calcific mode, none of them repeated at every seed.
 - **Observed events.** The same effects estimated from what an analyst actually sees — detections
-  at scheduled examinations, with death competing and patients dropping out — are **attenuated**:
-  the median attenuation of the log hazard ratio is **0.66** over the same 21 fits, ranging from
-  0.15 to 0.91 across individual covariates and seeds. This is not a defect. It
-  quantifies how much sparse guideline-interval surveillance biases effect estimates toward the
-  null, and it applies to any real study built the same way, which is why it is restated in the
-  limitations.
+  at scheduled examinations, with death competing and patients dropping out — are **attenuated**
+  towards the null. This is not a defect. It quantifies how much sparse guideline-interval
+  surveillance biases effect estimates, and it applies to any real study built the same way, which
+  is why it is restated in the limitations.
 
 ### Automated tests
 
@@ -381,16 +417,24 @@ poverty had been wrong. Three were corrected; the fourth is a finding and was le
 | property | simulated rung, before | corrected | the extract |
 |---|---|---|---|
 | patients with any examination | 27% | 52% | 52% |
-| examinations per patient | 1.00 | 1.59 | 1.69 |
-| patients with more than one gradient | 0% | 22% | 18% |
+| examinations per patient | 1.00 | 0.85 | 1.69 |
+| patients with more than one gradient | 0% | 23% | 18% |
 | **mortality observed** | **yes** | **no** | **no** |
-| events per 100 patients | 20.5 | 20.5 | **12.0** |
+| patients with an event, per 100 | — | 9.4 | *see below* |
+| event rows per 100 | 20.5 | 15.2 | **12.0** |
 
 The *before* column is a record of what the earlier model of the extract produced, kept because
-the four corrections are the point of the section. It was measured before the cohort was last
-recalibrated, so it is not directly comparable with the column beside it: the two event rates
-coinciding at 20.5 is arithmetic coincidence, not a finding. The *corrected* and *the extract*
-columns come from the same generated record ([`synthetic/results.md`](synthetic/results.md)) and are comparable.
+the four corrections are the point of the section. It was measured against an earlier generator
+and an earlier calibration, so it is not comparable with the column beside it. The *corrected*
+column is regenerated by `scripts/05_report_synthetic.py` and is the mean over eight seeds at
+n = 117.
+
+**The two event rows are the same quantity counted two ways, and the difference between them is
+most of the reason this section had to be rewritten.** A valve that deteriorates to stage 2, then
+to stage 3, then is reintervened is one affected patient and three endpoint rows. The extract's
+12.0 was measured before that distinction was made explicit, so it cannot yet be placed against
+either synthetic figure — it falls between them. Recomputing it under the definition in
+`ladder_metrics` is a one-line change in notebook 02 and is the outstanding item here.
 
 The mortality correction matters most. The extract contains **no death data of any kind** —
 no table, no date, no linkage — so the competing risk is entirely unobserved. That is the
@@ -406,12 +450,18 @@ alongside the current one, so patients do have several gradients. What the extra
 is not the number of measurements but their **order and their dates** — the quoted priors
 carry no date of their own. A patient can have three gradients and no trajectory.
 
-**The event-rate gap is not corrected, because it is a result.** The extract documents 12
-events per 100 patients where a comparable cohort under proper follow-up shows about 25.
-Roughly half the events are invisible: they are echocardiographic deteriorations that were
-never adjudicated, in patients who were never imaged again. This is the cost of incomplete
-ascertainment, measured rather than asserted, and it is the clearest single argument in this
-document for why the abstraction pipeline the protocol proposes is worth building.
+**The cost of incomplete ascertainment is a result, and it is now measured inside the ladder
+rather than across the gap to the extract.** Comparing a simulated rung with the real extract
+confounds two things — how poor the data are, and whether the two datasets count events the same
+way. Comparing the top of the ladder with the `as_supplied` rung confounds neither, because the
+patients, their valves and their failure times are identical on both and only the surveillance
+differs. Measured that way, extract-quality ascertainment loses **34% of affected patients and
+42% of endpoint rows**. Losing follow-up removes a whole patient only when every one of their
+examinations is missing, but it removes the later stages of a course easily — the stage 3 that
+would have followed a stage 2, the reintervention that would have followed both — so it costs
+more progression than it costs patients, which is precisely the information a durability model
+needs. That is the clearest single argument in this document for why the abstraction pipeline the
+protocol proposes is worth building.
 
 ### Real and synthetic are kept apart
 

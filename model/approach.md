@@ -114,6 +114,10 @@ automatically.
   [`../notebooks/pipeline/matching.py`](../notebooks/pipeline/matching.py)): year-only dates, no
   age, no recorded deaths, echo counts and missing fields at the rates measured in the extract,
   reintervention-only events and extract-like follow-up.
+- **Repeated, not single-shot.** `scripts/06_model_stability.py` reruns the whole pipeline on eight
+  independently drawn cohorts and reports the spread, because a ranking read off one draw is a
+  description of the seed. Its output is [`stability.md`](stability.md), and it is the file to
+  quote AUCs from.
 - **External check:** the real extract, prepared by notebook 02, is scored by every trained model.
   Calibration curves, a decision curve and Uno's C are planned and not yet run.
 
@@ -121,7 +125,12 @@ automatically.
 extract, valve age carries most of the signal: AUC 0.81, 0.78 and 0.88 at 2, 5 and 8 years for the
 valve-age-only model, 0.80, 0.78 and 0.84 for the regression baseline and the Cox comparator,
 0.78, 0.72 and 0.79 for the constrained boosted model, and 0.68, 0.62 and 0.44 for the calendar
-schedule. In an earlier run on the `ideal` cohort (before the 16 September generator fix), where
+schedule. **Every one of those numbers is a single cohort**, and
+[`stability.md`](stability.md) measures what that is worth: redrawing the cohort moves an AUC by a
+standard deviation of about 0.023, so differences of that size between two of the models above are
+not evidence of anything. On the ideal rung, where the comparison can be repeated eight times and
+paired within cohorts, every risk model does beat scheduling by valve age at every horizon — but
+that is a claim about the ideal rung, and the matched-cohort ranking here has not been repeated. In an earlier run on the `ideal` cohort (before the 16 September generator fix), where
 age and serial echoes are present, the boosted model led (0.86, 0.78, 0.77) and was the best
 calibrated, while the Cox comparator overstated 8-year risk (34% against 20.5% observed) because it
 ignores death.
@@ -142,19 +151,26 @@ For a valve at a follow-up visit the model returns the cumulative incidence of S
 years, a risk tier from the 5-year risk (low under 5%, moderate 5 to 15%, high 15% or more), the
 echo interval attached to the tier (guideline schedule, every two years, every year), and the three
 features that moved the risk most, from SHAP values of the boosted SVD hazard. Notebook 04 prints
-one worked example. The tier thresholds are provisional until the decision curve is run.
+one worked example. The tier thresholds remain provisional, but no longer for want of an analysis:
+[`decision_curve.md`](decision_curve.md) reports the net benefit at every candidate threshold and
+what each of the two boundaries above would buy. They should be fixed only after recalibration,
+because a decision curve is read off absolute risk and these models over-predict it.
 
 ---
 
 ## 6. Clinical Integration
 
-**Not yet decided — owner: the team, with the clinical lead.** The intended shape is a risk
-estimate refreshed at each echocardiogram, used to bring the next study forward or push it back.
+**The shape is settled; the operating point is the clinical lead's to choose.** A risk estimate is
+refreshed at each echocardiogram and used to bring the next study forward or push it back.
 Notebook 04 implements provisional tiers (5-year risk under 5%, 5 to 15%, 15% or more) mapped to
-the guideline schedule, an echo every two years and an echo every year. What is still missing
-before they can be used is a threshold chosen from a decision curve, clinical agreement on the
-action attached to each tier, and evidence that reallocating surveillance capacity this way
-helps.
+the guideline schedule, an echo every two years and an echo every year.
+
+The decision curve in [`decision_curve.md`](decision_curve.md) supplies what was missing on the
+analysis side: the range of thresholds over which acting on the model beats both scanning everyone
+and changing nothing, and what each candidate boundary buys in deteriorations caught per hundred
+patients. Two things are still outstanding and neither is a computation — clinical agreement on
+the action attached to each tier, and a recalibrated model, since the curve is read off absolute
+risk and these models over-predict it by about half.
 
 ---
 
@@ -162,8 +178,8 @@ helps.
 
 **The supplied extract cannot support estimation, and this is measured rather than asserted.**
 Mapped into the study schema, it reaches an examination for 52.1% of patients, averages 1.69
-examinations each, contains **no mortality data at all**, and yields 12.0 events per 100 patients,
-all of them documented reinterventions — because haemodynamic staging needs a reference
+examinations each, contains **no mortality data at all**, and records 12.0 endpoint rows per 100
+patients, all of them documented reinterventions — because haemodynamic staging needs a reference
 examination the extract does not contain. The recorded figures are in
 [`../data/synthetic/results.md`](../data/synthetic/results.md); notebook 02 reproduces the event
 count from the notes.
@@ -186,19 +202,22 @@ can be demonstrated rather than debated.
 **Calibration of the synthetic cohort is not evidence that it is correct.** Nine parameters were
 fitted against the published anchors, which is close to saturated. Correctness is established
 separately, by injecting known hazard ratios into the generator and recovering them with an
-independently implemented Cox fit: 20 of 21 confidence intervals covered the injected value, with
-a mean log bias of +0.0005. Two anchors are missed and neither was tuned away — severe
+independently implemented Cox fit, one per failure mode: 70 of 75 confidence intervals covered the
+injected value (93.3% against a nominal 95%), with a mean log bias of −0.0030. Two anchors are missed and neither was tuned away — severe
 deterioration after transcatheter implant reproduces the UK TAVI registry rather than NOTION, and
 severe deterioration after surgical implant lands at the level of NOTION's *bioprosthetic valve
 failure* rather than its *severe deterioration*. The second miss says something the protocol
 depends on: thresholds applied mechanically do not separate two categories that a trial
 adjudication panel separates.
 
-**The simulation of the extract and the extract itself disagree on one figure, and it was left
-uncorrected.** The simulated bottom rung produces 20.5 events per 100 patients against 12.0 in the
-extract. That gap is the measured cost of incomplete ascertainment: 41% of the deteriorations a
-properly followed cohort would show are invisible here, in patients who were never imaged
-again.
+**The cost of incomplete ascertainment is measured inside the ladder, not across the gap to the
+extract.** Comparing a simulated rung with the extract confounds how poor the data are with
+whether the two datasets count endpoints the same way — and they do not, since a valve that
+reaches stage 2, then stage 3, then reintervention is one patient and three rows. Measured between
+the top of the ladder and the extract-like rung, where the patients and their failure times are
+identical and only the surveillance differs, extract-quality ascertainment loses **34% of affected
+patients and 42% of endpoint rows**. The extract's own figure sits between the two synthetic ones
+and cannot be placed more precisely until it is recomputed under the same definition.
 
 **Where the model would break in deployment.** A valve model with no history in the training data
 inherits the behaviour of its family, or nothing at all. Inter-observer and beat-to-beat
