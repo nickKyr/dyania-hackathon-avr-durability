@@ -122,7 +122,7 @@ def main():
     require_extracts(DATA)
     require(
         DATA / "structured_extraction.xlsx",
-        hint="Run scripts/01_extract_rules.py and scripts/02_merge_llm_extraction.py first.",
+        hint="Run scripts/01_extract_rules.py first.",
     )
     OUT_DIR.mkdir(exist_ok=True)
     notes, dates_rgx = load_notes_meta()

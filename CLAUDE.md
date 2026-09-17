@@ -65,4 +65,4 @@ There is no structured echo table. Echo parameters (mean gradient, EOA, regurgit
 
 ## Environment
 
-The team uses uv (`pyproject.toml`, `uv.lock`). Add packages with `uv add <pkg>`, run from the repo root. Data build scripts live in `scripts/` (01 rules extraction, 02 merge LLM JSON, 03 raw tables, 04 single sheet); analysis notebooks live in `notebooks/` (01 raw overview, 02 preprocessing, then training and evaluation) with shared code, including the plot style, in `notebooks/pipeline/`.
+The team uses uv (`pyproject.toml`, `uv.lock`). Add packages with `uv add <pkg>`, run from the repo root. Data build scripts live in `scripts/` (01 rules extraction, 03 raw tables, 05–08 evidence documents, 09 extract rung); analysis notebooks live in `notebooks/` (01 raw overview, 02 preprocessing, then training and evaluation) with shared code, including the plot style, in `notebooks/pipeline/`.

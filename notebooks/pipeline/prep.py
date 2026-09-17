@@ -429,14 +429,19 @@ def _hvd_stage(study, ref, config):
         return stage, "absolute threshold, no reference echo"
     dmg = mg - ref.mean_gradient_mmhg if pd.notna(mg) and pd.notna(ref.mean_gradient_mmhg) else np.nan
     dar = ar - (ref.ar_intraprosthetic if pd.notna(ref.ar_intraprosthetic) else 0) if pd.notna(ar) else np.nan
-    eoa_drop = pd.notna(study.aortic_valve_area_cm2) and pd.notna(ref.aortic_valve_area_cm2) and (ref.aortic_valve_area_cm2 - study.aortic_valve_area_cm2 >= min(0.3, 0.25 * ref.aortic_valve_area_cm2))
-    dvi_drop = pd.notna(study.dvi) and pd.notna(ref.dvi) and (ref.dvi - study.dvi >= min(0.1, 0.2 * ref.dvi))
-    confirmed = eoa_drop or dvi_drop
-    gradient_ok = confirmed or not config["require_eoa_or_dvi_confirmation"]
-    if (pd.notna(dmg) and dmg >= 20 and mg >= 30 and gradient_ok) or (pd.notna(dar) and dar >= 2 and ar >= 3):
-        return 3, "confirmed by EOA or DVI" if confirmed else "gradient or regurgitation only"
-    if (pd.notna(dmg) and dmg >= 10 and mg >= 20 and gradient_ok) or (pd.notna(dar) and dar >= 1 and ar >= 2):
-        return 2, "confirmed by EOA or DVI" if confirmed else "gradient or regurgitation only"
+    def confirmed(eoa_abs, eoa_rel, dvi_abs, dvi_rel):
+        eoa, ref_eoa = study.aortic_valve_area_cm2, ref.aortic_valve_area_cm2
+        eoa_drop = pd.notna(eoa) and pd.notna(ref_eoa) and (ref_eoa - eoa >= min(eoa_abs, eoa_rel * ref_eoa))
+        dvi_drop = pd.notna(study.dvi) and pd.notna(ref.dvi) and (ref.dvi - study.dvi >= min(dvi_abs, dvi_rel * ref.dvi))
+        return eoa_drop or dvi_drop
+
+    for stage, rise, level, cut, regurgitation in [
+        (3, 20, 30, (0.6, 0.5, 0.2, 0.4), pd.notna(ar) and ar >= 3),
+        (2, 10, 20, (0.3, 0.25, 0.1, 0.2), pd.notna(dar) and dar >= 1 and ar >= 2),
+    ]:
+        ok = confirmed(*cut)
+        if (pd.notna(dmg) and dmg >= rise and mg >= level and (ok or not config["require_eoa_or_dvi_confirmation"])) or regurgitation:
+            return stage, "confirmed by EOA or DVI" if ok else "gradient or regurgitation only"
     return 0, None
 
 

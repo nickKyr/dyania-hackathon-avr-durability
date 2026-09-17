@@ -1,6 +1,6 @@
 # Data investigation
 
-Findings from a first pass over the three de-identified EHR extracts in `data/` (16 Sep 2026). All numbers are aggregates; no patient-level rows or note text are reproduced here. Re-run `uv run python scripts/00_profile_extracts.py` from the repo root to regenerate every figure quoted.
+Findings from a first pass over the three de-identified EHR extracts in `data/` (16 Sep 2026). All numbers are aggregates; no patient-level rows or note text are reproduced here. [`../notebooks/01_raw_data_overview.ipynb`](../notebooks/01_raw_data_overview.ipynb) shows the same overview, regenerated from the raw tables.
 
 | Document | What it covers |
 |---|---|
@@ -10,10 +10,8 @@ Findings from a first pass over the three de-identified EHR extracts in `data/` 
 | [notes.md](notes.md) | Notes file: note types, sub-cohorts, valve models, echo values in text, redaction |
 | [data_quality_issues.md](data_quality_issues.md) | Consolidated problem list, ranked by impact |
 | [recommendations.md](recommendations.md) | What the data can and cannot support, and the preprocessing plan |
-| `../scripts/01_extract_rules.py`, `02_merge_llm_extraction.py` | Build `data/structured_extraction.xlsx` (gitignored): rule-based extraction, then the Claude Sonnet note-by-note pass merged in with per-study echo rows, quoted evidence and comparison sheets |
+| `../scripts/01_extract_rules.py` | Builds `data/structured_extraction.xlsx` (gitignored): the rule-based extraction. The Claude Sonnet note-by-note pass (`data/llm_json/`) is read directly by script 03 |
 | `../scripts/03_build_raw_tables.py` | Builds the raw, conclusion-free tables the preprocessing pipeline starts from: `data/raw_tables/*.parquet` plus `data/raw_tables.xlsx` (both gitignored). One table per grain, shared keys, no derived fields |
-| [docathon_briefing.md](docathon_briefing.md) | Briefing for the clinical members before the physician-only Docathon sprint: the four-label scheme, the six reading traps, a per-question checklist and worked examples |
-| [research/synapsis_ai.md](research/synapsis_ai.md) | How Synapsis AI works (sourced), Dyania's method and events, framing advice for the judges |
 | [research/svd_literature.md](research/svd_literature.md) | VARC-3 and consensus SVD definitions with thresholds (§2), risk factors and published effect sizes (§3), a cross-check of the cohort generator's injected hazard ratios against those estimates (§3.6), trial outcomes, existing models, statistical methods, cohort sizing |
 | [research/ehr_extraction_methods.md](research/ehr_extraction_methods.md) | Cited methods for each data problem: echo and operative note extraction, assertion, year-only dates, data quality, proxy datasets |
 

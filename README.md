@@ -89,7 +89,7 @@ uv run python scripts/05_report_synthetic.py             # regenerates data/synt
 uv run python scripts/06_model_stability.py              # regenerates model/stability.md
 uv run python scripts/07_sample_size.py                  # regenerates protocol/sample_size.md
 uv run python scripts/08_decision_curve.py               # regenerates model/decision_curve.md
-uv run python scripts/01_extract_rules.py                # needs the extract; then 02 and 03
+uv run python scripts/01_extract_rules.py                # needs the extract; then 03
 uv run jupyter lab                                        # notebooks 01 to 05, in order
 uv run python scripts/09_real_extract_rung.py            # needs notebook 02's tables; then rerun 05
 ```
@@ -138,8 +138,8 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 │   ├── endpoint_criteria.md         # Candidate failure definitions
 │   ├── open_questions.md            # Decisions still open, with their owners
 │   └── synthetic/                   # Generated results and a schema sample
-├── docs/                            # Per-source data review, research notes, Docathon briefing
-├── scripts/                         # 00–04 extracts → tables; 05–08 regenerate evidence; 09 measures the extract rung
+├── docs/                            # Per-source data review and research notes
+├── scripts/                         # 01, 03 extracts → tables; 05–08 regenerate evidence; 09 measures the extract rung
 ├── notebooks/
 │   ├── 01_raw_data_overview.ipynb   # What the three extracts contain
 │   ├── 02_preprocessing.ipynb       # Cleaning and abstraction

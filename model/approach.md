@@ -212,8 +212,9 @@ Each single draw carries a bootstrap interval roughly 0.3 wide (for example 0.55
 regression baseline), so with 10 events no model is shown to rank better than valve age alone.
 The regression baseline's average risk falls inside the observed interval without any fitting to
 real outcomes. The boosted model is less stable than the baseline across draws and never better on
-average. It remains the pre-specified primary model of §2, but on the extract the regression
-baseline is the stronger of the two, and it is the one this repository presents.
+average. It remains the primary model of §2, because it is built for what the protocol asks a
+site to supply (age and dated serial echoes), which the extract lacks. On the extract itself the
+regression baseline performed better, and both are reported.
 
 Two changes moved these numbers, and both were checked over five draws rather than one. Reshaping
 the cohort (the steps above) raised the boosted model's mean AUC from 0.63 to 0.68 and its mean

@@ -105,7 +105,7 @@ Every row of every table carries two governance columns that you must never drop
 at the default seed. That is a working scale, and it is now known to be **too small**: the
 calculation on Riley's criteria was done and is in
 [`../protocol/sample_size.md`](../protocol/sample_size.md), which puts the requirement at 3,580
-patients for the eleven-parameter primary model. Treat 1,800 as the scale the pipeline is
+patients for the eleven-parameter regression model, the floor for the primary model. Treat 1,800 as the scale the pipeline is
 exercised at, not as the scale the study would be run at.
 
 **Data-generating process:**

@@ -1,7 +1,7 @@
 """Input checks shared by the data build scripts.
 
 The three supplied extracts are patient data and are never committed, so a fresh
-clone of this repository cannot run steps 01 to 04 until someone puts them in
+clone of this repository cannot run steps 01 and 03 until someone puts them in
 `data/`. Without a check, that situation surfaces as a bare `FileNotFoundError`
 from inside pandas, which tells a new teammate nothing about what to do. These
 helpers turn it into one sentence that names the missing file and the fix.

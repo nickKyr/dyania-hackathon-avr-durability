@@ -281,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
 
     event_share = r2_events / r2_n
     riley = pd.DataFrame([
-        {"model": "published risk factors only (the protocol's primary model)", "parameters": len(priors)},
+        {"model": "published risk factors only (regression; the floor for the boosted primary model)", "parameters": len(priors)},
         {"model": "every feature the pipeline can build", "parameters": len(ml.FEATURES)},
     ])
     riley["minimum"] = [riley_minimum(p, r2) for p in riley.parameters]

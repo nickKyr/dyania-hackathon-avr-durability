@@ -108,7 +108,9 @@ the high tier is 33% of patient-years and holds 60% of the deteriorations.
 the calendar schedule, and the decision curve shows that from 5% predicted risk upward acting on it
 beats both scanning everyone and changing nothing. In workload: the tiered schedule is 517 fewer
 examinations per thousand patient-years than an annual study for everyone, and the top tier, a
-third of patient-years, contains three fifths of the deteriorations. And the honest part: the
+third of patient-years, contains three fifths of the deteriorations. Scored on the real extract,
+which it never saw, no model ranks the ten failing valves better than valve age alone, but the
+regression baseline's average predicted risk, 15.9%, sits on the observed 16.6%. And the honest part: the
 absolute risks are off, too high by up to 57% on the synthetic cohort, so recalibration at each
 site comes before any clinical use. We say that in the document, not in the footnote."
 
@@ -149,5 +151,7 @@ the surveillance gap in view."
   itself, not only in the script.
 - Figures available without re-running anything: `notebooks/figures/03_cumulative_incidence.png`,
   `04_auc_by_model.png`, `04_shap_importance.png`, `02_follow_up.png`.
+- Diagrams of the system, the model, one valve's timeline and the evaluation design are in
+  [`figures/`](figures/) (PNG and SVG).
 - Rehearse twice with a timer. The script is 700 words: if it runs over five minutes, cut slide 6
   to one sentence and keep slide 4, not the other way round.
