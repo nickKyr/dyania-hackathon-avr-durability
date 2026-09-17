@@ -2,9 +2,9 @@
 
 **Challenge:** Build a study — using machine learning, a statistical model, or whatever approach you prefer — proposing a protocol to predict aortic valve durability in patients with a bioprosthetic aortic valve replacement.
 **Event:** September 15–17, 2026 (3 days)
-**Team size:** 2–3 ML engineers
+**Team size:** 4 (1 clinician, 3 engineers)
 **Team:** `dyanooumenoi`
-**Members:** `[Name — Role]`, `[Name — Role]`, `[Name — Role]`
+**Members:** Christos Asvestis (Clinician), Leonidas Anagnou (Engineer), Eleni Nasopoulou (Engineer), Nick Kyriazis (Engineer)
 
 **Study:** *Dynamic Prediction of Bioprosthetic Aortic Valve Failure to Guide Personalised Surveillance*
 
@@ -177,8 +177,11 @@ any committed notebook output.
 │   └── synthetic/                   # Synthetic cohort generator and its tests
 ├── results/                         # Run ledger: every evaluation with its settings
 ├── presentation/
+│   ├── slides.pdf                   # Rendered deck (10 slides)
 │   ├── slides.md                    # Deck content and script
-│   └── figures/                     # Diagram used on slide 3 (valve timeline)
+│   ├── slides/                      # HTML source of each slide
+│   ├── render_deck.py               # Renders slides/ into slides.pdf
+│   └── figures/                     # Diagrams used in the deck
 └── evaluation/
     └── scoring_rubric.md            # Organisers' rubric
 ```
@@ -187,9 +190,9 @@ any committed notebook output.
 
 ## Submission Checklist
 
-- [x] `README.md` — team overview, problem framing, key design decisions *(team members still to be listed)*
+- [x] `README.md` — team overview, problem framing, key design decisions
 - [x] `protocol/study_protocol.md` — complete study protocol
 - [x] `model/approach.md` — model methodology
 - [x] `data/data_plan.md` — data plan
-- [ ] `presentation/slides.pdf` — slide deck
+- [x] `presentation/slides.pdf` — slide deck
 - [x] `notebooks/` — proof-of-concept implementation, five notebooks end to end
