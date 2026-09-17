@@ -178,7 +178,7 @@ any committed notebook output.
 ├── results/                         # Run ledger: every evaluation with its settings
 ├── presentation/
 │   ├── slides.md                    # Deck content and script
-│   └── figures/                     # System and model diagrams
+│   └── figures/                     # Diagram used on slide 3 (valve timeline)
 └── evaluation/
     └── scoring_rubric.md            # Organisers' rubric
 ```
