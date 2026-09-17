@@ -151,7 +151,9 @@ the surveillance gap in view."
   itself, not only in the script.
 - Figures available without re-running anything: `notebooks/figures/03_cumulative_incidence.png`,
   `04_auc_by_model.png`, `04_shap_importance.png`, `02_follow_up.png`.
-- Diagrams of the system, the model, one valve's timeline and the evaluation design are in
-  [`figures/`](figures/) (PNG and SVG).
+- [`figures/valve_timeline.svg`](figures/valve_timeline.svg) (PNG beside it) is the diagram for
+  slide 3: one valve, its checkpoint, and the gap in which the failure actually happened. The
+  system, model and evaluation diagrams were withdrawn because their figures had gone stale, and
+  are to be redrawn from the current numbers.
 - Rehearse twice with a timer. The script is 700 words: if it runs over five minutes, cut slide 6
   to one sentence and keep slide 4, not the other way round.

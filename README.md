@@ -151,7 +151,7 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 │   └── synthetic/                   # Cohort generator, calibration, degradation ladder
 ├── presentation/
 │   ├── slides.md                    # Deck content and the spoken script; slides.pdf still to be built
-│   └── figures/                     # System and model diagrams
+│   └── figures/                     # Diagram used on slide 3
 └── evaluation/
     └── scoring_rubric.md            # Organisers' rubric
 ```
