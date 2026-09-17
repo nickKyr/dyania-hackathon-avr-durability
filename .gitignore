@@ -39,3 +39,4 @@ __pycache__/
 
 # macOS
 .DS_Store
+meeting_notes.txt
