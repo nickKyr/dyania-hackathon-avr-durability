@@ -119,7 +119,7 @@ def table(horizon=5):
         for model, by_h in e["metrics"].items():
             m = by_h.get(str(horizon), {})
             rows.append({**base, "model": model, "auc": m.get("auc"), "auc_lo": m.get("auc_lo"), "auc_hi": m.get("auc_hi"),
-                         "c_index": m.get("c_index"), "scaled_brier": m.get("scaled_brier"), "mean_predicted": m.get("mean_predicted")})
+                         "scaled_brier": m.get("scaled_brier"), "mean_predicted": m.get("mean_predicted")})
     return pd.DataFrame(rows)
 
 

@@ -1,6 +1,4 @@
 import pickle
-import subprocess
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -29,9 +27,6 @@ MODEL_COLORS = {
     "regression baseline, recalibrated": "#4a3aa7",
     "gradient boosting, recalibrated": "#eda100",
 }
-LOG_COLUMNS = ["timestamp", "commit", "run", "label", "preset", "source", "selection_enabled", "split_year", "seed", "endpoint",
-               "model", "horizon", "rows", "valves", "events", "observed", "mean_predicted", "oe_ratio",
-               "auc", "auc_lo", "auc_hi", "c_index", "c_index_lo", "c_index_hi", "brier", "brier_null", "scaled_brier", "scaled_brier_lo", "scaled_brier_hi"]
 
 
 def color(name):
@@ -75,31 +70,12 @@ def _arrays(meta):
     return meta.time_to_end.to_numpy(float), meta.status.to_numpy()
 
 
-def uno_c(pred, time, status, tau, G=None):
-    t, s = np.asarray(time, float), np.asarray(status)
-    p = np.asarray(pred, float)
-    G = G or ml.censoring_survival(t, s)
-    cases = np.flatnonzero((s == "svd") & (t <= tau))
-    if not len(cases):
-        return np.nan
-    gl = np.maximum(G(t, left=True), 1e-3)
-    num = den = 0.0
-    for i in cases:
-        later = (t > t[i]) | ((t == t[i]) & (s == "censored"))
-        died = (s == "death") & (t <= t[i])
-        w = np.where(later, 1 / gl[i] ** 2, 0.0) + np.where(died, 1 / (gl[i] * gl), 0.0)
-        conc = (p[i] > p).astype(float) + 0.5 * (p[i] == p)
-        num += (w * conc).sum()
-        den += w.sum()
-    return float(num / den) if den > 0 else np.nan
-
-
 def point_metrics(p, time, status, h, G=None):
     G = G or ml.censoring_survival(time, status)
     obs = ml.aalen_johansen(time, status, h)
     brier = ml.cr_brier(p, time, status, h, G)
     null = ml.cr_brier(np.full(len(p), obs), time, status, h, G)
-    return dict(auc=ml.cr_auc(p, time, status, h, G), c_index=uno_c(p, time, status, h, G), brier=brier, brier_null=null,
+    return dict(auc=ml.cr_auc(p, time, status, h, G), brier=brier, brier_null=null,
                 scaled_brier=1 - brier / null if null > 0 else np.nan, mean_predicted=float(np.mean(p)), observed=obs,
                 oe_ratio=obs / float(np.mean(p)) if np.mean(p) > 0 else np.nan)
 
@@ -111,7 +87,7 @@ def performance(preds, meta):
     return pd.DataFrame(rows).T.rename_axis(["model", "horizon"])
 
 
-def bootstrap(preds, meta, n_boot=300, seed=0, metrics=("auc", "c_index", "scaled_brier")):
+def bootstrap(preds, meta, n_boot=300, seed=0, metrics=("auc", "scaled_brier")):
     rng = np.random.default_rng(seed)
     t, s = _arrays(meta)
     pid = meta.patient_id.to_numpy()
@@ -237,51 +213,3 @@ def subgroup_table(preds, meta, h, groups, min_events=3):
         rows.append(row)
     return pd.DataFrame(rows).set_index("subgroup")
 
-
-def git_commit(root):
-    try:
-        return subprocess.run(["git", "-C", str(root), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=5).stdout.strip()
-    except Exception:
-        return ""
-
-
-def log_rows(run, bundle, perf, ci, meta, root):
-    stamp = datetime.now().isoformat(timespec="seconds")
-    events = meta.patient_id[meta.status.eq("svd")].nunique()
-    table = perf.join(ci, how="left").reset_index()
-    base = dict(timestamp=stamp, commit=git_commit(root), run=run, label=bundle.get("label"), preset=bundle.get("preset"),
-                source=bundle.get("source"), selection_enabled=bool(bundle.get("selection", {}).get("enabled", False)),
-                split_year=bundle.get("split_year"), seed=bundle.get("seed"), endpoint=bundle.get("labels", {}).get("endpoint"),
-                rows=len(meta), valves=meta.patient_id.nunique(), events=events)
-    rows = [{**base, **r} for r in table.to_dict("records")]
-    return pd.DataFrame(rows).reindex(columns=LOG_COLUMNS)
-
-
-def append_log(path, rows):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if path.exists():
-        old = pd.read_csv(path)
-        rows = pd.concat([old, rows], ignore_index=True)
-    rows.reindex(columns=list(dict.fromkeys(LOG_COLUMNS + list(rows.columns)))).to_csv(path, index=False)
-    return rows
-
-
-def compare_runs(processed, real_dir, horizon=5):
-    rows = []
-    for run_dir in sorted(Path(processed, "runs").glob("*")):
-        if missing_inputs(run_dir, real_dir):
-            continue
-        try:
-            bundle, models = load_run(run_dir)
-            Xr, mr, _ = score_real(bundle, real_dir)
-            perf = performance(predict_all(models, Xr, [horizon]), mr)
-        except Exception as err:
-            rows.append(dict(run=run_dir.name, model="(failed)", note=str(err)[:80]))
-            continue
-        stamp = datetime.fromtimestamp((run_dir / "models" / "primary.pkl").stat().st_mtime).isoformat(timespec="minutes")
-        for (name, _), r in perf.iterrows():
-            rows.append(dict(run=run_dir.name, trained=stamp, label=bundle.get("label"),
-                             selection_enabled=bool(bundle.get("selection", {}).get("enabled", False)),
-                             model=name, auc=r.auc, c_index=r.c_index, scaled_brier=r.scaled_brier, oe_ratio=r.oe_ratio))
-    return pd.DataFrame(rows)

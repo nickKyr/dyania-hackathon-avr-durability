@@ -2,117 +2,144 @@
 
 **Challenge:** Build a study — using machine learning, a statistical model, or whatever approach you prefer — proposing a protocol to predict aortic valve durability in patients with a bioprosthetic aortic valve replacement.
 **Event:** September 15–17, 2026 (3 days)
+**Team size:** 2–3 ML engineers
 **Team:** `dyanooumenoi`
-**Members:** *(names and roles — to be completed by the team)*
+**Members:** `[Name — Role]`, `[Name — Role]`, `[Name — Role]`
+
+**Study:** *Dynamic Prediction of Bioprosthetic Aortic Valve Failure to Guide Personalised Surveillance*
 
 ---
 
 ## Problem Statement
 
-A bioprosthetic aortic valve wears out, and the published rates are not small: at ten years
-NOTION reports moderate-or-severe structural valve deterioration in **20.8%** of surgical and
-**15.4%** of transcatheter recipients, with all-cause mortality of **62.7%** in the same cohort.
-Every figure we use is held with its primary citation in
-[`notebooks/synthetic/parameters.py`](notebooks/synthetic/parameters.py).
+Among adults who are alive and free of valve failure following bioprosthetic aortic valve
+replacement, can clinical information available at each postoperative visit predict the risk of
+bioprosthetic valve failure over the next five years, with risk estimates updated at every
+subsequent visit?
 
-Two consequences shape everything in this repository. First, **death competes with
-deterioration**: in a cohort where most patients die before ten years, an estimator that ignores
-the competing risk overstates how many valves fail. Second, **deterioration is only ever seen at
-an echocardiogram**, so the time recorded is the time of the examination that detected it, not
-the time it began. Measured on the synthetic cohort, the gap between a patient's last clean
-examination and the one that detected stage-2 deterioration has a median of **1.1 years** and a
-maximum of **4.2**. A patient with sparse surveillance is therefore not a low-risk patient; they
-are an unobserved one.
-
-The gap this work addresses is the surveillance schedule itself: guidelines set echocardiographic
-follow-up by the calendar, identically for every patient, while the risk of deterioration is not
-distributed identically at all.
+**Why this matters.**
+- **Failure is common.** At ten years, NOTION reports moderate or severe structural valve
+  deterioration in 20.8% of surgical and 15.4% of transcatheter recipients.
+- **Many patients die first.** All-cause mortality in the same trial was 62.7%, so every risk has to
+  account for death.
+- **Surveillance ignores individual risk.** Guidelines schedule echocardiograms by the calendar, the
+  same for every patient, although the risk of deterioration is not the same.
+- **Deterioration is found late.** It is seen only when someone images the valve, often long after
+  it began: in our synthetic cohort, up to 4.2 years later.
+- **Who pays for late detection.** A patient with sparse follow-up is not a low-risk patient, but an
+  unobserved one, and late identification means a reintervention in an older, frailer patient.
 
 ## Our Approach
 
-The work is built as three layers, kept deliberately separate because they answer different
-questions and are evaluated differently.
+**Data.** A deployment would use:
+- operative reports
+- serial echocardiograms
+- clinical notes
+- medications and laboratory results
+- reintervention and death records
 
-| Layer | What it does | Status in this repository |
+The hospital extract we were given has 215 notes from 117 patients, with dates cut to the year, age
+redacted, no death records and 1.62 echocardiograms per patient. We extract structured fields from
+the notes with rules and with language-model agents: an orchestrator splits the notes among
+sub-agents, which quote the sentence behind every value
+([`data/data_plan.md`](data/data_plan.md)).
+
+**Synthetic cohort.** The extract has only 10 failure events and cannot train or test a model. We
+therefore built a synthetic cohort from published evidence ([`notebooks/synthetic/`](notebooks/synthetic/)):
+- it follows how valves actually fail, in three modes;
+- death is a competing event;
+- failure is recorded only at the echocardiogram that detects it;
+- it is calibrated against published trials;
+- it is checked by recovering known effects.
+
+**Model.** A competing-risks, discrete-time model is re-evaluated at every follow-up visit (a
+landmark design: 6 months, 1 year, then yearly).
+- **Output:** the risk of structural valve failure at 2, 5 and 8 years.
+- **Primary model:** gradient boosting with monotone clinical constraints.
+- **Baseline:** a transparent regression model on the published risk factors.
+- **Comparators:** valve age alone, the guideline calendar, and a Cox model.
+
+([`model/approach.md`](model/approach.md))
+
+**Clinically actionable.** The 5-year risk sets a surveillance tier:
+
+| 5-year risk | tier | next echocardiogram |
 |---|---|---|
-| 1. Data processing | de-duplication, analyte and unit normalisation, whitelisted numeric parsing, alignment to the note's service year | [`scripts/`](scripts/), [`notebooks/01`](notebooks/01_raw_data_overview.ipynb), [`notebooks/02`](notebooks/02_preprocessing.ipynb) — measurements in [`data/data_plan.md`](data/data_plan.md) |
-| 2. Chart abstraction | note text → structured fields with an evidence span; predicts *what the chart says* | rule-based and language-model passes in [`scripts/`](scripts/), reconciled in [`notebooks/02`](notebooks/02_preprocessing.ipynb) |
-| 3. Risk model | time from implant to deterioration, with death as a competing risk; predicts *what happens to the patient* | labels and features in [`notebooks/03`](notebooks/03_data_preparation.ipynb), models in [`notebooks/04`](notebooks/04_model_training.ipynb), scoring on the extract in [`notebooks/05`](notebooks/05_results.ipynb), code in [`notebooks/pipeline/`](notebooks/pipeline/) |
+| under 5% | low | guideline schedule |
+| 5% to 15% | moderate | every 2 years |
+| 15% or more | high | every year |
 
-**No model is fitted on the supplied extract, and that is a finding rather than a shortfall.**
-Mapped into the study schema, the extract has an examination for 83.8% of patients, averages
-1.62 examinations each, has more than one gradient for only 16.2%, carries **no mortality data at
-all**, and records 8.55 affected patients per 100. Nine of those ten valve episodes are documented
-reinterventions; only one is a stage-2 deterioration seen on echo, because haemodynamic staging
-needs a reference examination the extract rarely contains. Those figures are printed, alongside
-the synthetic rungs they are compared against, in
-[`data/synthetic/results.md`](data/synthetic/results.md). Endpoint **rows** are not the same
-quantity as affected patients or affected valves, and this repository reports all three; the four
-counts and the frame each belongs to are reconciled in
-[`data/endpoint_criteria.md`](data/endpoint_criteria.md).
+The decision curve shows that acting on the model beats both scanning everyone and changing nothing
+from 5% risk upward. The tiered schedule needs 517 fewer examinations per 1,000 patient-years than an
+annual echocardiogram for everyone ([`model/decision_curve.md`](model/decision_curve.md)).
 
-Simulating that same poverty on a cohort whose truth we know puts a number on what it costs:
-extract-quality surveillance loses **34% of the patients who deteriorate and 42% of the endpoint
-rows** they would have generated. Losing follow-up rarely erases a patient entirely; it erases the
-later stages of their course, which is exactly what a durability model learns from.
+**The study.** [`protocol/study_protocol.md`](protocol/study_protocol.md) specifies:
+- the population and the VARC-3 endpoint;
+- ground-truth adjudication;
+- 3,580 patients ([`protocol/sample_size.md`](protocol/sample_size.md));
+- external validation;
+- ethics and privacy.
 
-The pipeline is therefore trained on a **literature-calibrated synthetic cohort**, and the same
-descriptive measures are computed on every rung of a **degradation ladder**: the same patients
-with their data progressively stripped, ending in the real extract itself. That converts "the
-data were poor" into a ranked, quantified statement of which defect costs how much. The models are
-then scored, never trained, on the extract: over five synthetic draws the regression baseline
-reaches a 5-year AUC of 0.71 ± 0.02 on its 51 valve episodes, no better than valve age alone with
-only 10 events, and its mean predicted risk (15.9%) falls inside the observed 7.7% to 27.6%
+**What we found.** Main results come from full-quality synthetic data, with separate training,
+validation and test sets, over five independent draws of 6,000 patients
 ([`model/approach.md`](model/approach.md) §4).
+
+| 5-year AUC | all visits | first postoperative visit | 5 years or later |
+|---|---|---|---|
+| regression baseline | 0.76 | 0.61 | 0.74 |
+| gradient boosting (primary) | 0.76 (0.83 at 2 years) | 0.60 | 0.73 |
+| valve age only | 0.73 | 0.50 | 0.48 |
+
+- **The question can be answered, modestly, from the first visit.** Information available at the
+  first postoperative visit separates patients (AUC about 0.60, where valve age gives 0.50), and
+  the predicted risk there is well calibrated (about 6% against 6.6% observed).
+- **Prediction improves at later visits** as serial echocardiograms accumulate.
+- **The clinician's factors matter.** Aligning the features with the team clinician's list raised the
+  5-year AUC from 0.73–0.74 to 0.77–0.78, and at the first visit from about 0.55 to 0.62–0.64
+  (single cohort).
+- **Real extract, scored, never trained on.** 51 valve episodes, 10 events. The same models reach a
+  5-year AUC of 0.72 (regression) and 0.69 (gradient boosting), no better than valve age alone
+  (0.72) with this few events.
+- **What limits the result.** The extract lacks ages, dated serial echocardiograms and death records.
+  That gap is what the protocol is designed to close.
 
 ## Key Design Decisions
 
 | Decision | Rationale |
 |---|---|
-| **Competing-risk cumulative incidence (Aalen–Johansen), never Kaplan–Meier** | At a mortality of 62.7% by ten years, one minus Kaplan–Meier answers a question about a population in which nobody dies. NOTION used the same estimator, so our comparison with it is like for like. Implemented in [`notebooks/synthetic/calibration.py`](notebooks/synthetic/calibration.py). |
-| **Events are recorded when *detected*, not when they begin** | The generator emits both ends of the censoring interval (`interval_start_days`, `days_from_implant`). A generator that emitted latent onset times would produce a dataset on which any model looks better than it could ever be in clinic. Enforced by `test_the_censoring_interval_brackets_the_event`. |
-| **A mechanistic generator, not a learned one (no CTGAN/synthpop)** | A generative model learns the joint distribution of data you already hold. What is needed here is structure the extract does **not** hold: a trajectory cannot be learned from a dataset containing one trajectory. |
-| **One tolerance rule, fixed before any cohort was generated** | Bands are 2 percentage points or a quarter of the published value, whichever is larger, applied uniformly. A per-anchor tolerance chosen by hand is not a standard, it is a description of the result. Enforced by `test_every_anchor_uses_the_stated_tolerance_rule`. |
-| **Calibration is not correctness, so correctness is tested separately** | Nine parameters were fitted against the anchors, which is close to saturated. Correctness is established by injecting known hazard ratios and recovering them with an independently implemented Cox fit, one per failure mode: the 95% interval covered the injected value in **70 of 75 fits (93.3%)**, mean log bias **−0.0030** ([`notebooks/synthetic/validation.py`](notebooks/synthetic/validation.py)). The injected effects are themselves cross-checked against published predictor estimates in [`docs/research/svd_literature.md`](docs/research/svd_literature.md) §3.6 — agreements and disagreements alike. |
-| **No gradient change from values that share a note** | Most patients with more than one prosthetic mean gradient have every value inside a single note with the examination dates redacted, so the values have no recoverable order. A change is computed only against a genuine reference examination in its own note, which exists for 4 of the 51 modelled valve episodes; any other derived trajectory would be fabricated. |
-| **The last rung of the ladder is the extract itself, not a simulation of it** | The panel is not asked to take the simulation on trust: where the simulated bottom rung and the real one agree, the intermediate rungs can be believed. Today they do not fully agree: the simulated rung reaches an examination for 52.1% of patients against 83.8% in the extract, and records more endpoint rows (15.17 against 8.55 per 100), so the simulation of the extract is itself still too pessimistic about surveillance. |
-| **One route for real and synthetic data** | The synthetic cohort is converted into the tables `02_preprocessing.ipynb` writes for the extract, so both go through identical label, feature and model code. On every ladder rung the conversion reproduces the generator's own tables row for row. |
-| **Train on data that look like the target** | Trained on the ideal cohort, the boosted model ranked the real valves worse than chance. The synthetic cohort is therefore reshaped to the extract's measured gaps before training (`TRAIN_LIKE_REAL`): case mix, which risk factors the notes record, gradient levels and when echoes happen. |
+| **Competing-risk cumulative incidence, never Kaplan–Meier** | Most bioprosthesis recipients die with a working valve (62.7% mortality at 10 years in NOTION). One minus Kaplan–Meier would describe a population in which nobody dies and overstate failure. |
+| **Landmark design: re-predict at every visit** | The decision the model supports, when to image next, recurs at every visit, and new echocardiograms change the risk. Each prediction uses only what was known at that visit. |
+| **Events dated when detected, and the interval kept** | Deterioration begins between examinations. Recording the detecting study, not the hidden onset, keeps the synthetic data as imperfect as a real surveillance cohort; otherwise any model would look better than it could be in clinic. |
+| **VARC-3 as ground truth, against the patient's own reference echo** | The consensus definition is a change from the post-operative baseline, with a corroborating fall in orifice area or DVI. Reinterventions for structural failure count; endocarditis, thrombosis and paravalvular leak do not. |
+| **A mechanistic, literature-calibrated synthetic cohort** | The extract has one or two notes per patient, so a trajectory cannot be learned from it. The generator is built from published effect sizes, lands inside a fixed tolerance for 8 of 10 published anchors, and recovers injected effects in 70 of 75 tests. |
+| **One code path for real and synthetic data** | The synthetic cohort is converted into the same tables the extract preprocessing writes, so both go through identical label, feature and model code. |
+| **Monotone constraints and a short clinical feature list** | Risk should never fall as a stenosis marker worsens. On the synthetic data reshaped to look like the extract, removing the constraints cost the boosted model 0.14 of AUC at 5 years; on full-quality synthetic data the unconstrained model scores slightly higher (5-year AUC 0.75 against 0.73), so the constraints are kept for clinical sense and for sparse data, at a small cost. The feature list follows the published risk factors and the team clinician's list. Surveillance counts are excluded, because how often a valve is imaged reflects concern, not the valve. |
+| **Synthetic train, validation and test; the real extract as a check** | As the organisers recommended, the main results are trained, validated and tested on synthetic data, split by implant year and grouped by patient, and repeated over independent draws. The real extract is scored and never trained on, with intervals that resample valves, not rows. |
 
-## What Runs Today
+---
+
+## Getting Started
+
+> ⚠️ **Do not upload real patient data or clinical notes to this repository.** Any data you use must be de-identified, synthetic, or otherwise cleared for public sharing — this repo (and your fork) may be publicly visible.
 
 ```bash
 uv sync
-uv run python -m pytest notebooks/synthetic/tests -q     # 54 tests on the synthetic cohort
-uv run python -m pytest notebooks/pipeline/tests -q      # 15 tests on labels, features and matching
-uv run python scripts/05_report_synthetic.py             # regenerates data/synthetic/results.md
-uv run python scripts/06_model_stability.py              # regenerates model/stability.md
-uv run python scripts/07_sample_size.py                  # regenerates protocol/sample_size.md
-uv run python scripts/08_decision_curve.py               # regenerates model/decision_curve.md
-uv run python scripts/01_extract_rules.py                # needs the extract; then 03
-uv run jupyter lab                                        # notebooks 01 to 05, in order
-uv run python scripts/09_real_extract_rung.py            # needs notebook 02's tables; then rerun 05
+uv run pytest -q                                   # 69 tests: synthetic cohort and pipeline
+uv run python scripts/05_report_synthetic.py       # regenerates data/synthetic/results.md
+uv run python scripts/06_model_stability.py        # regenerates model/stability.md
+uv run python scripts/07_sample_size.py            # regenerates protocol/sample_size.md
+uv run python scripts/08_decision_curve.py         # regenerates model/decision_curve.md
+uv run jupyter lab                                 # notebooks 01 to 05, in order
 ```
 
-The first six need no private data: everything they report is generated from a fixed seed and can
-be reproduced on any clone. Each one writes the date and the commit it ran against into the
-document it produces, so a number that has drifted away from the code is visible rather than
-silent.
-
-- `02_preprocessing.ipynb` turns the extract into valves, echo timelines, events and follow-up.
-- `03_data_preparation.ipynb` builds labels, landmarks and features for the synthetic cohort
-  (reshaped to look like the extract by default) and explores them.
-- `04_model_training.ipynb` trains the comparators, the regression baseline and the boosted model,
-  and checks them on later synthetic valves.
-- `05_results.ipynb` scores every trained model on the real extract, with bootstrap intervals,
-  calibration, decision curves and subgroups, and records the run in
-  [`results/LEDGER.md`](results/LEDGER.md).
-
-Every synthetic number is labelled synthetic. The real extract is scored and never trained on.
+- **No private data needed:** the tests and scripts 05 to 08. Each stamps its document with the
+  commit it ran against.
+- **Private data needed:** notebooks 01, 02 and 05, and scripts 01, 03 and 09
+  ([`scripts/README.md`](scripts/README.md), [`notebooks/README.md`](notebooks/README.md)).
+- **Setup, data handling and submission:** [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 No patient-level value, note text or identifier appears in this repository, in any figure, or in
-any committed notebook output. The source extracts sit in `data/`, and `.gitignore` blocks every
-spreadsheet, CSV, parquet, pickle and derived table there.
+any committed notebook output.
 
 ---
 
@@ -121,36 +148,36 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 ```
 .
 ├── README.md                        # This file — team overview and key decisions
-├── CONTRIBUTING.md                  # Setup, data handling, how to regenerate the evidence
+├── CONTRIBUTING.md                  # Setup, data handling, submission
 ├── protocol/
 │   ├── study_protocol.md            # Full study design (main deliverable)
-│   └── sample_size.md               # Generated: how large the real study has to be
+│   └── sample_size.md               # Generated: how large the study has to be
 ├── model/
-│   ├── approach.md                  # Modelling methodology and validation strategy
-│   ├── stability.md                 # Generated: which model differences survive re-drawing the cohort
-│   ├── decision_curve.md            # Generated: at which thresholds acting on the model pays, and what it costs
-│   ├── tripod_ai.md                 # TRIPOD+AI reporting checklist, item by item, gaps included
-│   └── modeling_brief.md            # Internal work assignment for the model layer
-├── results/                         # Run ledger: every evaluation on the extract, with its settings
+│   ├── approach.md                  # Model methodology and validation strategy
+│   ├── stability.md                 # Generated: model comparison over 8 synthetic cohorts
+│   ├── decision_curve.md            # Generated: net benefit and surveillance workload
+│   ├── tripod_ai.md                 # TRIPOD+AI reporting checklist
+│   └── modeling_brief.md            # Original work assignment, kept as a record
 ├── data/
 │   ├── data_plan.md                 # Data sources, preprocessing, availability
 │   ├── data_dictionary.md           # Field provenance
-│   ├── endpoint_criteria.md         # Candidate failure definitions
-│   ├── open_questions.md            # Decisions still open, with their owners
-│   └── synthetic/                   # Generated results and a schema sample
-├── docs/                            # Per-source data review and research notes
-├── scripts/                         # 01, 03 extracts → tables; 05–08 regenerate evidence; 09 measures the extract rung
+│   ├── endpoint_criteria.md         # Failure definitions and event counts
+│   ├── open_questions.md            # Open decisions and their owners
+│   └── synthetic/                   # Generated calibration and ladder results, schema sample
+├── docs/                            # Review of the supplied data, and research notes
+├── scripts/                         # 01, 03 extracts to tables; 05–08 regenerate evidence; 09 measures the extract
 ├── notebooks/
 │   ├── 01_raw_data_overview.ipynb   # What the three extracts contain
-│   ├── 02_preprocessing.ipynb       # Cleaning and abstraction
-│   ├── 03_data_preparation.ipynb    # Labels, landmarks, features, selection
-│   ├── 04_model_training.ipynb      # Comparators, baseline, boosted model
-│   ├── 05_results.ipynb             # Scoring on the real extract, run ledger
-│   ├── figures/                     # Aggregate figures written by the notebooks
-│   ├── pipeline/                    # Shared code: prep, landmarks, matching, ml, evaluation, ledger, viz (+ tests)
-│   └── synthetic/                   # Cohort generator, calibration, degradation ladder
+│   ├── 02_preprocessing.ipynb       # Cleaning, valves, echo timeline, events
+│   ├── 03_data_preparation.ipynb    # Labels, landmarks, features
+│   ├── 04_model_training.ipynb      # Comparators, baseline, primary model
+│   ├── 05_results.ipynb             # Scoring on the real extract
+│   ├── figures/                     # Aggregate figures
+│   ├── pipeline/                    # Shared code and its tests
+│   └── synthetic/                   # Synthetic cohort generator and its tests
+├── results/                         # Run ledger: every evaluation with its settings
 ├── presentation/
-│   ├── slides.md                    # Deck content and the spoken script; slides.pdf still to be built
+│   ├── slides.md                    # Deck content and script
 │   └── figures/                     # System and model diagrams
 └── evaluation/
     └── scoring_rubric.md            # Organisers' rubric
@@ -161,11 +188,8 @@ spreadsheet, CSV, parquet, pickle and derived table there.
 ## Submission Checklist
 
 - [x] `README.md` — team overview, problem framing, key design decisions *(team members still to be listed)*
-- [x] `protocol/study_protocol.md` — complete study protocol *(open decisions are named with their owner)*
-- [x] `model/approach.md` — modelling methodology
+- [x] `protocol/study_protocol.md` — complete study protocol
+- [x] `model/approach.md` — model methodology
 - [x] `data/data_plan.md` — data plan
-- [ ] `presentation/slides.pdf` — slide deck *(content and script written in `presentation/slides.md`; PDF not built)*
-- [x] `notebooks/` — proof-of-concept, five notebooks end to end
-
-Setup, data-handling rules and the submission mechanics are in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
+- [ ] `presentation/slides.pdf` — slide deck
+- [x] `notebooks/` — proof-of-concept implementation, five notebooks end to end

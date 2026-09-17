@@ -56,7 +56,12 @@ FEATURES = {
 }
 OUTCOME_CLASSES = {1.0: "SVD", 0.0: "no SVD", 2.0: "died first"}
 
-FIXED_FEATURES = ("landmark_years", "tavr", "valve_size_mm", "valve_trifecta", "ref_mg", "ref_missing", "last_mg", "delta_mg")
+SPARSE_FEATURES = ("landmark_years", "tavr", "valve_size_mm", "valve_trifecta", "ref_mg", "ref_missing", "last_mg", "delta_mg")
+FIXED_FEATURES = (
+    "landmark_years", "tavr", "valve_size_mm", "valve_trifecta", "ppm_grade",
+    "age_at_implant", "male", "bsa_m2", "smoking", "diabetes", "ckd", "anticoagulation",
+    "ref_mg", "ref_missing", "last_mg", "delta_mg", "last_dvi", "delta_dvi", "last_ar", "delta_ar", "last_lvef",
+)
 SELECTION_CONFIG = dict(
     enabled=True,
     mode="fixed",

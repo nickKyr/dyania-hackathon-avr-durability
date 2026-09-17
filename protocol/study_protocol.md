@@ -1,468 +1,320 @@
 # Study Protocol
 
-> **Status.** Sections are written from what is implemented and runnable in this repository.
-> Where a decision has not been taken, the section says **Not yet decided** and names its owner
-> rather than presenting an intention as a settled design. The open list, with owners, is
-> [`../data/open_questions.md`](../data/open_questions.md).
+This is the protocol for the real study our prototype is built for. The prototype, its data and its
+results are described in [`model/approach.md`](../model/approach.md) and
+[`data/data_plan.md`](../data/data_plan.md). This document states what a hospital or registry
+would have to run, and why each choice is made.
 
 ---
 
 ## 1. Study Title and Objectives
 
 **Title:**
-**Predicting structural deterioration of a bioprosthetic aortic valve from routinely collected
-echocardiographic surveillance, with death as a competing risk: a protocol and a measurement of
-what each missing data element costs.**
+Dynamic Prediction of Bioprosthetic Aortic Valve Failure to Guide Personalised Surveillance
 
 **Primary Objective:**
-To estimate, for a patient with a bioprosthetic aortic valve and at every echocardiogram they
-undergo, the cumulative incidence of structural valve deterioration within a fixed horizon under
-the competing risk of death, so that the interval to their next echocardiogram can be set by
-their risk rather than by the calendar.
+Among adults who are alive and free of valve failure following bioprosthetic aortic valve
+replacement, determine whether clinical information available at each postoperative visit predicts
+the risk of bioprosthetic valve failure over the next five years, with the risk estimate updated at
+every subsequent visit and death treated as a competing event. The estimate is used to set the
+interval to the next echocardiogram.
 
 **Secondary Objectives:**
-
-1. **Quantify what each data defect costs.** The same cohort is run through one unchanged
-   pipeline six times, with age, date resolution and serial imaging progressively removed and the
-   real extract as the final rung, so that "the data were poor" becomes a ranked list of which
-   defect costs how much ([`../data/synthetic/results.md`](../data/synthetic/results.md)).
-2. **Establish what chart abstraction can recover when no structured echo table exists**, and
-   report its reach and its error rather than assuming it.
-3. **Separate the two prediction problems that are routinely conflated** — predicting *what the
-   chart says* (abstraction) from predicting *what happens to the patient* (risk) — and evaluate
-   each with its own metrics.
-4. **Differentiate surgical from transcatheter trajectories.** Incidence is calibrated and
-   reported separately by implant approach throughout.
+1. Report the risk at 2 and 8 years as well as 5, and measure how prediction accuracy changes from
+   the first postoperative visit to later visits (6 months, 1 year, then yearly up to 10 years).
+2. Compare risk trajectories after surgical (SAVR) and transcatheter (TAVR) implantation, and by
+   valve family.
+3. Quantify what a risk-guided schedule changes against the guideline calendars: failing valves
+   detected earlier, and echocardiograms needed per 1,000 patient-years.
+4. Measure how much each missing data element (age, dated serial echocardiograms, death records)
+   costs in prediction accuracy, to tell sites which data to collect first.
 
 ---
 
 ## 2. Target Population
 
 ### Inclusion Criteria
-
-Adults with a **bioprosthetic** aortic valve, implanted surgically (SAVR) or by transcatheter
-route (TAVR), with an identifiable index operation and implant year. A patient enters the
-analysis at a landmark time only if, at that time, they are alive, free of the endpoint, and still
-under observation beyond it.
-
-How the index operation is identified in the prototype extract — which report counts when a
-patient has two, and how reports marked deleted are treated — is not settled; both questions are
-open in [`../data/open_questions.md`](../data/open_questions.md) and belong to the team with the
-clinical lead.
+- Age 18 years or older at implant.
+- Bioprosthetic aortic valve implanted by SAVR or TAVR, including valve-in-valve procedures when
+  they are the index implant under study.
+- A post-operative reference echocardiogram. VARC-3 places it 30 days to 3 months after implant;
+  where only the discharge or 6-week study exists, that study is used and flagged.
+- Alive, and free of structural failure, at the time of that reference study.
+- Valve model and label size recorded, and at least one opportunity for follow-up after the
+  reference study (a later visit, echocardiogram or recorded death).
 
 ### Exclusion Criteria
+- Mechanical aortic valve.
+- Endocarditis before or at the reference study, or valve thrombosis or moderate or worse
+  paravalvular regurgitation at the reference study. These are non-structural dysfunction and
+  would be mistaken for deterioration.
+- Concurrent prosthetic valve in another position (mitral, tricuspid). Its echo findings and
+  reinterventions cannot be separated reliably from the aortic valve's.
+- Patients who opted out of secondary use of their records, where the site requires it.
 
-- **Mechanical prostheses.** They do not deteriorate structurally and are outside the question.
-- **Non-structural causes of dysfunction**, which are excluded from the endpoint rather than
-  ignored: regurgitation flagged as paravalvular is excluded from the regurgitation arm, and a
-  reintervention driven by endocarditis or paravalvular leak **censors** the patient at that year
-  instead of counting as an event ([`../data/endpoint_criteria.md`](../data/endpoint_criteria.md)).
-- **Isolated patient–prosthesis mismatch**, which raises the gradient without the valve failing.
-  It is carried as a covariate at the VARC-3 indexed-EOA cut-offs, never as an outcome.
-- **No identifiable implant year**, since every time axis in the study is measured from implant.
+Patients without a reference study are not dropped silently. They are analysed in a sensitivity
+analysis using the single-examination rule in §3, so the effect of excluding them is measured.
 
 ### Cohort Size Estimate
-
-**Calculated: 3,580 patients followed to five years**, with the working out in
-[`sample_size.md`](sample_size.md), regenerated by `scripts/07_sample_size.py`. The binding
-constraint is Riley's criterion for the minimum sample size of a prediction model, applied to the
-regression model on the eleven published risk factors with the explained variation measured on the
-synthetic cohort (Cox–Snell R² = 0.027). The criterion is defined for regression models, so it sets
-the floor; the gradient-boosted primary model is more flexible and is held to at least this size. Estimating the five-year cumulative incidence to ± 2 percentage
-points needs only about 500 patients, and discrimination stops improving well before 3,580, so the
-model — not the incidence and not the AUC — is what sets the size.
-
-**The remaining decision is the team's, and it is a real one:** the synthetic cohort is generated
-at 1,800 implants, which is half the requirement. Either the study recruits across more centres,
-or it keeps 1,800 and reports the model as provisional with recalibration at each site, or it cuts
-the candidate parameters further, since the requirement is proportional to them. What the protocol
-will not do is fit forty-two candidate features to 1,800 patients and call the result validated.
+**3,580 patients followed to five years**, of whom about 565 are expected to deteriorate
+([`sample_size.md`](sample_size.md), regenerated by `scripts/07_sample_size.py`).
+- **What sets the size.** Riley's minimum-sample-size criterion for a prediction model, applied to
+  the regression model on the 11 published risk factors, with the explained variation measured on
+  our synthetic cohort (Cox–Snell R² = 0.027). The criterion is defined for regression models, so it
+  sets the floor; the gradient-boosted primary model is more flexible and is held to at least this
+  size.
+- **Why so many.** Structural deterioration is uncommon in the first years (PARTNER 3: 3.3% to 3.8%
+  valve failure at 5 years), so a large cohort is needed to collect enough events.
+- **What does not set it.** Estimating the 5-year incidence to ±2 percentage points needs only about
+  500 patients, and discrimination stops improving well before 3,580.
+- **What a larger feature set would need.** A model with all 42 candidate features would need about
+  13,700 patients. This is why the model uses a short clinical feature list.
+- **Where the patients come from.** This is a multi-centre cohort or a national registry, not a
+  single hospital.
 
 ---
 
 ## 3. Endpoints
 
 ### Primary Endpoint
+**Structural valve failure within 5 years of the landmark**, defined as the first of:
+- **VARC-3 haemodynamic valve deterioration stage 2 or worse**, judged against the patient's own
+  reference study:
+  - a mean gradient rise of at least 10 mmHg to at least 20 mmHg, with a fall in effective orifice
+    area of at least 0.3 cm² or 25%, and/or a fall in DVI of at least 0.1 or 20%;
+  - or new or worsened intraprosthetic regurgitation that is at least moderate;
+- **VARC-3 bioprosthetic valve failure stage 2 or worse:** a reintervention (valve-in-valve TAVR,
+  redo SAVR) for structural failure, or valve-related death.
 
-**First structural failure of the prosthesis**, defined as the earliest of:
+**Death from other causes is a competing event.** A patient who dies with a working valve has not
+failed, and is not treated as censored.
 
-1. **VARC-3 stage 2 haemodynamic valve deterioration** — a mean gradient rise ≥ 10 mmHg from the
-   reference examination resulting in ≥ 20 mmHg, *together with* an EOA fall ≥ 0.3 cm² or ≥ 25%
-   and/or a DVI fall ≥ 0.1 or ≥ 20%; or new or one-grade-worse intraprosthetic regurgitation that
-   is at least moderate.
-2. **VARC-3 bioprosthetic valve failure stage 2** — reintervention (valve-in-valve or redo SAVR)
-   for valve deterioration.
+**Measurement.** The endpoint is recorded at the echocardiogram or procedure that detects it. The
+interval back to the last normal study is kept with it, because deterioration begins between
+examinations: in our synthetic cohort that interval had a median of 1.1 years and a maximum of 4.2.
 
-The reference examination is the study taken 30 days to 3 months after implant, per VARC-3. Note
-the structure of the gradient arm: a rise *and* an absolute level *and* a corroborating fall in
-area or dimensionless index. **A gradient rise on its own is not deterioration** — it may simply
-be higher flow — and the synthetic cohort enforces exactly this
-(`test_a_gradient_rise_alone_is_not_deterioration`). The preprocessing of the supplied extract
-relaxes both conditions (`require_eoa_or_dvi_confirmation=False` and a one-year reference window in
-`notebooks/pipeline/prep.py`), because its dates are years and a second measurement is rare; the
-one echo-detected event on the extract was labelled under that weaker rule.
-
-The endpoint is **interval-censored**: it is recorded at the examination that detects it, and the
-interval back to the last clean examination is carried with it. On the synthetic cohort (ideal rung,
-1,800 patients, seed 20260917) that interval has a median of 1.1 years and a maximum of 4.2, so a deterioration recorded at one
-examination may have begun four years earlier. Supplying only the right endpoint, as most
-extracts do, silently converts an interval-censored outcome into an exactly observed one.
-
-**Clinically useful threshold: the analysis is done, the choice is the clinical lead's.**
-[`../model/decision_curve.md`](../model/decision_curve.md) reports the net benefit of acting on the
-model at every candidate threshold, against the two policies that need no model — scan everyone on
-the guideline calendar, or change nothing — with death treated as a competing risk. It establishes
-the *window* of thresholds in which a risk-guided schedule is worth using at all, and states what
-each of the tier boundaries currently proposed would buy, in deteriorations caught per hundred
-patients after paying for the extra examinations. What it deliberately does not do is pick one:
-the threshold is a statement about how many examinations a clinician will bring forward to catch
-one deterioration, which is a clinical judgement and not a statistical one. It also should not be
-fixed before recalibration at the deploying site, since a decision curve is read off absolute risk
-and the direction of miscalibration differs between the synthetic cohort and the extract
-([`../model/approach.md`](../model/approach.md) §4).
-
-### Outcome Adjudication
-
-The endpoint is assessed by reading a chart, and reading a chart is a subjective act, so the
-procedure is specified rather than left to whoever happens to do it.
-
-**Who.** Two cardiologists independent of the model work, each blinded to the model's prediction,
-to the patient's risk tier and to the other adjudicator's verdict. The abstraction layer's output
-is presented to them as a proposal with its evidence span, never as a label: the four statuses it
-emits — `accept`, `reject`, `borderline`, `missing information` — are the queue, not the answer.
-
-**What they see.** The examinations and their values, the operative and procedure notes, and the
-stated indication for any reintervention. What they do not see is the model's output, because an
-adjudicator who knows the prediction cannot un-know it when the case is borderline.
-
-**Agreement is measured, not assumed.** Inter-rater agreement is reported as Cohen's kappa on the
-primary endpoint and on the structural-versus-non-structural distinction, which is where the
-disagreements will concentrate: a reintervention driven by endocarditis or a paravalvular leak
-censors the patient, while one driven by deterioration is the event itself, and the note often
-supports both readings. Disagreements go to a third adjudicator, and the rate at which that
-happens is reported alongside the kappa.
-
-**Why this matters more here than in a trial.** In a trial the adjudication committee sees a
-dossier assembled for the purpose. Here the same judgement is made from routine notes written for
-another reason, so the ceiling on label quality is set by this step and not by the model. A study
-that reports model performance without reporting adjudicator agreement is reporting the wrong
-uncertainty.
+**Clinically useful performance.**
+- **Discrimination.** The model must rank patients better than valve age alone, the basis of
+  current scheduling, in a paired comparison within the same patients.
+- **Calibration.** Its predicted risk must be calibrated at the site before the tiers are used.
+- **Clinical benefit.** A risk-guided schedule must show positive net benefit against both
+  "scan everyone" and "change nothing" at the threshold the clinical lead chooses. The prototype
+  decision curve ([`model/decision_curve.md`](../model/decision_curve.md)) finds that window from 5%
+  predicted 5-year risk upward.
 
 ### Secondary Endpoints
 
 | Endpoint | Measurement | Timeframe |
 |---|---|---|
-| VARC-3 stage 3 (severe) haemodynamic valve deterioration | rise ≥ 20 mmHg resulting in ≥ 30 mmHg with an EOA fall ≥ 0.6 cm² or ≥ 50% and/or a DVI fall ≥ 0.2 or ≥ 40%; or severe intraprosthetic regurgitation | any examination after the reference study |
-| Reintervention for structural cause | operative or procedural record with a structural indication | any time |
-| All-cause death | vital status feed; treated as the competing risk, never as censoring | any time |
-| Reach of chart abstraction | share of patients for whom an examination can be recovered from free text | per extract |
-
-Stage 3 is held to be strictly harder than stage 2, and every severe event must have a moderate
-one preceding it — both asserted by tests rather than assumed.
+| Bioprosthetic valve failure (reintervention for structural failure, or valve-related death) | operative and procedure records, death records, adjudicated | 2, 5 and 8 years from landmark |
+| Severe haemodynamic deterioration (VARC-3 stage 3) | echocardiogram against own reference: gradient rise of at least 20 mmHg to at least 30 mmHg with EOA fall of at least 0.6 cm² or 50% and/or DVI fall of at least 0.2 or 40%, or severe intraprosthetic regurgitation | 2, 5 and 8 years |
+| Structural failure at 2 and 8 years | as the primary endpoint | 2 and 8 years from landmark |
+| Mean gradient progression | change in mean gradient per year between consecutive studies | whole follow-up |
+| All-cause death | death records | 2, 5 and 8 years |
 
 ---
 
 ## 4. Proposed Data Sources
 
-The specification is [`../notebooks/synthetic/schema.py`](../notebooks/synthetic/schema.py): four
-tables whose columns are validated on every rung of the ladder. A site that can populate them can
-run this study. Access pathways below are deployment assumptions and are labelled as such; the
-variables are not assumptions.
+A site supplies four tables (implants, echocardiograms, events, follow-up), specified column by
+column in [`notebooks/synthetic/schema.py`](../notebooks/synthetic/schema.py). The sources are
+detailed in [`data/data_plan.md`](../data/data_plan.md) §1.
 
-| Source | Data Type | Access Pathway (assumed) | Key Variables |
+| Source | Data Type | Access Pathway | Key Variables |
 |---|---|---|---|
-| Implant registry or operative record | one row per implant | registry export, or the operative report through the abstraction pipeline | approach, valve model, label size, EOA, implant year |
-| Demographics | one row per patient | EHR demographics table | age at implant, sex, body surface area — and from them indexed EOA and mismatch grade |
-| Structured echocardiography | one row per **dated** examination | the echo laboratory's reporting database, not the note | mean and peak gradient, DVI, EOA, regurgitation grade, LVEF, reference flag |
-| Procedures | reinterventions with stated indication | EHR procedure table | procedure type and indication, to separate structural from non-structural |
-| Vital status | date of death | hospital registry or national death index | death date — without it the competing risk is unobserved |
-| Comorbidity | diagnoses at implant | EHR problem list | diabetes, chronic kidney disease, smoking, bicuspid anatomy |
-| Encounter record | last contact | EHR encounter table | last contact date, number of examinations, censoring reason |
+| Operative and procedure reports | free text | EHR export, abstracted on site by rules and language-model agents that quote the source sentence for every field | implant date, SAVR or TAVR, valve model and size, valve-in-valve |
+| Echocardiography | structured measurements, or report text | echo reporting system (DICOM SR) or abstraction | exam date, mean and peak gradient, DVI, effective orifice area, intraprosthetic and paravalvular regurgitation, LVEF |
+| Clinical notes, problem list, demographics | free text and coded data | EHR | age, sex, body size, diabetes, chronic kidney disease, smoking, hypertension, dyslipidaemia |
+| Medications and laboratory results | structured | EHR | anticoagulation, statins; creatinine and eGFR, calcium, phosphate, HbA1c |
+| Reinterventions | procedure codes and operative notes | EHR, surgical and catheter laboratory registries | procedure type, date, indication |
+| Vital status | date and cause of death | hospital records linked to the national death registry | death date, cardiac or valve-related cause |
 
-For what the **prototype** extract actually contains, and how far it falls short of the above, see
-[`../data/data_plan.md`](../data/data_plan.md) sections 2 and 3.
+The two elements the model cannot do without are **dated serial echocardiograms** and **age at
+implant**, and a site that lacks death records cannot model the competing risk. The supplied
+prototype extract had none of the three reliably, which is why the prototype was developed on
+synthetic data.
 
 **Ground Truth Definition:**
+An event counts toward the endpoint only through the following hierarchy, applied in this order.
 
-The hierarchy is applied in this order, and each level is a separate, switchable column so that
-its contribution can be measured:
+1. **Reintervention with a structural indication.** Valve-in-valve TAVR or redo SAVR for failure of
+   the bioprosthesis, documented in an operative report. This is the strongest evidence.
+2. **Explant pathology.** Where available, it confirms structural failure (calcification, leaflet
+   tear, pannus) and overrides an unclear indication.
+3. **VARC-3 haemodynamic criteria.** Applied examination by examination against the patient's own
+   reference study (§3), never to a pooled summary. The gradient arm requires the corroborating fall
+   in orifice area or DVI; a gradient rise on its own may reflect higher flow and does not count.
+4. **Single-examination rule.** Used only in the sensitivity analysis, for patients without a
+   reference study: mean gradient of at least 30 mmHg, or at least moderate intraprosthetic
+   regurgitation. It is weaker, and labels built with it are declared as such.
 
-1. **Reintervention with a structural indication** — the strongest available evidence, and on the
-   supplied extract the level behind nine of its ten events.
-2. **VARC-3 haemodynamic criteria against the patient's own reference examination** — applied
-   examination by examination, never to a pooled summary.
-3. **Single-examination fallback**, used only when no reference examination exists: the
-   absolute-threshold arm of the same definition applied to one measurement. This is strictly
-   weaker than the criteria above and every label built this way must be declared as such. The
-   thresholds are open — see [`../data/endpoint_criteria.md`](../data/endpoint_criteria.md).
-4. **Explicit prosthetic-failure language in the record**, as a separate, optional component that
-   can be switched off so its contribution is measurable.
+**Excluded as non-structural** (they censor the patient rather than count):
+- endocarditis
+- valve thrombosis
+- isolated paravalvular regurgitation
+- isolated patient–prosthesis mismatch, which raises the gradient from implant without the valve
+  failing
 
-**Rule-based labels are proposals for clinician adjudication, not ground truth.** Each carries one
-of four statuses — `accept`, `reject`, `borderline`, `missing information` — and points back to
-the text that supports it. Explant pathology is not available in this setting and is not part of
-the hierarchy.
+**Adjudication.**
+- **Reviewers.** Two cardiologists, blinded to the model output, review every event and every
+  borderline echocardiogram; a third resolves disagreements.
+- **Automated labels.** Language-model extractions carry the quoted sentence, so each label can be
+  checked against its source.
+- **Clinical sign-off.** The single-examination thresholds and the handling of borderline cases are
+  signed off by the clinical lead before any model is fitted.
 
 ---
 
 ## 5. Statistical Analysis Plan
 
 ### Sample Size
-
-See section 2 and [`sample_size.md`](sample_size.md): **3,580 patients followed to five years**, set
-by the minimum-sample-size criterion for the regression model on the published risk factors, the
-floor for the boosted primary model, rather than by a power calculation,
-because the study estimates risk rather than testing a hypothesis. The same document records a
-finding that changes the analysis plan rather than the recruitment target: across a sixteen-fold
-range of cohort size the models over-predict five-year incidence by 15% to 34% with no trend, so
-**calibration will not be fixed by recruiting more patients** and an explicit recalibration step
-belongs in the pipeline.
+3,580 patients and about 565 events (§2, [`sample_size.md`](sample_size.md)). The same analysis
+records a finding that changes the analysis plan rather than the recruitment target:
+- **Calibration does not improve with more patients.** Across a sixteen-fold range of cohort size,
+  the models over-predict five-year incidence by 15% to 34%, with no trend.
+- **Consequence.** An explicit recalibration step belongs in the pipeline.
 
 ### Train / Validation / Test Split
-
-Two requirements are fixed by the design and are not negotiable downstream:
-
-- **Patient-level partition.** One patient contributes many landmark rows, so no patient may
-  appear in more than one of training, validation and test. Splitting by row would let the model
-  see the same patient on both sides of the split.
-- **No feature dated after its landmark.** This has to be asserted mechanically rather than
-  reasoned about, because the feature vector is assembled by iterating over examinations. The
-  assertion is behavioural: every examination dated after the landmark has its measurements
-  replaced by impossible values and the feature table is rebuilt, which must leave it byte for
-  byte unchanged — with the mirror-image check that poisoning the examinations *before* the
-  landmark does move the features, so the test cannot pass vacuously
-  (`notebooks/pipeline/tests/test_pipeline.py`).
-
-A temporal split — training on earlier implant cohorts and testing on later ones — is the
-appropriate secondary check, since valve models, implant technique and surveillance practice all
-drift over time and a model that only works on the era it was fitted to is not deployable.
-
-Class imbalance is **not** addressed by resampling or class weighting. At a low event rate both
-distort calibration, and calibration is the property the clinical use depends on: a model that
-ranks patients correctly but overstates absolute risk will schedule the wrong number of
-echocardiograms. The response to a low event count is a small, regularised model, not a reweighted
-one.
-
-The proof of concept implements the temporal split only (implants up to 2018 train, later implants
-test, no patient on both sides) and runs the checks listed in
-[`../model/approach.md`](../model/approach.md) §4.
+- **Unit.** The patient. Each patient contributes one row per landmark visit, and all of a patient's
+  rows stay in the same partition, so no information leaks between partitions.
+- **Test set: temporal.** Patients implanted in the most recent years (in the prototype, after 2018)
+  form the held-out test set. This checks that the model still works as valve models and case mix
+  change: in our prototype extract, 88% of implants from 2019 on were TAVR.
+- **Validation: inside the training set.** Hyperparameters are tuned by cross-validation grouped by
+  patient, and recalibration uses out-of-fold predictions.
+- **Leakage.** Features use only records dated at or before each landmark. A test in the code
+  corrupts every later record and checks that the features do not change.
+- **Class imbalance.** No resampling or class weighting. At a low event rate both distort
+  calibration, and calibration is what sets the echo interval. The answer to few events is a short,
+  regularised feature list.
+- **Repetition.** The whole pipeline is repeated over independent resamples, and differences
+  between models are judged against the spread across them.
 
 ### Missing Data
-
-**Missingness here is not a nuisance to be imputed away; it is the exposure the study is about.**
-A patient with no echocardiogram in the record is not a patient with a missing measurement, they
-are a patient nobody looked at, and the probability of being looked at rises once symptoms appear.
-Three mechanisms have to be kept apart, because they call for different handling:
-
-| what is missing | mechanism | handling |
-|---|---|---|
-| A **predictor value** in an examination that happened (gradient recorded, DVI not) | close to missing at random, conditional on the examination having been done | native missing-value handling in the boosted model; explicit missingness indicators, of which `ref_missing` is already one; multiple imputation for the regression comparator, with the outcome in the imputation model (the proof of concept uses median fill with an indicator) |
-| An **entire examination** — the patient was not imaged | missing not at random: the surveillance gap depends on the unobserved state | never imputed, and kept out of the model: the surveillance features (`years_since_last_echo`, `n_echo`, `n_echo_recent`) measure how worried the clinician was rather than how the valve is doing, so they are excluded ([`../model/approach.md`](../model/approach.md) §3). The gap is displayed beside the prediction, so a low risk driven by a long silence is visible as such |
-| The **outcome** — no examination after the landmark, so no endpoint can be assessed | informative censoring | handled by the survival structure, not by imputation: the patient is censored at last contact and contributes the follow-up they have. Never imputed as event-free |
-
-**No missing outcome is ever imputed**, and no patient is dropped for having an incomplete
-predictor vector: a complete-case analysis here would select for patients under close surveillance,
-which is the exact selection the study exists to characterise.
-
-Three analyses are specified rather than one, because the choice of handling can move the answer:
-the primary analysis (indicators plus native handling), a multiple-imputation sensitivity analysis
-with the outcome in the imputation model, and a complete-case comparison whose only purpose is to
-show how much the selection costs. Where they disagree materially, the disagreement is reported
-rather than resolved by choosing the most favourable.
-
-For missingness not at random, a **tipping-point analysis** is specified: unobserved examinations
-are assumed to carry systematically worse haemodynamics than observed ones, by a delta that is
-increased until the conclusion changes, and the delta at which it changes is reported. This
-replaces an untestable assumption with a statement of how wrong it would have to be to matter.
-
-At deployment the same question arises per patient, and the answer must be fixed in advance: what
-the model does when the reference examination is absent. It scores the patient with the
-missingness indicator set, and displays the surveillance gap beside the risk, because refusing to
-score the patient nobody has imaged would withhold the output precisely where it is most needed
-(see [`../model/approach.md`](../model/approach.md) §6).
-
-### External Validation
-
-Everything in this repository is internal validation: a temporal split by implant era, repeated
-across cohorts, with a decision curve on top. That establishes that the pipeline works; it does
-not establish that a model fitted at one site transports to another, and the two are routinely
-confused.
-
-The protocol therefore specifies external validation as a **separate study with its own sample
-size**, not as a held-out fold:
-
-- **Geographic validation** in at least one centre that contributed no training data, with its own
-  echocardiography laboratory and its own reporting conventions. Measurement convention is the
-  main threat: a laboratory that reports gradients systematically 2 mmHg higher shifts every
-  prediction, and nothing in an internal split can detect that.
-- **Registry or manufacturer validation** for the valve-family effects, which are the features
-  most at risk of reflecting a local purchasing pattern rather than a device property.
-- **Sample size.** A validation cohort needs enough *events*, not enough patients: the accepted
-  minimum is at least 100 events, and 200 for a precise calibration slope (Collins et al. 2016; the
-calculation for a time-to-event outcome is Riley et al. 2022; references [79] and [61] in
-[`../docs/research/svd_literature.md`](../docs/research/svd_literature.md)). At
-  the incidence this study assumes, that is a multi-centre cohort, and it is the reason external
-  validation is scoped as its own study rather than an appendix to this one.
-- **What is reported.** Discrimination and calibration in the validation cohort *before* any
-  adjustment, then the recalibrated model, then a case-mix comparison showing how the validation
-  population differs from the development one. A validation that reports only the recalibrated
-  numbers hides the transportability failure it was run to detect.
-
-Until that study runs, every performance figure in this repository is to be read as internal, on a
-synthetic cohort, and is labelled as such wherever it appears.
+- **Predictor values.** A missing value from an examination that did take place is handled natively
+  by the boosted model, and by a missing-value indicator in the regression model. Multiple imputation
+  with the outcome in the imputation model is planned for the regression comparator.
+- **Missing examinations.** A missing echocardiogram is never imputed. The time since the last
+  study is shown beside the prediction rather than used as a feature: how often a patient is imaged
+  reflects clinical concern, not valve state.
+- **Missing outcomes.** A patient lost to follow-up is censored at last contact. No outcome is
+  imputed, and no patient is dropped for incomplete predictors.
+- **Tipping-point analysis.** Unobserved examinations are assumed progressively worse, to find the
+  point at which the conclusions change.
 
 ### Evaluation Metrics
 
-What the design requires, and why:
+| Metric | Why |
+|---|---|
+| Competing-risk time-dependent AUC at 2, 5 and 8 years, with inverse probability of censoring weights | ranks failing valves above the rest at each horizon, uses censored follow-up correctly, and counts patients who died first as non-events |
+| Scaled Brier score | overall accuracy against a model that gives everyone the average risk |
+| Calibration: observed-to-expected ratio, calibration by risk group, calibration slope | the model is used through its absolute risk, which sets the echo interval |
+| Decision curve (net benefit) and echocardiograms per 1,000 patient-years | whether acting on the model beats scanning everyone and changing nothing, and what it costs a service |
+| Sensitivity, specificity, PPV and NPV at the tier cut-offs | a missed failing valve costs far more than an extra echocardiogram, so sensitivity and NPV at the lower cut-off are reported first |
 
-- **Calibration at fixed horizons against the Aalen–Johansen cumulative incidence.** The output is
-  used to set a surveillance interval, so the absolute risk has to be right, not merely ordered.
-  Comparing against Aalen–Johansen rather than Kaplan–Meier keeps the competing risk in view.
-- **Censoring-aware discrimination.** Under this much censoring Harrell's C is biased; a
-  censoring-weighted concordance and a time-dependent AUC at the reporting horizons are the
-  appropriate measures. Any small-sample substitute for inverse-probability-of-censoring weighting
-  must be named as such rather than reported as if it were the real thing.
-- **An asymmetric view of error.** A false negative is a valve that fails between studies; a false
-  positive is one extra scan. A decision curve, or an explicit statement of the operating point,
-  is what makes that trade-off visible.
-
-On the supplied extract, notebook 05 computes the competing-risk AUC with bootstrap intervals, an
-Uno-style C-index, the scaled Brier score, calibration in the large and by risk group, and a
-decision curve ([`../model/approach.md`](../model/approach.md) §4).
+All intervals come from bootstrap resampling of **patients**, because rows from the same patient are
+correlated. Accuracy is not used: with a low event rate, a rule that flags nobody looks accurate and
+catches no failing valve.
 
 ### Subgroup Analyses
+Every subgroup is reported with its number of events, and a subgroup with fewer than 3 events and 3
+event-free patients past the horizon is not scored.
 
-**By implant approach (SAVR versus TAVR)** — implemented throughout the cohort and calibration
-work: incidence is targeted and reported separately by arm against separate published anchors,
-because the durability question itself differs between them. **By valve family**, motivated by the
-known behaviour of specific designs. **By patient–prosthesis mismatch grade** at the VARC-3
-indexed-EOA cut-offs, since mismatch is the commonest reason a gradient is high without the valve
-failing.
-
-Subgroup analysis by age band is specified but **not executable on the prototype extract**: age is
-redacted in 194 of 215 notes. Its cost is measured on the `no_age` rung of the degradation ladder
-rather than estimated.
+| Subgroup | Why |
+|---|---|
+| SAVR vs TAVR | durability and surveillance differ between the two, and case mix is shifting toward TAVR |
+| Valve family | durability differs by design; the Trifecta has a safety communication and a published excess of early failure |
+| Label size and patient–prosthesis mismatch grade | small valves and mismatch raise the gradient without failure, and can be mistaken for it |
+| Age band and sex | age is the strongest published predictor; this also checks fairness |
+| Early vs late landmark | the model's hardest task is the first visit, when every valve is the same age |
 
 ### Comparator / Baseline
+A model that does not beat current practice is not worth deploying, so the comparators represent
+current practice.
 
-A model that does not beat current practice is not worth deploying, so the comparators are chosen
-to represent it:
+1. **Time since implant alone.** Current surveillance is scheduled by valve age.
+2. **The guideline calendars.** The ACC/AHA 2020 schedule (echocardiography at 5 and 10 years, then yearly) and the
+   ESC/EACTS recommendation of an annual study, costed separately because their workloads differ by
+   a factor of six.
+3. **A Cox model on the published risk factors**, the model clinicians read.
+4. **A discrete-time competing-risks regression** on the same risk factors, the transparent
+   baseline for the boosted primary model.
 
-1. **Time since implant alone.** Current surveillance is scheduled by valve age and nothing else,
-   so this is both the diagnostic floor and the honest representation of practice.
-2. **A model using only the established published predictors**, fitted in the same framework.
-3. **The guideline calendar schedule**, as the operational comparator for any claim about
-   reallocating surveillance capacity. Two calendars are costed rather than one, because they
-   differ by a factor of six: the ACC/AHA 2020 schedule (examinations at 5 and 10 years, annually
-   thereafter) and the ESC/EACTS recommendation of an annual study for every bioprosthesis. A
-   saving quoted against one of them is not a saving against the other, and the comparator has to
-   be the calendar the site actually follows.
+**Scores not used as comparators.**
+- **STS-PROM** predicts operative mortality, not valve durability.
+- **Published SVD predictor studies** report risk factors but no externally validated score
+  ([`docs/research/svd_literature.md`](../docs/research/svd_literature.md) §4).
 
-All three are implemented in notebook 04 (valve age only, Cox on the published risk factors, and
-the calendar schedule), alongside the regression baseline; the workload each policy implies, in examinations per 1,000 patient-years, is in
-[`../model/decision_curve.md`](../model/decision_curve.md).
+**External validation.** A second site or registry, with at least 100 events and preferably 200
+(Collins et al. 2016; the calculation for a time-to-event outcome is Riley et al. 2022, references
+[79] and [61] in [`svd_literature.md`](../docs/research/svd_literature.md)). Performance is reported
+before and after recalibration, together with a comparison of case mix between the two sites.
 
 ---
 
 ## 6. Ethical Considerations and Data Privacy
 
 ### IRB / Ethics Review
-
-**Not yet decided — owner: the team, with the host institution.** The prototype work is
-retrospective and uses a de-identified extract supplied by the organisers, which in most
-jurisdictions is the ground for a waiver of individual consent; the applicable review pathway is
-the host institution's to determine and has not been confirmed here.
+- **Retrospective development.** Model development on existing records needs approval from each
+  participating site's ethics committee. It usually qualifies for a waiver of individual consent,
+  because the data are routinely collected, the study does not change care, and obtaining consent
+  from a largely elderly cohort, many of whom have died, is impracticable. Where national law allows
+  patients to opt out of secondary use, their records are removed.
+- **Prospective phase.** A silent run of the model alongside usual care, then a trial of risk-guided
+  scheduling, needs its own approval, because it can change when patients are examined.
+- **Registration.** The protocol is registered before the prospective phase, and reporting follows
+  TRIPOD+AI ([`model/tripod_ai.md`](../model/tripod_ai.md)).
 
 ### Data Privacy
+Record identifiers stay at the site, and the patient key used by the pipeline cannot be traced back
+to the person.
 
-The controls below are implemented, not merely intended.
-
-- **Source data are never committed.** The extracts sit in `data/`, and `.gitignore` blocks
-  spreadsheet, CSV, parquet, pickle and JSON files there, together with the derived folders
-  (`data/raw_tables/`, `data/llm_json/`, `data/processed/`).
-- **Derived tables are treated as source data.** Abstraction output retains verbatim note snippets
-  as evidence for each extracted value, so it stays in those ignored folders. Notebooks never
-  print it; they show counts and distributions only.
-- **Only aggregates are committed.** No patient-level value, note text or identifier appears in
-  any document, figure or notebook output in this repository.
-- **Synthetic data are labelled as synthetic at row level.** Every row carries `source` and
-  `time_resolution`, so a reader holding one CSV and no access to this repository can still tell
-  that nothing in it came from a patient. Tests assert that synthetic identifiers cannot be
-  mistaken for real ones, and that real rows declare real provenance at year resolution.
-- **Inference stays local.** Any language-model step in the abstraction pipeline runs on the
-  machine holding the data; note text is not sent to an external API.
-- **Identifiability observations** made while reviewing the extract were reported directly to the
-  organisers rather than documented here.
-
-In deployment the equivalent controls are a data use agreement with the operating site, inference
-behind the institutional firewall, and access through the hospital's own identity management.
+- **Governing law.** GDPR at European sites and HIPAA at US sites.
+- **Training and inference stay inside the hospital network.**
+  - The language-model agents that abstract notes run on site, so note text never leaves the
+    hospital.
+  - Only de-identified, aggregate results are shared between sites: counts, metrics and calibration
+    statistics.
+- **During training.**
+  - Dates are handled as time since implant.
+  - Free text is reduced to fields with their quoted evidence, and the quotes are visible only to
+    authorised reviewers.
+- **During inference.** The model reads the site's own records and writes a risk and a tier back
+  into the patient's chart; nothing is sent outside.
+- **Prototype.** It followed the same rule: the supplied extracts never left team machines, and
+  only aggregates appear in the repository.
 
 ### Algorithmic Fairness
-
-**Partly decided.** What is implemented: incidence and performance are reported separately by
-implant approach and are recoverable by valve family, so a model that works for one device family
-and not another is visible rather than hidden.
-
-What is **not** possible on the prototype extract, and is stated rather than glossed: age is
-redacted throughout and sex is inferable only from pronouns in free text, so neither subgroup can
-be audited here. Race and ethnicity are absent entirely. This is a limitation of the extract, not
-a design choice — but it means no fairness claim of any kind can be made from this prototype, and
-none is made. In deployment these audits are a precondition of use, not a follow-up analysis.
-
-A second fairness risk is specific to this endpoint and is structural: the outcome can only be
-observed in patients who are imaged. Any group that is imaged less often will appear lower-risk,
-and the model will then recommend imaging them even less. The surveillance gap must therefore be
-surfaced beside every prediction.
+- **Calibration and discrimination** are reported separately by sex, age band, race or ethnicity
+  where recorded, SAVR vs TAVR, and valve manufacturer. A model that is well calibrated overall can
+  still be miscalibrated in one group.
+- **Surveillance-gap bias.** This is the fairness risk specific to this endpoint: a group that is
+  imaged less often records fewer events and looks lower-risk. The time since the last
+  echocardiogram is therefore shown beside every prediction, and rates of missed examinations are
+  compared between groups.
+- **Manufacturer effects** are checked against registry or manufacturer data, because a valve-family
+  effect can reflect a site's purchasing pattern rather than the device.
+- **Prototype limitation.** No fairness claim can be made from the prototype extract: age is
+  redacted and ethnicity is absent.
 
 ### Clinical Transparency
-
-**Partly decided — owner: the team, with the clinical lead.** The intended form is decision
-support: a risk estimate refreshed at each echocardiogram that moves the next study earlier or
-later, never a reintervention recommendation. The analysis behind the threshold now exists —
-[`../model/decision_curve.md`](../model/decision_curve.md) gives the range over which acting on the
-model beats both scanning everyone and changing nothing, and what each candidate boundary buys.
-What remains unfixed is genuinely clinical: which operating point inside that range to take, the
-action attached to each risk tier, and how the surveillance gap is displayed beside the risk.
-None of those is encoded in code today, and none should be before recalibration.
-
-### Post-Deployment Monitoring
-
-A prediction model is not a result that is published once; it is a component that runs on new
-patients every week and degrades quietly. Monitoring is therefore specified as part of the
-protocol rather than left to implementation, and a model goes live only with the monitoring in
-place.
-
-**What is monitored, and what triggers action:**
-
-| what | why it moves | measured how | trigger |
-|---|---|---|---|
-| **Calibration in the large** — mean predicted risk against observed cumulative incidence at 2 and 5 years | on the synthetic cohort the models over-predict five-year risk by up to 57% ([`../model/stability.md`](../model/stability.md)), on the extract they under-predict or are about right, and incidence changes as valve technology changes | Aalen–Johansen in a rolling 24-month window, by arm | calibration slope outside 0.8 to 1.25, or observed-to-expected outside 0.75 to 1.33, triggers recalibration |
-| **Case mix** — the distribution of every input feature against the development cohort | a new valve family, a new referral pattern or a new echocardiography laboratory moves the population out from under the model | population stability index per feature, monthly | drift in any feature the model relies on triggers review before it triggers retraining |
-| **Data quality at the input** — field-presence rates from the abstraction layer | extraction silently degrades when note templates change, which looks identical to a change in the patients | presence rate per field per month, compared with the rate at deployment | a fall in any field's presence rate is an extraction incident, not a clinical finding |
-| **Fairness** — calibration and discrimination within each subgroup in §6 | a model can stay well calibrated overall while drifting badly in one group | the same rolling window, stratified | subgroup calibration outside the overall bounds triggers review of that subgroup specifically |
-| **The action, not just the prediction** — how many examinations each tier actually generates | a schedule that nobody follows is not the schedule that was evaluated | scheduled versus performed examinations per tier | sustained divergence means the tiers, not the model, need revisiting |
-
-**Recalibration before retraining.** The expected failure is calibration drift, and the response to
-it is to update the baseline risk while leaving the coefficients alone — the intervention with the
-smallest surface. Full retraining is reserved for case-mix change, and any retrained model
-re-enters the evaluation of §5 rather than being swapped in.
-
-**Silent period first.** The model runs alongside the existing schedule without changing it for a
-pre-specified period, long enough to compare the schedule it would have produced against the one
-that was followed. Nothing about the model's development answers the question that period answers:
-whether a clinic acts on the output the way the design assumed.
-
-**Human in the loop, and an off switch.** Every changed interval is a clinician's decision, taken
-with the risk, the tier and the surveillance gap in view; the model schedules nothing by itself.
-A named clinical owner can suspend the model, and suspension returns the service to the guideline
-calendar — which is why the guideline calendar stays implemented as a comparator rather than being
-replaced.
-
-**Versioning and audit.** Every prediction is stored with the model version, the input vector and
-the code revision that produced it, so any past recommendation can be reconstructed exactly. This
-is also what makes an adverse event reviewable: a valve that failed between studies must be
-answerable with what the model saw and when.
-
-**Where this runs.** On-premises, behind the hospital firewall, on the same footing as the
-abstraction layer (§4). Monitoring statistics are aggregates and may leave the site; notes,
-predictions and patient-level inputs do not.
+- **What clinicians see.** At each follow-up visit:
+  - the risk of structural failure at 2, 5 and 8 years;
+  - the risk tier: low, under 5%; moderate, 5% to 15%; high, 15% or more;
+  - the suggested echo interval: guideline schedule, every 2 years, or every year;
+  - the three factors that moved the risk most;
+  - the time since the last echocardiogram and any missing inputs.
+- **Decision support only.** The model can bring the next echocardiogram forward or leave it where
+  it is; it never schedules a reintervention. A high-risk flag prompts review by the heart valve
+  team, and the decision stays with the clinicians.
+- **Tier cut-offs are provisional.** They are set by the clinical lead from the decision curve, and
+  recalibrated at each site once it has at least 100 events of its own.
+- **Silent period first.** The model runs alongside usual care, without changing it, until its
+  calibration at that site has been checked.
+- **Monitoring after deployment.**
+  - calibration in the large, in a rolling window, by approach;
+  - drift in each input's distribution;
+  - the completeness of each abstracted field;
+  - whether the scheduled examinations are actually performed.
+- **Off switch.** When monitoring shows drift beyond pre-specified bounds, the service returns to the
+  guideline calendar until the model is recalibrated.
