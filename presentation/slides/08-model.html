@@ -1,0 +1,47 @@
+<section id="features" data-transition="fade" style="background:#17181D; color:#F5F7F8; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:36px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1">Model</h2>
+    <hr style="width:1600px; height:1px; border:none; background:#363C42">
+  </div>
+  <p style="font-size:36px; line-height:1.4; width:1600px">A competing-risks survival model, re-run at every visit: the chance of failure in each follow-up year, chained into risk at 2, 5 and 8 years.</p>
+  <div style="display:flex; gap:56px">
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">Why this model</h3>
+      <ul style="font-size:26px; line-height:1.45; color:#A8B2B8">
+        <li><b style="color:#F5F7F8">Survival, not a fixed-horizon classifier.</b> It uses every observed year, even for patients followed for less than five.</li>
+        <li><b style="color:#F5F7F8">Not a sequence model.</b> Most patients have one or two echos, so a landmark model uses the history known at each visit without needing long sequences.</li>
+        <li>Primary: gradient boosting. Baseline: logistic regression.</li>
+      </ul>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">How we chose the features</h3>
+      <ul style="font-size:26px; line-height:1.45; color:#A8B2B8">
+        <li><b style="color:#F5F7F8">1. Clinical input.</b> Our clinician named the factors; we built all 42 the data can supply.</li>
+        <li><b style="color:#F5F7F8">2. Screening, built and rejected.</b> Automatic selection was unstable across draws.</li>
+        <li><b style="color:#F5F7F8">3. Tested, then fixed.</b> The clinician-aligned 21 won; scan frequency was dropped.</li>
+      </ul>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">From risk to action</h3>
+      <table style="font-size:26px; color:#A8B2B8; border:1px solid #363C42; padding:10px 0px">
+        <tr style="background:#22242B"><th style="width:46%; text-align:left; font-weight:600; color:#F5F7F8">5-year risk</th><th style="width:54%; text-align:left; font-weight:600; color:#F5F7F8">Next echo</th></tr>
+        <tr><td>under 5%</td><td>guideline</td></tr>
+        <tr><td>5% to 15%</td><td>every 2 years</td></tr>
+        <tr><td>15% or more</td><td>every year</td></tr>
+      </table>
+    </div>
+  </div>
+  <p style="position:absolute; left:160px; bottom:64px; width:1400px; font-size:24px; color:#7B858B">The clinician's factors earn their place: on full-quality synthetic data they lift the first-visit 5-year AUC from 0.54 to 0.62 (boosted) and 0.55 to 0.64 (baseline), one cohort. Acting on the model beats scanning everyone and changing nothing from 5% risk upward</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#7B858B">8</p>
+  <aside>[0:35] Target 80 words. Three columns, three questions. This is where the clinicians on the team did the work, so say so.
+
+"The model is a competing-risks survival model, re-run at every visit: the chance of failure in each follow-up year, chained into risk at two, five and eight years. Survival rather than a classifier at five years, because most patients are followed for less and a yes-or-no label would throw them away. Not a sequence model, because most patients have one or two echoes. On features: our clinician named them, we built all forty-two the data can supply, and the clinician-aligned list of twenty-one won over repeated draws. And the output is not a score. It is a risk, a next echo date, and the three factors that moved it."
+
+The evidence that the clinical list earns its place: on full-quality data it lifts the first-visit AUC from 0.54 to 0.62 for the boosted model and 0.55 to 0.64 for the baseline. That is the visit where valve age alone cannot separate anyone, so the patient factors are doing the work.
+
+Two things not on the slide but worth having ready. Where the direction is known, the boosted model is constrained so that a worse value can never lower the risk. And a high-risk tier prompts review by the heart valve team; the model sets the next echo date and never decides on reintervention.
+
+Why scan frequency was dropped: how often a valve was imaged reflects how worried the clinician was, not how the valve is doing. With it in, the boosted model learned the surveillance pattern and ranked real valves worse than chance.
+
+Why the tiers are provisional: a decision curve is read off absolute risk, and absolute risk needs local recalibration first.</aside>
+</section>

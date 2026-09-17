@@ -1,0 +1,50 @@
+<section id="hypothesis" data-transition="fade" style="background:#F5F7F8; color:#17181D; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:36px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1; color:#17181D">Hypothesis</h2>
+    <div style="width:1600px; height:3px; background:linear-gradient(to right, #0B6BA8 0%, #7FD6C6 100%)"></div>
+  </div>
+  <p style="font-size:36px; line-height:1.45; color:#17181D; width:1500px">Durability risk is not uniform, and it is knowable from what the hospital already records. Estimate it at every visit.</p>
+  <div style="display:flex; flex-direction:column; gap:44px">
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <p style="font-size:28px; color:#4A5257">Of every 100 visits</p>
+      <div style="display:flex; height:64px; border-radius:8px; overflow:hidden">
+        <div style="width:720px; background:#D2D9DC; display:flex; align-items:center; justify-content:center"><p style="font-size:26px; color:#17181D">low 45%</p></div>
+        <div style="width:352px; background:#8FA3AC; display:flex; align-items:center; justify-content:center"><p style="font-size:26px; color:#17181D">moderate 22%</p></div>
+        <div style="width:528px; background:#B84A3D; display:flex; align-items:center; justify-content:center"><p style="font-size:26px; color:#F5F7F8">high 33%</p></div>
+      </div>
+      <div style="display:flex">
+        <p style="width:720px; font-size:24px; color:#5D666B; text-align:center">guideline schedule</p>
+        <p style="width:352px; font-size:24px; color:#5D666B; text-align:center">every 2 years</p>
+        <p style="width:528px; font-size:24px; color:#5D666B; text-align:center">every year</p>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px">
+      <p style="font-size:28px; color:#4A5257">Of every 100 failures</p>
+      <div style="display:flex; height:64px; border-radius:8px; overflow:hidden">
+        <div style="width:352px; background:#D2D9DC; display:flex; align-items:center; justify-content:center"><p style="font-size:26px; color:#17181D">22%</p></div>
+        <div style="width:288px; background:#8FA3AC; display:flex; align-items:center; justify-content:center"><p style="font-size:26px; color:#17181D">18%</p></div>
+        <div style="width:960px; background:#B84A3D; display:flex; align-items:center; justify-content:center"><p style="font-size:26px; color:#F5F7F8">60%</p></div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:36px; line-height:1.4; color:#17181D; width:1600px">A third of the visits carry three fifths of the failures. That mismatch is the opportunity.</p>
+  <div style="display:flex; gap:40px; align-items:baseline">
+    <p style="font-size:64px; font-weight:600; line-height:1; color:#0B6BA8">1,000 &rarr; 483</p>
+    <p style="flex:1; font-size:28px; line-height:1.4; color:#4A5257">echos per 1,000 patient-years: an annual study for everyone, against the risk-guided schedule</p>
+  </div>
+  <p style="position:absolute; left:160px; bottom:64px; width:1400px; font-size:24px; color:#5D666B">A visit is one decision about when to image next, so the bands are visits, not patients. Tier shares and workload from <i>model/decision_curve.md</i>, synthetic cohort. Observed 5-year risk inside the tiers: 7.6%, 12.9% and 28.1%</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#5D666B">4</p>
+  <aside>[0:35] Target 75 words. Point at the red band on the top bar, then at the red band on the bottom bar. The two do not line up, and that is the whole slide.
+
+"So here is the hypothesis. Durability risk is not uniform, and it is knowable from what the hospital already records. Estimate it at every visit. Now look at the two bars. The top bar is where the visits go, the bottom bar is where the failures are, and they do not line up. A third of the visits carry three fifths of the failures. That mismatch is the opportunity. Point the same examinations at it and the workload falls from a thousand echoes per thousand patient-years to four hundred and eighty-three."
+
+Define the unit unprompted, it takes four seconds. A visit is one decision about when to image next, so the bands are visits and not patients, and the same patient moves up a band as the valve ages.
+
+Why this is not circular: if failures were spread evenly, a third of the visits would carry a third of them. They carry three fifths.
+
+The evidence that the bands are real and not labels: the observed five-year risk inside them is 7.6%, 12.9% and 28.1%, nearly fourfold from bottom to top. It is in the footnote.
+
+What the comparison is against. The thousand is an annual study for every bioprosthesis, which is what the previous slide described as current practice. Against the sparser ACC/AHA calendar the risk-guided schedule is 332 examinations more, not fewer. Which comparator is honest depends on what a given clinic does today, so say both if asked and claim neither as a saving.
+
+The condition, which belongs with this hypothesis: the model has to see the surveillance gap as well, or it will read an unobserved patient as a low-risk one. That is the trap from slide 3, and it is why a missing examination is shown beside every prediction.</aside>
+</section>

@@ -1,0 +1,45 @@
+<section id="next" data-transition="fade" style="background:#F5F7F8; color:#17181D; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:36px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1; color:#17181D">Next steps</h2>
+    <div style="width:1600px; height:3px; background:linear-gradient(to right, #0B6BA8 0%, #7FD6C6 100%)"></div>
+  </div>
+  <div style="display:flex; gap:56px">
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#0B6BA8">What it enables</h3>
+      <ol style="font-size:26px; line-height:1.45; color:#4A5257">
+        <li>Fewer scans than yearly screening, focused on the patients who fail.</li>
+        <li>Earlier attention for high-risk patients.</li>
+      </ol>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#0B6BA8">What validation needs</h3>
+      <ol style="font-size:26px; line-height:1.45; color:#4A5257">
+        <li>More data: 3,580 patients followed 5 years (about 565 failures).</li>
+        <li>Complete data: dated echos, age, death records.</li>
+        <li>Confirmed labels: two blinded cardiologists per failure.</li>
+      </ol>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#0B6BA8">Given three months</h3>
+      <ol style="font-size:26px; line-height:1.45; color:#4A5257">
+        <li>One hospital's full cohort, linked to death records.</li>
+        <li>Extraction checked against a cardiologist's reading.</li>
+        <li>The clinician's remaining factors: blood pressure, cholesterol, labs, medications.</li>
+        <li><b style="color:#17181D">Fine-tune and compare more models.</b></li>
+      </ol>
+    </div>
+  </div>
+  <p style="font-size:30px; font-weight:600; line-height:1.45; color:#17181D; width:1600px">Deployed in a closed hospital environment: no patient data leaves the site, and the model runs on standard hospital hardware.</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#5D666B">10</p>
+  <aside>[0:30] Target 60 words. Close plainly, no flourish. Stop on the last sentence and let it sit.
+
+"What it enables is fewer scans than screening everyone yearly, pointed at the patients who actually fail, and earlier attention for the high-risk ones. Real validation needs more data, three and a half thousand patients followed five years, complete data with dated echoes, age and death records, and labels confirmed by two blinded cardiologists. Given three months we would take one hospital's full cohort linked to death records, check the extraction against a cardiologist's reading, and add the clinician's remaining factors. And it deploys inside the hospital: no patient data leaves the site, and it runs on standard hardware."
+
+The readiness answer, and give it before you are asked: this is not ready to deploy. Nothing here should touch a patient before a site has its own hundred local events and has recalibrated on them.
+
+The workload figure, if asked what it costs: 483 echoes per 1,000 patient-years, against 1,000 for an annual study for everyone and 151 for the sparser ACC/AHA calendar.
+
+Why external validation is its own study: a laboratory reporting gradients two millimetres high moves every prediction, and no internal split can detect that.
+
+If asked about reporting standards: the submission is mapped against TRIPOD+AI and the five items we fail are named in the repository.</aside>
+</section>

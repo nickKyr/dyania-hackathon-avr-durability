@@ -1,0 +1,57 @@
+<section id="data" data-transition="fade" style="background:#17181D; color:#F5F7F8; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:24px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1">Data sources</h2>
+    <hr style="width:1600px; height:1px; border:none; background:#363C42">
+  </div>
+  <table style="font-size:24px; color:#A8B2B8; border:1px solid #363C42; padding:6px 0px">
+    <tr style="background:#22242B"><th style="width:24%; text-align:left; font-weight:600; color:#F5F7F8">Source</th><th style="width:40%; text-align:left; font-weight:600; color:#F5F7F8">What we take from it</th><th style="width:36%; text-align:left; font-weight:600; color:#F5F7F8">Realistic in deployment</th></tr>
+    <tr><td>Operative reports</td><td>valve model, size, SAVR or TAVR</td><td>Yes, as free text</td></tr>
+    <tr><td>Echo reports</td><td>gradients, DVI, regurgitation, LVEF, date</td><td>In the echo system, or as report text</td></tr>
+    <tr><td>Clinical notes</td><td>diabetes, kidney disease, smoking</td><td>Yes, but written mostly when present</td></tr>
+    <tr><td>Demographics</td><td>age, sex</td><td>Yes (age was redacted in our extract)</td></tr>
+    <tr><td>Labs and medications</td><td>renal function, anticoagulation</td><td>Yes, fully structured</td></tr>
+    <tr><td>Vital status</td><td>the competing risk</td><td>Needs a death-registry link</td></tr>
+  </table>
+  <div style="display:flex; gap:40px">
+    <p style="width:300px; font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#3CAFFF">How we read the notes</p>
+    <p style="flex:1; font-size:26px; line-height:1.45; color:#A8B2B8">Rules plus LLM agents: fixed fields, each with the sentence it came from.</p>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:12px">
+    <p style="font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#3CAFFF">Supplied extract, measured against that schema</p>
+    <div style="display:flex; gap:48px; align-items:start">
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+        <p style="font-size:56px; font-weight:600; line-height:1">117</p>
+        <p style="font-size:24px; line-height:1.4; color:#A8B2B8">patients, dates in years</p>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+        <p style="font-size:56px; font-weight:600; line-height:1">1.62</p>
+        <p style="font-size:24px; line-height:1.4; color:#A8B2B8">echos each</p>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+        <p style="font-size:56px; font-weight:600; line-height:1">16%</p>
+        <p style="font-size:24px; line-height:1.4; color:#A8B2B8">more than one gradient</p>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+        <p style="font-size:56px; font-weight:600; line-height:1; color:#E8695C">0</p>
+        <p style="font-size:24px; line-height:1.4; color:#E8695C">deaths recorded</p>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+        <p style="font-size:56px; font-weight:600; line-height:1; color:#E8695C">10</p>
+        <p style="font-size:24px; line-height:1.4; color:#E8695C">events in 51 episodes</p>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:30px; line-height:1.4; width:1600px">The extract cannot train or test a model on its own. Models are trained, validated and tested on a synthetic cohort built from published evidence, and the extract is only scored.</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#7B858B">6</p>
+  <aside>[0:40] Target 85 words. The last sentence is the design decision the whole submission rests on. Say it slowly.
+
+"Six data sources, and all six are already collected today. Two are harder than they look in deployment: echo values sit as structured fields on the machine but often reach the record only as report text, and vital status needs a registry link. We read the notes with rules plus language-model agents, an orchestrator splitting the work among sub-agents that fill fixed fields and quote the sentence behind every value. Now the extract we were given, measured against that schema. One patient in six has more than one gradient. No deaths at all. Ten events in fifty-one scored episodes. So the extract cannot train or test a model on its own, and that is why the models are trained, validated and tested on a synthetic cohort built from published evidence, with the real extract scored only as a check."
+
+Make the last point as a design decision, not an apology. Training on the extract would fit noise, and scoring it as an untouched external check is the stronger claim.
+
+The breakdown of the ten events, if asked: nine reinterventions and one stage-2 deterioration seen on echo.
+
+If asked about the evidence quotes: every extracted value carries the sentence it came from, so a clinician can audit any field without reading the whole note.
+
+If asked why age is missing: it was redacted to the year in the extract, which is why the protocol asks a deploying site for dated serial echoes and age.</aside>
+</section>

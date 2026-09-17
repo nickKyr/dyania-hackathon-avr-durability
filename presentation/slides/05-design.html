@@ -1,0 +1,43 @@
+<section id="design" data-transition="fade" style="background:#17181D; color:#F5F7F8; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:36px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1">Study design</h2>
+    <hr style="width:1600px; height:1px; border:none; background:#363C42">
+  </div>
+  <div style="display:flex; gap:56px">
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">Population</h3>
+      <ul style="font-size:26px; line-height:1.45; color:#A8B2B8">
+        <li>Adults with a bioprosthetic aortic valve (SAVR or TAVR), alive and failure-free at the reference echo, 30 to 90 days after implant.</li>
+        <li>Risk re-estimated at every visit: 6 months, 1 year, then yearly to 10 years.</li>
+        <li><i>Excluded:</i> mechanical valves, a second prosthetic valve, non-structural dysfunction at baseline.</li>
+      </ul>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">Endpoints, VARC-3</h3>
+      <ul style="font-size:26px; line-height:1.45; color:#A8B2B8">
+        <li>Stage 2 or worse deterioration against the patient's own reference echo, or reintervention for structural failure, within 5 years (also 2 and 8).</li>
+        <li>Death is a competing event, not censoring.</li>
+      </ul>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#E8695C">What is not deterioration</h3>
+      <ul style="font-size:26px; line-height:1.45; color:#A8B2B8">
+        <li>Endocarditis, thrombosis, paravalvular leak: censored, not counted. 8 of 18 candidate events in the extract.</li>
+        <li>Patient&ndash;prosthesis mismatch is a risk factor, not an event.</li>
+      </ul>
+    </div>
+  </div>
+  <p style="position:absolute; left:160px; bottom:64px; width:1400px; font-size:24px; color:#7B858B">Definitions from VARC-3: G&eacute;n&eacute;reux P et al., Eur Heart J 2021;42:1825&ndash;1857. Reintervention counts only for a structural indication</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#7B858B">5</p>
+  <aside>[0:35] Target 70 words. The third column is the one that earns credit with clinicians, so give it the emphasis.
+
+"The endpoint is not ours, it is VARC-3, because an endpoint that does not match the literature compares with nothing. The clock starts at the reference echo, thirty to ninety days after implant, and the risk is re-estimated at every visit out to ten years. And what we refuse to count matters as much: endocarditis, thrombosis and paravalvular leak all look like deterioration and are none of it. They censor rather than count, and on this extract that removed eight of eighteen candidate events."
+
+Keep the mismatch distinction straight, because a cardiologist will test it. Patient-prosthesis mismatch is not one of the eight. The valve was small from day one, so it never deteriorated; it enters the model as a risk factor, not as an event.
+
+If asked about adjudication: the code proposes, two blinded cardiologists decide, a third settles disagreements, and kappa is reported. Say plainly that this is planned in the protocol and that nothing in the supplied extract has been adjudicated yet.
+
+If asked about secondary endpoints: valve failure alone, severe deterioration at stage 3, gradient progression and all-cause death, each reported separately and never pooled.
+
+If asked why patients with no reference echo are kept: dropping them would select the well-followed, so they are kept and analysed separately under a single-echo rule.</aside>
+</section>

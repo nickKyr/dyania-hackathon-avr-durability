@@ -1,0 +1,49 @@
+<section id="ladder" data-transition="fade" style="background:#17181D; color:#F5F7F8; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:36px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1">Validation</h2>
+    <hr style="width:1600px; height:1px; border:none; background:#363C42">
+  </div>
+  <div style="display:flex; gap:80px">
+    <div style="width:760px; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">How we validate</h3>
+      <ul style="font-size:26px; line-height:1.45; color:#A8B2B8">
+        <li><b style="color:#F5F7F8">Synthetic train, validation, test.</b> 6,000 patients.</li>
+        <li><b style="color:#F5F7F8">Split.</b> Temporal at 2018, grouped by patient: no patient crosses it. 2018 is where case mix turns, 88% of later implants are TAVR.</li>
+        <li><b style="color:#F5F7F8">Validation.</b> Tuning and recalibration by cross-validation inside the training set only.</li>
+        <li><b style="color:#F5F7F8">Metrics.</b> Competing-risk time-dependent AUC at 2, 5 and 8 years, calibration against Aalen&ndash;Johansen observed risk.</li>
+        <li><b style="color:#F5F7F8">Comparators.</b> Valve age alone, the guideline calendar, a Cox model on published risk factors, and a regression baseline.</li>
+      </ul>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#3CAFFF">Results, 5-year AUC, mean of 5 draws</p>
+      <table style="font-size:26px; color:#A8B2B8; border:1px solid #363C42; padding:10px 0px">
+        <tr style="background:#22242B"><th style="width:52%; text-align:left; font-weight:600; color:#F5F7F8">Model</th><th style="width:24%; text-align:left; font-weight:600; color:#F5F7F8">All visits</th><th style="width:24%; text-align:left; font-weight:600; color:#F5F7F8">First visit</th></tr>
+        <tr><td style="color:#F5F7F8">Gradient boosting</td><td style="color:#F5F7F8">0.76</td><td style="color:#F5F7F8">0.60</td></tr>
+        <tr><td>Regression baseline</td><td>0.76</td><td>0.61</td></tr>
+        <tr><td>Valve age only</td><td>0.73</td><td>0.50</td></tr>
+      </table>
+      <div style="display:flex; gap:48px; align-items:start">
+        <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+          <p style="font-size:64px; font-weight:600; line-height:1">0.60</p>
+          <p style="font-size:24px; line-height:1.4; color:#A8B2B8">at the first visit, where valve age alone gives 0.50</p>
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; gap:6px">
+          <p style="font-size:64px; font-weight:600; line-height:1">6% vs 6.6%</p>
+          <p style="font-size:24px; line-height:1.4; color:#A8B2B8">predicted vs observed risk at the first visit</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:32px; line-height:1.4; width:1600px">From the first visit the question can be answered modestly; prediction improves as serial echos accumulate. The real extract lacks ages, dated echos and deaths, and that is the gap the protocol closes.</p>
+  <p style="position:absolute; left:160px; bottom:64px; width:1400px; font-size:24px; color:#7B858B">Synthetic data, not patients. Figures from model/approach.md &sect;4</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#7B858B">7</p>
+  <aside>[0:40] Target 85 words. The honest shape of this slide is: it works where the data are good, and it says so where they are not.
+
+"We train, validate and test on full-quality synthetic data, six thousand patients, split temporally at 2018 because that is where case mix turns. Metrics are competing-risk and calibrated against Aalen-Johansen. Over all visits the model reaches an AUC of 0.76 against 0.73 for valve age alone. The number that answers our question is the first visit: 0.60, where valve age alone gives 0.50, and the predicted risk there is about 6% against 6.6% observed. So from the very first postoperative visit the question can be answered, modestly, and it improves as serial echoes accumulate."
+
+Why train on synthetic data at all: the extract gives 51 valve episodes and 10 events. Training on it would fit noise. Scoring it untouched is the stronger claim, and the real-extract numbers are on the next slide.
+
+Why the split is temporal and not random: case mix turns at 2018, with 88% of later implants transcatheter, so a random split would hide the question of whether a model trained mostly on surgical valves transfers.
+
+If asked about the degradation ladder from an earlier version of this deck: it is in the repository, not on the slide. Quote it only with its caveat, that the real extract is examined more often than our simulation of it, 84% against 52% of patients, so the 34% and 42% losses are an upper estimate.</aside>
+</section>

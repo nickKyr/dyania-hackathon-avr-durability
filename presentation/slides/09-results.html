@@ -1,0 +1,46 @@
+<section id="results" data-transition="fade" style="background:#17181D; color:#F5F7F8; font-family:'IBM Plex Sans', Arial, sans-serif; padding:128px 160px 200px; display:flex; flex-direction:column; gap:36px">
+  <div style="display:flex; flex-direction:column; gap:20px">
+    <h2 style="font-size:60px; font-weight:600; line-height:1.1">Results</h2>
+    <hr style="width:1600px; height:1px; border:none; background:#363C42">
+  </div>
+  <div style="display:flex; gap:72px">
+    <div style="width:880px; display:flex; flex-direction:column; gap:16px">
+      <p style="font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#3CAFFF">Competing-risk AUC, full-quality synthetic, 5 draws</p>
+      <table style="font-size:26px; color:#A8B2B8; border:1px solid #363C42; padding:10px 0px">
+        <tr style="background:#22242B"><th style="width:40%; text-align:left; font-weight:600; color:#F5F7F8">Model</th><th style="width:20%; text-align:left; font-weight:600; color:#F5F7F8">2 years</th><th style="width:20%; text-align:left; font-weight:600; color:#F5F7F8">5 years</th><th style="width:20%; text-align:left; font-weight:600; color:#F5F7F8">8 years</th></tr>
+        <tr><td style="color:#F5F7F8">Gradient boosting</td><td style="color:#F5F7F8">0.83</td><td style="color:#F5F7F8">0.76</td><td style="color:#F5F7F8">0.76</td></tr>
+        <tr><td>Regression baseline</td><td>0.81</td><td>0.76</td><td>0.76</td></tr>
+        <tr><td>Valve age only</td><td>0.79</td><td>0.73</td><td>0.71</td></tr>
+        <tr><td>Guideline calendar</td><td>0.69</td><td>0.67</td><td>0.58</td></tr>
+      </table>
+      <p style="font-size:26px; line-height:1.45; color:#F5F7F8">Every risk model beats valve age at every horizon, by 0.02 to 0.06, with a spread across draws of about 0.01.</p>
+      <p style="font-size:26px; line-height:1.45; color:#A8B2B8">Predicted vs observed 5-year risk: 18% vs 15%.</p>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+      <h3 style="font-size:28px; font-weight:600; color:#3CAFFF">What drives the risk, SHAP</h3>
+      <ol style="font-size:26px; line-height:1.5; color:#A8B2B8">
+        <li>years since implant</li>
+        <li>SAVR or TAVR</li>
+        <li>age, younger means higher risk</li>
+        <li>body surface area</li>
+        <li>change in mean gradient</li>
+        <li>Trifecta valve</li>
+      </ol>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:10px">
+    <p style="font-size:24px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:#E8695C">Real extract, scored only, never trained on</p>
+    <p style="font-size:26px; line-height:1.45; color:#E8695C">0.72 regression, 0.69 boosting, 0.72 valve age, against 16.6% observed. With 10 events no model is shown to rank better than valve age alone, and we say so.</p>
+  </div>
+  <p style="position:absolute; left:160px; bottom:64px; width:1400px; font-size:24px; color:#7B858B">Synthetic data, not patients. Figures from model/approach.md &sect;4. Real extract: 51 valve episodes, 301 landmark rows, 10 events</p>
+  <p style="position:absolute; right:160px; bottom:64px; font-size:24px; color:#7B858B">9</p>
+  <aside>[0:40] Target 85 words. Give the good news and the bad news in the same breath. The honesty is the strongest thing in the pitch.
+
+"Across horizons the primary model leads at two years, 0.83 against 0.79 for valve age, and is level with the regression baseline at five and eight. Every risk model beats valve age at every horizon, and the spread across draws is about 0.01, so those gaps are real. What drives it: time since implant first, then whether the valve was transcatheter, then age, and younger means higher risk. Calibration is the weak point, eighteen per cent predicted against fifteen observed. And on the real extract, which no model ever trained on, 0.72, 0.69 and 0.72: ten events cannot separate them, and we say so."
+
+Why younger age raises risk, if asked: a younger patient's valve is exposed to more years of calcium turnover and the patient lives long enough to reach failure, which is the same pattern the surgical series report for implants under 60.
+
+Why calibration and not ranking is the defect: a tier boundary is read off absolute risk, so over-prediction moves patients into the wrong tier even when the ranking is right. Local recalibration was tested on the extract and not adopted, because 10 events cannot fix a calibration intercept.
+
+If asked about the device signal: the Trifecta has an FDA 2023 safety communication and published excess leaflet tears against the Perimount, so device identity belongs in the model and in the referral letter.</aside>
+</section>
