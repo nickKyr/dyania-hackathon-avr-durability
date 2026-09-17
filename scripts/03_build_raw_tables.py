@@ -3,7 +3,7 @@ import pathlib
 import re
 import pandas as pd
 
-from _inputs import require, require_extracts
+from _inputs import require, require_extracts, require_glob
 
 DATA = pathlib.Path("data")
 OUT_DIR = DATA / "raw_tables"
@@ -123,6 +123,15 @@ def main():
     require(
         DATA / "structured_extraction.xlsx",
         hint="Run scripts/01_extract_rules.py first.",
+    )
+    require_glob(
+        JSON_DIR,
+        "N*.json",
+        hint=(
+            "This directory holds one JSON file per note from the language-model pass over\n"
+            "notes_deidentified.xlsx. It is not produced by these scripts: ask whoever ran the\n"
+            "pass for a copy. See scripts/README.md."
+        ),
     )
     OUT_DIR.mkdir(exist_ok=True)
     notes, dates_rgx = load_notes_meta()

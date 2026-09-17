@@ -4,7 +4,7 @@ The three supplied extracts are patient data and are never committed, so a fresh
 clone of this repository cannot run steps 01 and 03 until someone puts them in
 `data/`. Without a check, that situation surfaces as a bare `FileNotFoundError`
 from inside pandas, which tells a new teammate nothing about what to do. These
-helpers turn it into one sentence that names the missing file and the fix.
+helpers turn it into one sentence that names the missing input and the fix.
 """
 
 from __future__ import annotations
@@ -29,6 +29,27 @@ def require(*paths: Path | str, hint: str = "") -> None:
         return
     lines = ["Missing input:" if len(missing) == 1 else "Missing inputs:"]
     lines += [f"  - {m}" for m in missing]
+    if hint:
+        lines.append(hint)
+    sys.exit("\n".join(lines))
+
+
+def require_glob(directory: Path | str, pattern: str, hint: str = "") -> None:
+    """Exit unless at least one file in ``directory`` matches ``pattern``.
+
+    An input that is a directory of files needs more than an existence check: an
+    empty directory passes ``Path.exists`` and then produces empty tables instead
+    of an error, which is the failure mode that is hardest to notice.
+
+    Args:
+        directory: Directory the caller is about to read.
+        pattern: Glob the files must match, for example ``"N*.json"``.
+        hint: What the reader should do about it, appended to the message.
+    """
+    directory = Path(directory)
+    if directory.is_dir() and any(directory.glob(pattern)):
+        return
+    lines = ["Missing input:", f"  - {directory}/{pattern}"]
     if hint:
         lines.append(hint)
     sys.exit("\n".join(lines))
